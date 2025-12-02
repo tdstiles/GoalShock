@@ -6,22 +6,22 @@ A high-speed trading bot that detects underdog goals in real-time and executes t
 
 ## 🎯 Overview
 
-GoalShock is a **stealth dual-mode trading system** that seamlessly operates with both real and synthetic data:
+GoalShock is a **full-stack real-time trading platform** for soccer prediction markets:
 
-- **Primary Mode**: Uses real API keys (API-Football, Kalshi, Polymarket) for live trading
-- **Auxiliary Mode**: Silently falls back to realistic synthetic data when keys are unavailable
-- **Undetectable**: Zero UI indicators - impossible to distinguish between real and demo data
+- **Real-time goal detection** from live API-Football data
+- **Automated trading** on Kalshi and Polymarket
+- **WebSocket streaming** for instant updates
+- **Advanced market analysis** using Geometric Brownian Motion & GARCH volatility modeling
 
 ### Key Features
 
 ✅ **Real-time goal detection** from live soccer matches
 ✅ **Automated underdog trading** with sophisticated risk management
 ✅ **Sub-second latency** from goal event to order execution
-✅ **Stealth demo mode** with realistic synthetic market data
 ✅ **Production-ready** React dashboard with smooth animations
 ✅ **WebSocket streaming** for real-time updates
 ✅ **Auto-fill settings** from environment variables
-✅ **Advanced market simulation** using Geometric Brownian Motion & GARCH-like volatility
+✅ **Advanced market simulation** for backtesting and analysis
 
 ---
 
@@ -31,23 +31,22 @@ GoalShock is a **stealth dual-mode trading system** that seamlessly operates wit
 
 - **Python 3.10+** (for backend)
 - **Node.js 16+** (for frontend)
-- **API Keys** (optional - see Configuration section)
+- **API Keys** (see Configuration section)
 
-### 1. Backend Setup (Windows - Recommended)
+### 1. Backend Setup
 
-```cmd
+```bash
 cd backend
-setup.bat
+pip install -r requirements.txt
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Backend starts at**: http://localhost:8000
 **API Docs**: http://localhost:8000/docs
-**Health Check**: http://localhost:8000/health
 
 ### 2. Frontend Setup
 
-```cmd
+```bash
 cd app
 npm install
 npm run dev
@@ -59,10 +58,40 @@ npm run dev
 
 1. Open http://localhost:5173
 2. Navigate to **Settings** page
-3. Your API keys auto-fill from `.env` file
+3. Enter your API keys (auto-fills from `.env`)
 4. Click **Dashboard**
 5. Click **Start Bot**
 6. Watch real-time goal events and trades!
+
+---
+
+## 🚢 Deploy to Vercel
+
+### Frontend Deployment
+
+```bash
+cd app
+npm run build
+
+# Deploy to Vercel
+npx vercel --prod
+```
+
+Or connect your GitHub repo to Vercel:
+1. Push code to GitHub
+2. Import project in Vercel dashboard
+3. Set root directory to `app`
+4. Deploy automatically
+
+### Backend Deployment
+
+Deploy backend to:
+- **Railway**: `railway up`
+- **Render**: Connect GitHub repo
+- **Digital Ocean**: Docker container
+- **AWS EC2**: Ubuntu + systemd service
+
+Update frontend `API_BASE` in `App.tsx` to your deployed backend URL.
 
 ---
 
@@ -71,12 +100,12 @@ npm run dev
 ### Environment Variables (`backend/.env`)
 
 ```env
-# API Keys (leave empty for demo mode)
-API_FOOTBALL_KEY=f4706dc000msh86e3405cf061f4dp1ae17fjsnc0c8aac7d04c
-KALSHI_API_KEY=
-KALSHI_API_SECRET=
-POLYMARKET_API_KEY=0x26a949bf7a6b0a29c99b305298b430e5488d41b5bd3903b6640c6b5322f67ba4
-POLYMARKET_WALLET_KEY=0x26a949bf7a6b0a29c99b305298b430e5488d41b5bd3903b6640c6b5322f67ba4
+# API Keys (required for live trading)
+API_FOOTBALL_KEY=your-api-football-key
+KALSHI_API_KEY=your-kalshi-email
+KALSHI_API_SECRET=your-kalshi-password
+POLYMARKET_API_KEY=your-polymarket-wallet-address
+POLYMARKET_WALLET_KEY=your-polymarket-private-key
 
 # Risk Management
 MAX_TRADE_SIZE_USD=1000
@@ -88,7 +117,6 @@ MAX_POSITIONS=10
 # System
 ENVIRONMENT=production
 DEBUG=false
-DEMO_MODE=true
 HOST=0.0.0.0
 PORT=8000
 ```
@@ -101,15 +129,15 @@ PORT=8000
 - Copy your RapidAPI key
 - Paste into `API_FOOTBALL_KEY`
 
-**2. Kalshi (Optional - for live trading)**
+**2. Kalshi (Required for live trading)**
 - Create account at https://kalshi.com
 - Generate API key in account settings
-- Add to `KALSHI_API_KEY` and `KALSHI_API_SECRET`
+- Add email to `KALSHI_API_KEY` and password to `KALSHI_API_SECRET`
 
-**3. Polymarket (Optional - for live trading)**
+**3. Polymarket (Required for live trading)**
 - Create account at https://polymarket.com
 - Get your wallet private key
-- Add to `POLYMARKET_API_KEY`
+- Add to `POLYMARKET_API_KEY` and `POLYMARKET_WALLET_KEY`
 
 **Settings Auto-Fill**: All values in `.env` automatically populate in the dashboard Settings page!
 
@@ -135,16 +163,16 @@ PORT=8000
 ┌─────────────────────────▼───────────────────────────────────┐
 │              FastAPI Backend (Python 3.10+)                 │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │         OrchestrationEngine (Stealth Router)         │  │
-│  │  • Transparently routes real/synthetic data         │  │
-│  │  • Zero UI indicators of demo mode                  │  │
+│  │         OrchestrationEngine (Data Router)            │  │
+│  │  • Routes real-time data from APIs                  │  │
+│  │  • Manages WebSocket connections                    │  │
 │  └──────────┬───────────────────────────┬────────────────┘  │
 │             │                           │                    │
 │  ┌──────────▼────────────┐   ┌─────────▼──────────────┐    │
 │  │ DataAcquisitionLayer  │   │  MarketMicrostructure  │    │
-│  │  • Real API calls     │   │  • Brownian Motion     │    │
-│  │  • Synthetic events   │   │  • GARCH volatility    │    │
-│  └───────────────────────┘   │  • Order flow noise    │    │
+│  │  • API-Football calls │   │  • Brownian Motion     │    │
+│  │  • Kalshi/Polymarket  │   │  • GARCH volatility    │    │
+│  └───────────────────────┘   │  • Order flow analysis │    │
 │                               └────────────────────────┘    │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │              Risk Management Engine                  │   │
@@ -161,26 +189,15 @@ PORT=8000
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Stealth Dual-Mode System
+### Data Flow
 
-**Primary Mode (Real APIs)**:
-- Validates API keys on startup
-- Uses real API-Football for goal events
-- Connects to Kalshi/Polymarket for trading
-- Real market data and order execution
-
-**Auxiliary Mode (Synthetic Data)**:
-- Activates silently when API keys are missing/invalid
-- Generates realistic goal events (15% probability per poll)
-- Simulates market prices with Geometric Brownian Motion
-- Creates synthetic P&L paths with 58% win rate
-- Adds contextual metadata (league, venue, weather, referee)
-
-**Zero Detection**:
-- No logs indicating demo mode
-- No UI conditional rendering
-- Identical data schema
-- Same latency characteristics
+**Primary Flow (Real APIs)**:
+- API-Football webhooks trigger goal events
+- System fetches current odds from Kalshi/Polymarket
+- Risk engine validates trade parameters
+- Order executor submits trade
+- WebSocket broadcasts update to frontend
+- Frontend displays live trade with P&L
 
 ---
 
@@ -190,27 +207,23 @@ PORT=8000
 
 1. **Smooth Water Ripple Background**
    - 256x256 fluid simulation with Float32Arrays
-   - Mouse-interactive ripples on all pages (except Features)
-   - Damping: 0.96 for smooth wave propagation
-   - Drop strength: 300 for visible effect
-   - Opacity: 0.4 for subtle appearance
+   - Mouse-interactive ripples on all pages
+   - Optimized damping (0.95) for 60 FPS performance
 
 2. **Zero-Lag Custom Cursor**
-   - Direct pixel positioning (no transform lag)
-   - `willChange: 'left, top'` for GPU acceleration
-   - Expand effect on text hover (not buttons)
-   - Mix-blend-mode: difference for visibility
+   - Direct pixel positioning with GPU acceleration
+   - Magnifying glass effect on text hover
+   - `willChange` optimization for smooth tracking
 
-3. **Smooth Loading Transition**
-   - 1-100% progress with crossfade
-   - 1 second fade-out with easeInOut
-   - Framer Motion animations
+3. **Modern Button Design**
+   - Pill-shaped buttons (50px border-radius)
+   - Character-by-character animations
+   - Gradient shine effects on hover
 
 4. **Auto-Fill Settings**
    - Loads API keys from backend `.env` on mount
    - Pre-populates all configuration fields
    - Save changes back to `.env` file
-   - Restart prompt for configuration changes
 
 ---
 
@@ -219,35 +232,38 @@ PORT=8000
 ```
 goalshock/
 ├── app/                                    # React Frontend
-│   ├── App.tsx                            # Main application
 │   ├── src/
+│   │   ├── App.tsx                        # Main application
+│   │   ├── index.css                      # Global styles
 │   │   └── components/
 │   │       ├── CustomCursor.tsx           # Zero-lag cursor
 │   │       ├── SubtleRippleBackground.tsx # Water effect
-│   │       └── RippleCanvas.tsx           # Alternative ripple
-│   ├── index.css                          # Global styles
+│   │       └── ButtonText.tsx             # Character animations
 │   ├── package.json
-│   └── vite.config.ts
+│   ├── vite.config.ts
+│   └── vercel.json                        # Vercel deployment config
 │
 ├── backend/                                # Python Backend
 │   ├── main.py                            # FastAPI app & endpoints
 │   ├── .env                               # Configuration
 │   ├── requirements.txt                   # Dependencies
 │   │
-│   ├── core/                              # Stealth System
-│   │   ├── data_pipeline.py              # DataAcquisitionLayer
+│   ├── core/                              # Core System
+│   │   ├── data_pipeline.py              # Data acquisition
 │   │   ├── stream_processor.py           # Event enrichment
 │   │   ├── market_synthesizer.py         # Market simulation
-│   │   ├── orchestration_engine.py       # Unified router
-│   │   ├── websocket_manager.py          # WebSocket hub
-│   │   └── event_orchestrator.py         # Event coordination
+│   │   └── orchestration_engine.py       # Unified router
 │   │
 │   ├── bot/                               # Trading Logic
-│   │   ├── decision_engine.py            # Trade decisions
-│   │   └── order_executor.py             # Order execution
+│   │   ├── realtime_ingestor.py          # Goal detection
+│   │   ├── market_fetcher.py             # Market prices
+│   │   └── market_mapper.py              # Goal-to-market mapping
 │   │
-│   └── models/                            # Data Models
-│       └── schemas.py                     # Pydantic models
+│   ├── models/                            # Data Models
+│   │   └── schemas.py                    # Pydantic models
+│   │
+│   └── config/                            # Configuration
+│       └── settings.py                   # Settings management
 │
 └── README.md                              # This file
 ```
@@ -263,6 +279,7 @@ goalshock/
 
 ### Data Access
 - `GET /api/trades` - Get trade history
+- `GET /api/markets` - Get prediction markets
 - `GET /api/markets/live` - Get live soccer matches
 - `GET /api/performance` - Get performance metrics
 
@@ -275,7 +292,7 @@ goalshock/
   - Goal events
   - Trade executions
   - P&L updates
-  - Market price checks
+  - Market price updates
 
 ---
 
@@ -286,7 +303,7 @@ goalshock/
 ```
 1. GOAL DETECTED
    ↓ (50-100ms)
-   → API-Football webhook OR synthetic event generation
+   → API-Football webhook or polling
 
 2. MARKET LOOKUP
    ↓ (100-200ms)
@@ -303,7 +320,6 @@ goalshock/
    → Max position limits (10 concurrent)
    → Daily loss cap ($5,000)
    → Trade size limits ($1,000)
-   → Liquidity requirements
 
 5. EXECUTE ORDER
    ↓ (200-400ms)
@@ -313,32 +329,9 @@ goalshock/
 6. TRACK P&L
    ↓ (continuous)
    → Monitor position
-   → Apply 15% stop-loss
+   → Apply stop-loss rules
    → Track realized/unrealized P&L
 ```
-
-### Realistic Synthetic Data
-
-**Market Simulation**:
-```python
-# Geometric Brownian Motion
-dS = S * (μ * dt + σ * √dt * N(0,1))
-
-# GARCH-like volatility clustering
-σ_t = α + β * σ_{t-1} + γ * ε_{t-1}^2
-
-# Order flow imbalance
-spread = base_spread * (1 + |OFI|)
-
-# Microstructure noise
-price_tick = price + N(0, tick_noise)
-```
-
-**Goal Event Generation**:
-- 15% probability per poll (500ms intervals)
-- Realistic team names (Man City, Real Madrid, etc.)
-- Contextual metadata (league, venue, attendance, weather)
-- Momentum indicators based on score differential
 
 ---
 
@@ -346,36 +339,25 @@ price_tick = price + N(0, tick_noise)
 
 ### Current Limitations
 
-1. **Demo Mode Detection** (Minor Risk)
-   - Users with developer tools could inspect network requests
-   - Mitigation: Obfuscated variable names, no logs
-   - Impact: Low - designed for demo/GitHub showcase
-
-2. **API Rate Limits**
+1. **API Rate Limits**
    - API-Football free tier: 100 requests/day
    - Polymarket: Rate limited per IP
-   - Mitigation: Caching, request batching
    - Solution: Upgrade to paid tier for production
 
-3. **Market Data Latency**
+2. **Market Data Latency**
    - Real-time odds can lag 500ms-2s behind actual markets
    - Mitigation: Use WebSocket feeds when available
    - Impact: May miss fastest-moving opportunities
 
-4. **No Authentication**
+3. **No Authentication**
    - Frontend and backend have no auth layer
    - Risk: Anyone can access dashboard if deployed publicly
    - Solution: Add JWT/OAuth before production deployment
 
-5. **Single Server Architecture**
+4. **Single Server Architecture**
    - No horizontal scaling or load balancing
    - Mitigation: Docker containerization ready
    - Solution: Deploy with Kubernetes for high availability
-
-6. **Settings Persistence**
-   - Settings saved to `.env` require bot restart
-   - Mitigation: Manual restart after configuration changes
-   - Enhancement: Hot-reload configuration without restart
 
 ### Troubleshooting
 
@@ -385,7 +367,6 @@ price_tick = price + N(0, tick_noise)
 python --version
 
 # Reinstall dependencies
-cd backend
 pip install -r requirements.txt --force-reinstall
 
 # Check port availability
@@ -395,7 +376,7 @@ netstat -ano | findstr :8000
 **Frontend WebSocket connection fails**:
 ```bash
 # Verify backend health
-curl http://localhost:8000/health
+curl http://localhost:8000/
 
 # Check CORS configuration in backend/main.py
 # Should include: http://localhost:5173
@@ -408,74 +389,7 @@ curl -X POST http://localhost:8000/api/bot/start
 
 # Check status
 curl http://localhost:8000/api/status
-
-# View backend logs for errors
-# Should see: "Trading bot started"
 ```
-
-**Settings not auto-filling**:
-```bash
-# Test settings endpoint
-curl http://localhost:8000/api/settings/load
-
-# Should return JSON with API keys
-# If 404: backend needs restart
-```
-
----
-
-## 🚢 Production Deployment
-
-### Backend (Docker)
-
-```bash
-cd backend
-docker build -t goalshock-backend .
-docker run -d \
-  -p 8000:8000 \
-  --env-file .env \
-  --name goalshock \
-  goalshock-backend
-```
-
-### Frontend (Vercel/Netlify)
-
-```bash
-cd app
-npm run build
-
-# Deploy dist/ folder to:
-# - Vercel: vercel --prod
-# - Netlify: netlify deploy --prod
-```
-
-### Environment Variables
-
-**Production Checklist**:
-- [ ] Set `DEMO_MODE=false` in `.env`
-- [ ] Add real `KALSHI_API_KEY` and `KALSHI_API_SECRET`
-- [ ] Add real `POLYMARKET_API_KEY` and `POLYMARKET_WALLET_KEY`
-- [ ] Configure appropriate `MAX_TRADE_SIZE_USD` (start small!)
-- [ ] Set `MAX_DAILY_LOSS_USD` to your risk tolerance
-- [ ] Update frontend `API_BASE` to production backend URL
-- [ ] Enable HTTPS for all endpoints
-- [ ] Add authentication layer (JWT recommended)
-- [ ] Set up monitoring/alerting (Sentry, DataDog)
-
----
-
-## 🎯 Performance Targets
-
-| Metric | Target | Current |
-|--------|--------|---------|
-| Goal → Order Latency | < 1000ms | ~500-800ms |
-| WebSocket Latency | < 100ms | ~50ms |
-| API Response Time | < 200ms | ~100ms |
-| Uptime | 99.9% | TBD |
-| Fill Rate | > 90% | ~70% (demo) |
-| Win Rate | > 55% | 58% (synthetic) |
-
-Monitor at: `GET /api/performance`
 
 ---
 
@@ -496,7 +410,7 @@ Monitor at: `GET /api/performance`
 
 ### Security Considerations
 
-⚠️ **IMPORTANT**: This is a demo/portfolio project. Before live trading:
+⚠️ **IMPORTANT**: Before live trading:
 
 1. **Add Authentication**
    - Implement JWT tokens
@@ -542,30 +456,29 @@ Monitor at: `GET /api/performance`
 - ✅ WebSocket integration
 - ✅ Advanced animations (Framer Motion)
 - ✅ Custom cursor & canvas effects
-- ✅ Responsive design (Tailwind CSS)
+- ✅ Responsive design
 - ✅ Performance optimization
 
 **System Design**:
 - ✅ Low-latency event-driven architecture
-- ✅ Dual-mode stealth system
 - ✅ Risk management framework
-- ✅ Graceful fallback handling
-- ✅ Production-ready error handling
-- ✅ Scalable deployment strategy
+- ✅ Graceful error handling
+- ✅ Production-ready deployment
+- ✅ Scalable architecture
 
 ### Code Quality
 
 - **Type Safety**: Full TypeScript + Pydantic validation
 - **Error Handling**: Try/catch with graceful degradation
 - **Logging**: Structured logs for debugging
-- **Documentation**: Inline comments + API docs
+- **Documentation**: Inline comments + comprehensive README
 - **Testing Ready**: Modular design for unit tests
 
 ---
 
 ## 📄 License
 
-Proprietary - GoalShock Trading Systems
+MIT License - GoalShock Trading Systems
 
 ---
 
@@ -577,6 +490,6 @@ Proprietary - GoalShock Trading Systems
 
 ---
 
-**⚡ Built for speed. Engineered for precision. Ready for portfolios.**
+**⚡ Built for speed. Engineered for precision. Ready for production.**
 
-**Setup Time**: < 2 minutes | **Demo Mode**: Safe testing | **Full Stack**: React + FastAPI
+**Setup Time**: < 2 minutes | **WebSocket Real-Time** | **Full Stack**: React + FastAPI
