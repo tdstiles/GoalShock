@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List
 from unittest.mock import Mock
 
+from backend.bot import market_mapper
 from backend.bot.market_mapper import MarketMapper
 from backend.models.schemas import GoalEvent, MarketPrice
 
@@ -74,6 +75,18 @@ def test_filter_relevant_markets_includes_expected_markets() -> None:
     relevant_markets = mapper._filter_relevant_markets(goal, markets)
 
     assert relevant_markets == markets
+
+
+def test_keyword_helpers_detect_win_and_goal_markets() -> None:
+    """Ensure helper functions detect win and total-goals markets.
+
+    Returns:
+        None.
+    """
+    assert market_mapper._is_win_market("Will Arsenal win the match?")
+    assert not market_mapper._is_win_market("Total goals over 2.5?")
+    assert market_mapper._is_total_goals_market("Total goals over 2.5?")
+    assert not market_mapper._is_total_goals_market("Will Arsenal win the match?")
 
 
 def test_filter_relevant_markets_falls_back_when_no_keywords_match() -> None:
