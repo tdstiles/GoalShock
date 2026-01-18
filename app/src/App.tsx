@@ -3,47 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CustomCursor from './components/CustomCursor';
 import SubtleRippleBackground from './components/SubtleRippleBackground';
 import ButtonText from './components/ButtonText';
-
-const API_BASE = 'http://localhost:8000';
-
-// Types
-interface Trade {
-  id: string;
-  timestamp: string;
-  team: string;
-  player: string;
-  market: string;
-  side: string;
-  price: number;
-  size: number;
-  pnl?: number;
-  status: string;
-}
-
-interface BotStatus {
-  running: boolean;
-  uptime: number;
-  total_trades: number;
-  win_rate: number;
-  total_pnl: number;
-}
-
-interface Market {
-  question?: string;
-  title?: string;
-  yes_price?: number;
-  no_price?: number;
-  volume?: number;
-}
-
-interface Match {
-  home_team: string;
-  home_score?: number;
-  away_team: string;
-  away_score?: number;
-  minute: string | number;
-  league: string;
-}
+import {
+  fetchLiveMatches,
+  fetchAllMarkets,
+  fetchBotStatus,
+  startBot,
+  stopBot,
+  loadSettings,
+  saveSettings
+} from './utils/api';
+import {
+  LiveMatch,
+  MarketPrice,
+  BotStatus,
+  Trade,
+  Settings
+} from './types';
 
 // Loading splash screen
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
@@ -233,22 +208,20 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
 
 // Live Markets Component
 function LiveMarketsSection() {
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [liveMatches, setLiveMatches] = useState<Match[]>([]);
+  const [markets, setMarkets] = useState<MarketPrice[]>([]);
+  const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [marketsRes, matchesRes] = await Promise.all([
-          fetch(`${API_BASE}/api/markets`),
-          fetch(`${API_BASE}/api/markets/live`)
+        const [marketsData, matchesData] = await Promise.all([
+          fetchAllMarkets(),
+          fetchLiveMatches()
         ]);
-        const marketsData = await marketsRes.json();
-        const matchesData = await matchesRes.json();
 
-        setMarkets(marketsData.markets || []);
-        setLiveMatches(matchesData.matches || []);
+        setMarkets(marketsData || []);
+        setLiveMatches(matchesData || []);
         setConnected(true);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -317,7 +290,7 @@ function LiveMarketsSection() {
                       </div>
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                      Vol: ${market.volume?.toLocaleString()}
+                      Vol: ${market.volume_24h?.toLocaleString() || market.volume?.toLocaleString()}
                     </p>
                   </div>
                 </motion.div>
@@ -366,7 +339,7 @@ function LiveMarketsSection() {
                   </div>
                   <div style={{ padding: '8px', background: 'rgba(132, 204, 22, 0.2)', borderRadius: '6px', textAlign: 'center' }}>
                     <p style={{ color: '#84cc16', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                      ⏱ {match.minute}' - {match.league}
+                      ⏱ {match.minute}' - {match.league_name}
                     </p>
                   </div>
                 </motion.div>
@@ -387,55 +360,47 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
   const wsRef = useRef<WebSocket | null>(null);
 
   // Fetch bot status
-  const fetchStatus = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/status`);
-      const data = await res.json();
-      setBotStatus(data);
-    } catch (error) {
-      console.error('Error fetching status:', error);
-    }
+  const updateStatus = async () => {
+    const data = await fetchBotStatus();
+    if (data) setBotStatus(data);
   };
 
   // Start bot
-  const startBot = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/bot/start`, { method: 'POST' });
-      if (response.ok) {
-        // Immediately update local state for instant UI feedback
-        setBotStatus(prev => prev ? { ...prev, running: true } : null);
-        // Then fetch fresh status
-        setTimeout(fetchStatus, 100);
-      }
-    } catch (error) {
-      console.error('Error starting bot:', error);
+  const handleStartBot = async () => {
+    const success = await startBot();
+    if (success) {
+      // Immediately update local state for instant UI feedback
+      setBotStatus(prev => prev ? { ...prev, running: true } : null);
+      // Then fetch fresh status
+      setTimeout(updateStatus, 100);
+    } else {
       alert('Backend not running. Please start the backend server first.');
     }
   };
 
   // Stop bot
-  const stopBot = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/bot/stop`, { method: 'POST' });
-      if (response.ok) {
-        // Immediately update local state for instant UI feedback
-        setBotStatus(prev => prev ? { ...prev, running: false } : null);
-        // Then fetch fresh status
-        setTimeout(fetchStatus, 100);
-      }
-    } catch (error) {
-      console.error('Error stopping bot:', error);
+  const handleStopBot = async () => {
+    const success = await stopBot();
+    if (success) {
+      // Immediately update local state for instant UI feedback
+      setBotStatus(prev => prev ? { ...prev, running: false } : null);
+      // Then fetch fresh status
+      setTimeout(updateStatus, 100);
+    } else {
       alert('Backend not running. Please start the backend server first.');
     }
   };
 
   // WebSocket connection
   useEffect(() => {
-    fetchStatus();
-    const statusInterval = setInterval(fetchStatus, 5000);
+    updateStatus();
+    const statusInterval = setInterval(updateStatus, 5000);
 
     // Connect to WebSocket
-    const ws = new WebSocket('ws://localhost:8000/ws');
+    // Note: We need the base URL for WebSocket. Since we extracted API_BASE, we need to handle it.
+    // If API_BASE is http, we need ws. If https, wss.
+    // For now, assuming localhost:8000.
+    const ws = new WebSocket('ws://localhost:8000/ws/live'); // Changed to /ws/live based on main_realtime.py
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -560,11 +525,11 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!botStatus?.running ? (
-              <button className="btn-success" onClick={startBot}>
+              <button className="btn-success" onClick={handleStartBot}>
                 <ButtonText>Start Bot</ButtonText>
               </button>
             ) : (
-              <button className="btn-accent" onClick={stopBot}>
+              <button className="btn-accent" onClick={handleStopBot}>
                 <ButtonText>Stop Bot</ButtonText>
               </button>
             )}
@@ -672,21 +637,19 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
 
 // Markets View
 function MarketsView({ onBack }: { onBack: () => void }) {
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [liveMatches, setLiveMatches] = useState<Match[]>([]);
+  const [markets, setMarkets] = useState<MarketPrice[]>([]);
+  const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [marketsRes, matchesRes] = await Promise.all([
-          fetch(`${API_BASE}/api/markets`),
-          fetch(`${API_BASE}/api/markets/live`)
+        const [marketsData, matchesData] = await Promise.all([
+          fetchAllMarkets(),
+          fetchLiveMatches()
         ]);
-        const marketsData = await marketsRes.json();
-        const matchesData = await matchesRes.json();
 
-        setMarkets(marketsData.markets || []);
-        setLiveMatches(matchesData.matches || []);
+        setMarkets(marketsData || []);
+        setLiveMatches(matchesData || []);
       } catch (error) {
         console.error('Error fetching markets:', error);
       }
@@ -756,7 +719,7 @@ function MarketsView({ onBack }: { onBack: () => void }) {
                       </div>
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                      Vol: ${market.volume?.toLocaleString()}
+                      Vol: ${market.volume_24h?.toLocaleString() || market.volume?.toLocaleString()}
                     </p>
                   </div>
                 </motion.div>
@@ -803,7 +766,7 @@ function MarketsView({ onBack }: { onBack: () => void }) {
                     <p style={{ color: '#10b981', fontWeight: 'bold', fontSize: '1.1rem' }}>{match.away_score || 0}</p>
                   </div>
                   <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                    {match.minute}' - {match.league}
+                    {match.minute}' - {match.league_name}
                   </p>
                 </motion.div>
               ))}
@@ -817,62 +780,37 @@ function MarketsView({ onBack }: { onBack: () => void }) {
 
 // Settings View (same as before but simplified)
 function SettingsView({ onBack }: { onBack: () => void }) {
-  const [settings, setSettings] = useState({
-    apiFootballKey: '',
-    kalshiApiKey: '',
-    kalshiApiSecret: '',
-    polymarketApiKey: '',
-    maxTradeSize: '',
-    maxDailyLoss: '',
-    underdogThreshold: '',
-    maxPositions: ''
+  const [settings, setSettings] = useState<Settings>({
+    api_football_key: '',
+    kalshi_api_key: '',
+    kalshi_api_secret: '',
+    polymarket_api_key: '',
+    max_trade_size: '',
+    max_daily_loss: '',
+    underdog_threshold: '',
+    max_positions: ''
   });
 
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/api/settings/load`);
-        const data = await response.json();
-        setSettings({
-          apiFootballKey: data.api_football_key || '',
-          kalshiApiKey: data.kalshi_api_key || '',
-          kalshiApiSecret: data.kalshi_api_secret || '',
-          polymarketApiKey: data.polymarket_api_key || '',
-          maxTradeSize: data.max_trade_size || '',
-          maxDailyLoss: data.max_daily_loss || '',
-          underdogThreshold: data.underdog_threshold || '',
-          maxPositions: data.max_positions || ''
-        });
-      } catch (error) {
-        console.error('Error loading settings:', error);
-      }
+    const fetchSettings = async () => {
+      const data = await loadSettings();
+      setSettings(data);
     };
-    loadSettings();
+    fetchSettings();
   }, []);
 
   const handleSave = async () => {
-    try {
-      await fetch(`${API_BASE}/api/settings/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          api_football_key: settings.apiFootballKey,
-          kalshi_api_key: settings.kalshiApiKey,
-          kalshi_api_secret: settings.kalshiApiSecret,
-          polymarket_api_key: settings.polymarketApiKey,
-          max_trade_size: settings.maxTradeSize,
-          max_daily_loss: settings.maxDailyLoss,
-          underdog_threshold: settings.underdogThreshold,
-          max_positions: settings.maxPositions
-        })
-      });
+    const success = await saveSettings(settings);
+    if (success) {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
-      console.error('Error saving settings:', error);
     }
+  };
+
+  const updateSetting = (key: keyof Settings, value: string | number) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -906,8 +844,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </label>
             <input
               type="text"
-              value={settings.apiFootballKey}
-              onChange={(e) => setSettings({ ...settings, apiFootballKey: e.target.value })}
+              value={settings.api_football_key || ''}
+              onChange={(e) => updateSetting('api_football_key', e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -927,8 +865,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </label>
             <input
               type="text"
-              value={settings.polymarketApiKey}
-              onChange={(e) => setSettings({ ...settings, polymarketApiKey: e.target.value })}
+              value={settings.polymarket_api_key || ''}
+              onChange={(e) => updateSetting('polymarket_api_key', e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -948,8 +886,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </label>
             <input
               type="text"
-              value={settings.kalshiApiKey}
-              onChange={(e) => setSettings({ ...settings, kalshiApiKey: e.target.value })}
+              value={settings.kalshi_api_key || ''}
+              onChange={(e) => updateSetting('kalshi_api_key', e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -969,8 +907,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </label>
             <input
               type="password"
-              value={settings.kalshiApiSecret}
-              onChange={(e) => setSettings({ ...settings, kalshiApiSecret: e.target.value })}
+              value={settings.kalshi_api_secret || ''}
+              onChange={(e) => updateSetting('kalshi_api_secret', e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -993,8 +931,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
               </label>
               <input
                 type="number"
-                value={settings.maxTradeSize}
-                onChange={(e) => setSettings({ ...settings, maxTradeSize: e.target.value })}
+                value={settings.max_trade_size || ''}
+                onChange={(e) => updateSetting('max_trade_size', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -1013,8 +951,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
               </label>
               <input
                 type="number"
-                value={settings.maxDailyLoss}
-                onChange={(e) => setSettings({ ...settings, maxDailyLoss: e.target.value })}
+                value={settings.max_daily_loss || ''}
+                onChange={(e) => updateSetting('max_daily_loss', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -1034,8 +972,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
               <input
                 type="number"
                 step="0.01"
-                value={settings.underdogThreshold}
-                onChange={(e) => setSettings({ ...settings, underdogThreshold: e.target.value })}
+                value={settings.underdog_threshold || ''}
+                onChange={(e) => updateSetting('underdog_threshold', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -1054,8 +992,8 @@ function SettingsView({ onBack }: { onBack: () => void }) {
               </label>
               <input
                 type="number"
-                value={settings.maxPositions}
-                onChange={(e) => setSettings({ ...settings, maxPositions: e.target.value })}
+                value={settings.max_positions || ''}
+                onChange={(e) => updateSetting('max_positions', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',

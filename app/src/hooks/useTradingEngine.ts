@@ -3,7 +3,7 @@
  * Manages WebSocket connection and live data updates
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { LiveMatch, GoalEvent, MarketPrice, GoalAlert, MarketUpdate } from '../utils/api';
+import type { LiveMatch, GoalEvent, MarketPrice, GoalAlert, MarketUpdate } from '../types';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/live';
 const RECONNECT_DELAY = 3000;
