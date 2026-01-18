@@ -609,7 +609,16 @@ class AlphaTwoLateCompression:
         if status == "HT":
             seconds_remaining = (total_minutes - 45) * 60
         elif status == "ET":
-            seconds_remaining = 30 * 60  
+            # Extra Time is typically 30 mins (90 -> 120)
+            # Use max(0, ...) to avoid negative if it goes beyond 120 in stoppage of ET
+            et_total_minutes = 120
+            # If minute < 90, something is weird, but we assume it's at least 90
+            current_minute = max(90, minute)
+            seconds_remaining = (et_total_minutes - current_minute) * 60
+
+            # Handle ET Stoppage Time: If minute >= 120 but status is still ET
+            if seconds_remaining <= 0:
+                 seconds_remaining = 60
         else:
             seconds_remaining = (total_minutes - minute) * 60
 
