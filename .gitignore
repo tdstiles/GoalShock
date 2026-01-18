@@ -8,6 +8,9 @@ env/
 venv/
 ENV/
 backend/.env
+.coverage
+htmlcov/
+.pytest_cache/
 
 # Node
 node_modules/
