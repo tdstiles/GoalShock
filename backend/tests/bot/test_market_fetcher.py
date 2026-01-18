@@ -265,3 +265,44 @@ async def test_process_kalshi_update_normalizes_prices_and_callbacks(
     assert len(sync_updates) == 1
     assert async_updates[0].yes_price == 0.55
     assert async_updates[0].no_price == 0.45
+
+
+@pytest.mark.asyncio
+async def test_apply_market_update_updates_cache_and_notifies(
+    market_fetcher: MarketFetcher,
+) -> None:
+    """Update cache entries and notify callbacks through the helper.
+
+    Args:
+        market_fetcher: The market fetcher under test.
+    """
+    updates: List[MarketUpdate] = []
+
+    def sync_callback(update: MarketUpdate) -> None:
+        """Capture sync updates for assertions.
+
+        Args:
+            update: Incoming market update.
+        """
+        updates.append(update)
+
+    market_fetcher.register_update_callback(sync_callback)
+
+    last_updated = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    market_fetcher.market_cache["mkt-5"] = _make_market_price(
+        "mkt-5",
+        yes_price=0.2,
+        no_price=0.8,
+        last_updated=last_updated,
+    )
+
+    await market_fetcher._apply_market_update("mkt-5", yes_price=0.62, no_price=0.38)
+
+    cached = market_fetcher.market_cache["mkt-5"]
+    assert cached.yes_price == 0.62
+    assert cached.no_price == 0.38
+    assert cached.last_updated != last_updated
+    assert len(updates) == 1
+    assert updates[0].market_id == "mkt-5"
+    assert updates[0].yes_price == 0.62
+    assert updates[0].no_price == 0.38
