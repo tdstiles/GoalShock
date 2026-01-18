@@ -32,6 +32,18 @@ EARLY_GAME_MINUTE = 30
 LATE_GAME_MINUTE = 70
 LATE_GAME_DURATION = 20
 
+# --- SIMULATION CONSTANTS ---
+SIM_ANNUAL_VOLATILITY = 0.5
+SIM_SECONDS_IN_DAY = 24 * 3600
+SIM_PRICE_CEILING = 0.99
+SIM_PRICE_FLOOR = 0.01
+SIM_DRIFT_THRESHOLD_HIGH = 0.9
+SIM_DRIFT_THRESHOLD_LOW = 0.1
+SIM_DRIFT_FACTOR = 0.001
+
+# --- MARKET PRICE CONSTANTS ---
+MARKET_PRICE_MULTIPLIER_BACKUP = 1.2
+
 class TradingMode(Enum):
     SIMULATION = "simulation"
     LIVE = "live"
@@ -219,7 +231,7 @@ class AlphaOneUnderdog:
         
         if current_price is None:
             logger.warning(f"Could not get market price for {underdog_team}")
-            current_price = underdog_odds * 1.2  
+            current_price = underdog_odds * MARKET_PRICE_MULTIPLIER_BACKUP
         
         
         confidence = self._calculate_confidence(underdog_odds, minute, underdog_score - favorite_score)
@@ -410,23 +422,24 @@ class AlphaOneUnderdog:
         # Volatility decreases slightly over time but remains relative to price
         # Using a simpler model: Annualized Volatility scaled to time step
         # Assuming ~50% daily volatility for these markets
-        annual_vol = 0.5
-        dt = elapsed_step / (24 * 3600) # Fraction of day
+        dt = elapsed_step / SIM_SECONDS_IN_DAY # Fraction of day
         
         # Drift towards 0.5 slightly if extreme, else random walk
         current_p = position.last_price
         drift = 0.0
         
         # Mean reversion for extreme prices
-        if current_p > 0.9: drift = -0.001 * elapsed_step
-        elif current_p < 0.1: drift = 0.001 * elapsed_step
+        if current_p > SIM_DRIFT_THRESHOLD_HIGH:
+            drift = -SIM_DRIFT_FACTOR * elapsed_step
+        elif current_p < SIM_DRIFT_THRESHOLD_LOW:
+            drift = SIM_DRIFT_FACTOR * elapsed_step
 
         # Random walk step: P_t = P_{t-1} + P_{t-1} * shock
         # shock ~ N(drift * dt, vol * sqrt(dt))
-        shock = random.gauss(drift, annual_vol * (dt ** 0.5))
+        shock = random.gauss(drift, SIM_ANNUAL_VOLATILITY * (dt ** 0.5))
 
         new_price = current_p * (1 + shock)
-        new_price = max(0.01, min(0.99, new_price))
+        new_price = max(SIM_PRICE_FLOOR, min(SIM_PRICE_CEILING, new_price))
 
         # Update state
         position.last_price = new_price
