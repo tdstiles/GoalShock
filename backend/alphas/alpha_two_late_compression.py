@@ -36,11 +36,11 @@ class ClippingOpportunity:
     
     
     seconds_to_resolution: int
-    detected_at: datetime = field(default_factory=datetime.now)
-    
     recommended_side: str
     recommended_price: float
     recommended_size: float
+
+    detected_at: datetime = field(default_factory=datetime.now)
     
     def to_dict(self) -> Dict:
         return {
