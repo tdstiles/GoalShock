@@ -10,7 +10,7 @@ import { fetchLiveMatches } from '../utils/api';
 import type { LiveMatch, MarketPrice } from '../utils/api';
 
 export default function LiveMatchesFeed() {
-  const { connected, liveMatches, recentGoals, markets, getMarketsForFixture } = useTradingEngine();
+  const { connected, liveMatches, recentGoals, getMarketsForFixture } = useTradingEngine();
 
   // Fetch initial matches on mount
   useEffect(() => {
