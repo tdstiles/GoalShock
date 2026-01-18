@@ -1,9 +1,9 @@
 # 🧐 Inspector: Quality Report 2026-01-18
 
 ### 1. Executive Summary
-- **Coverage:** 1% (Statements) | 0% (Branches) (Backend only)
-- **Health:** **Critical**
-- **Failures:** 0 tests failing (because there are no real tests).
+- **Coverage:** 54% (engine_unified.py)
+- **Health:** **Improving**
+- **Failures:** 0 tests failing.
 
 ### 2. The "Medic" List (Top Fix Priorities)
 *No tests are failing, but the patient is in a coma.*
@@ -23,3 +23,6 @@
 - **False Confidence:** `backend/tests/test_smoke.py` asserts `True`. It verifies the runner works, but tests nothing else.
 - **Frontend Void:** No test files exist in `app/`. No unit tests, no integration tests.
 - **Architecture Risk:** The system is complex (WebSockets, Trading Engines, API integrations) but has zero automated verification. Refactoring will be dangerous.
+
+### 5. Progress
+- **2026-01-18**: Added `backend/tests/test_engine_unified.py` covering 54% of `engine_unified.py`, including the critical `_on_goal_event` logic and startup/shutdown lifecycle.
