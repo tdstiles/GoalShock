@@ -28,6 +28,23 @@ interface BotStatus {
   total_pnl: number;
 }
 
+interface Market {
+  question?: string;
+  title?: string;
+  yes_price?: number;
+  no_price?: number;
+  volume?: number;
+}
+
+interface Match {
+  home_team: string;
+  home_score?: number;
+  away_team: string;
+  away_score?: number;
+  minute: string | number;
+  league: string;
+}
+
 // Loading splash screen
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -216,8 +233,8 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
 
 // Live Markets Component
 function LiveMarketsSection() {
-  const [markets, setMarkets] = useState<any[]>([]);
-  const [liveMatches, setLiveMatches] = useState<any[]>([]);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -655,8 +672,8 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
 
 // Markets View
 function MarketsView({ onBack }: { onBack: () => void }) {
-  const [markets, setMarkets] = useState<any[]>([]);
-  const [liveMatches, setLiveMatches] = useState<any[]>([]);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [liveMatches, setLiveMatches] = useState<Match[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
