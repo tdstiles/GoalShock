@@ -2,18 +2,30 @@
 import asyncio
 import json
 import logging
-from datetime import datetime
-from typing import Callable, List, Optional, Dict, Set
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Awaitable, Callable, Dict, List, Optional, Set
+
+import httpx
 import websockets
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError
-import httpx
 
 logger = logging.getLogger(__name__)
+
+MAX_RECONNECT_ATTEMPTS = 10
+BASE_RECONNECT_DELAY_SECONDS = 2
+MAX_RECONNECT_DELAY_SECONDS = 60
+PING_INTERVAL_SECONDS = 30
+PING_TIMEOUT_SECONDS = 10
+CLOSE_TIMEOUT_SECONDS = 5
+MAX_SEEN_GOALS = 1000
+SEEN_GOALS_TRIM_TO = 500
 
 
 @dataclass
 class GoalEventWS:
+    """Represents a goal event received from the WebSocket feed."""
+
     fixture_id: int
     league_id: int
     league_name: str
@@ -28,6 +40,11 @@ class GoalEventWS:
     timestamp: datetime
     
     def to_dict(self) -> Dict:
+        """Convert the goal event to a serializable dictionary.
+
+        Returns:
+            Dict: Dictionary representation of the goal event.
+        """
         return {
             "fixture_id": self.fixture_id,
             "league_id": self.league_id,
@@ -44,7 +61,11 @@ class GoalEventWS:
         }
 
 
+GoalCallback = Callable[[GoalEventWS], Optional[Awaitable[None]]]
+
+
 class WebSocketGoalListener:
+    """Listens for live goal events over a WebSocket connection."""
   
     
     SUPPORTED_LEAGUES = {
@@ -64,30 +85,41 @@ class WebSocketGoalListener:
         "backup": "wss://sportdata.io/ws/soccer"
     }
     
-    def __init__(self, api_key: str = ""):
+    def __init__(self, api_key: str = "") -> None:
+        """Initialize the WebSocket listener.
+
+        Args:
+            api_key: RapidAPI key for authenticating requests.
+        """
         self.api_key = api_key
         self.running = False
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         
-        self.goal_callbacks: List[Callable] = []
+        self.goal_callbacks: List[GoalCallback] = []
         
         self.seen_goals: Set[str] = set()
         
         self.reconnect_attempts = 0
-        self.max_reconnect_attempts = 10
-        self.base_reconnect_delay = 2  
-        self.max_reconnect_delay = 60  
+        self.max_reconnect_attempts = MAX_RECONNECT_ATTEMPTS
+        self.base_reconnect_delay = BASE_RECONNECT_DELAY_SECONDS  
+        self.max_reconnect_delay = MAX_RECONNECT_DELAY_SECONDS  
         
         
         self.active_fixtures: Dict[int, Dict] = {}
         
         logger.info("WebSocket Goal Listener initialized")
 
-    def register_goal_callback(self, callback: Callable):
+    def register_goal_callback(self, callback: GoalCallback) -> None:
+        """Register a callback for goal events.
+
+        Args:
+            callback: Callable that handles a goal event.
+        """
         self.goal_callbacks.append(callback)
         logger.info(f"Registered goal callback: {callback.__name__}")
 
-    async def start(self):
+    async def start(self) -> None:
+        """Start the WebSocket listener loop."""
         self.running = True
         logger.info("Starting WebSocket Goal Listener...")
         
@@ -100,13 +132,15 @@ class WebSocketGoalListener:
                 if self.running:
                     await self._handle_reconnection()
     
-    async def stop(self):
+    async def stop(self) -> None:
+        """Stop the WebSocket listener and close the connection."""
         self.running = False
         if self.ws:
             await self.ws.close()
         logger.info("WebSocket Goal Listener stopped")
 
-    async def _connect_and_listen(self):
+    async def _connect_and_listen(self) -> None:
+        """Connect to the WebSocket endpoint and process incoming messages."""
         endpoint = self.WS_ENDPOINTS["primary"]
         
         headers = {}
@@ -119,9 +153,9 @@ class WebSocketGoalListener:
         async with websockets.connect(
             endpoint,
             extra_headers=headers,
-            ping_interval=30,
-            ping_timeout=10,
-            close_timeout=5
+            ping_interval=PING_INTERVAL_SECONDS,
+            ping_timeout=PING_TIMEOUT_SECONDS,
+            close_timeout=CLOSE_TIMEOUT_SECONDS
         ) as ws:
             self.ws = ws
             self.reconnect_attempts = 0  
@@ -136,8 +170,8 @@ class WebSocketGoalListener:
                     
                 await self._process_message(message)
 
-    async def _subscribe_to_goals(self):
-        """Send subscription message for goal events"""
+    async def _subscribe_to_goals(self) -> None:
+        """Send the subscription message for goal events."""
         if not self.ws:
             return
             
@@ -151,8 +185,12 @@ class WebSocketGoalListener:
         await self.ws.send(json.dumps(subscription))
         logger.info(f"Subscribed to goal events for {len(self.SUPPORTED_LEAGUES)} leagues")
 
-    async def _process_message(self, message: str):
-        """Process incoming WebSocket message"""
+    async def _process_message(self, message: str) -> None:
+        """Process an incoming WebSocket message.
+
+        Args:
+            message: Raw message payload from the socket.
+        """
         try:
             data = json.loads(message)
             
@@ -174,8 +212,12 @@ class WebSocketGoalListener:
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
-    async def _handle_goal_event(self, data: Dict):
-        """Handle incoming goal event"""
+    async def _handle_goal_event(self, data: Dict) -> None:
+        """Handle an incoming goal event.
+
+        Args:
+            data: Parsed goal event payload.
+        """
         try:
             fixture = data.get("fixture", {})
             league = data.get("league", {})
@@ -197,8 +239,8 @@ class WebSocketGoalListener:
             
             self.seen_goals.add(goal_id)
             
-            if len(self.seen_goals) > 1000:
-                self.seen_goals = set(list(self.seen_goals)[-500:])
+            if len(self.seen_goals) > MAX_SEEN_GOALS:
+                self.seen_goals = set(list(self.seen_goals)[-SEEN_GOALS_TRIM_TO:])
             
             goal_event = GoalEventWS(
                 fixture_id=fixture_id,
@@ -223,8 +265,12 @@ class WebSocketGoalListener:
         except Exception as e:
             logger.error(f"Error handling goal event: {e}")
 
-    async def _handle_fixture_update(self, data: Dict):
-        """Handle fixture status updates (kickoff, halftime, fulltime)"""
+    async def _handle_fixture_update(self, data: Dict) -> None:
+        """Handle fixture status updates (kickoff, halftime, fulltime).
+
+        Args:
+            data: Parsed fixture update payload.
+        """
         fixture_id = data.get("fixture", {}).get("id")
         status = data.get("status", "")
         
@@ -232,8 +278,12 @@ class WebSocketGoalListener:
             self.active_fixtures[fixture_id] = data
             logger.debug(f"Fixture {fixture_id} updated: {status}")
 
-    async def _notify_goal_callbacks(self, goal: GoalEventWS):
-        """Notify all registered callbacks of new goal"""
+    async def _notify_goal_callbacks(self, goal: GoalEventWS) -> None:
+        """Notify all registered callbacks of a new goal.
+
+        Args:
+            goal: Goal event to dispatch.
+        """
         for callback in self.goal_callbacks:
             try:
                 if asyncio.iscoroutinefunction(callback):
@@ -243,8 +293,8 @@ class WebSocketGoalListener:
             except Exception as e:
                 logger.error(f"Goal callback error: {e}")
 
-    async def _handle_reconnection(self):
-        """Handle reconnection with exponential backoff"""
+    async def _handle_reconnection(self) -> None:
+        """Handle reconnection with exponential backoff."""
         self.reconnect_attempts += 1
         
         if self.reconnect_attempts > self.max_reconnect_attempts:
@@ -265,13 +315,24 @@ class WebSocketGoalListener:
         await asyncio.sleep(delay)
 
     def get_active_fixtures(self) -> List[Dict]:
+        """Return cached active fixtures.
+
+        Returns:
+            List[Dict]: Active fixture data payloads.
+        """
         return list(self.active_fixtures.values())
 
 
 class HybridGoalListener:
+    """Combines WebSocket and polling goal listeners for resiliency."""
     
     
-    def __init__(self, api_key: str = ""):
+    def __init__(self, api_key: str = "") -> None:
+        """Initialize the hybrid goal listener.
+
+        Args:
+            api_key: RapidAPI key for authenticating requests.
+        """
         self.api_key = api_key
         self.ws_listener = WebSocketGoalListener(api_key)
         self.running = False
@@ -281,13 +342,19 @@ class HybridGoalListener:
         
         self.previous_scores: Dict[int, tuple] = {}
         
-        self.goal_callbacks: List[Callable] = []
+        self.goal_callbacks: List[GoalCallback] = []
         
-    def register_goal_callback(self, callback: Callable):
+    def register_goal_callback(self, callback: GoalCallback) -> None:
+        """Register a callback for goal events.
+
+        Args:
+            callback: Callable that handles a goal event.
+        """
         self.goal_callbacks.append(callback)
         self.ws_listener.register_goal_callback(callback)
 
-    async def start(self):
+    async def start(self) -> None:
+        """Start the hybrid listener tasks."""
         self.running = True
         
         ws_task = asyncio.create_task(self._run_websocket())
@@ -296,21 +363,22 @@ class HybridGoalListener:
         
         await asyncio.gather(ws_task, monitor_task, return_exceptions=True)
 
-    async def stop(self):
+    async def stop(self) -> None:
+        """Stop the hybrid listener and close resources."""
         self.running = False
         await self.ws_listener.stop()
         await self.http_client.aclose()
 
-    async def _run_websocket(self):
-        """Run WebSocket listener with error handling"""
+    async def _run_websocket(self) -> None:
+        """Run the WebSocket listener with error handling."""
         try:
             await self.ws_listener.start()
         except Exception as e:
             logger.error(f"WebSocket listener failed: {e}")
             self.use_polling_fallback = True
 
-    async def _health_monitor(self):
-        """Monitor connection health and switch to polling if needed"""
+    async def _health_monitor(self) -> None:
+        """Monitor connection health and switch to polling if needed."""
         while self.running:
             await asyncio.sleep(30)  
             
@@ -318,8 +386,8 @@ class HybridGoalListener:
                 logger.warning("Using HTTP polling fallback")
                 await self._poll_for_goals()
 
-    async def _poll_for_goals(self):
-        """Fallback HTTP polling for goal detection (conserve API calls)"""
+    async def _poll_for_goals(self) -> None:
+        """Fallback HTTP polling for goal detection (conserve API calls)."""
         try:
             response = await self.http_client.get(
                 "https://api-football-v1.p.rapidapi.com/v3/fixtures",
@@ -361,8 +429,13 @@ class HybridGoalListener:
         except Exception as e:
             logger.error(f"Polling error: {e}")
 
-    async def _emit_polling_goal(self, fixture: Dict, side: str):
-        """Emit goal event from polling data"""
+    async def _emit_polling_goal(self, fixture: Dict, side: str) -> None:
+        """Emit a goal event based on polling data.
+
+        Args:
+            fixture: Fixture payload from polling API.
+            side: Side that scored ("home" or "away").
+        """
         teams = fixture["teams"]
         goals = fixture["goals"]
         league = fixture["league"]
