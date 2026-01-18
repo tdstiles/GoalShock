@@ -272,6 +272,12 @@ class AlphaTwoLateCompression:
     async def _analyze_market_for_clipping(self, market: Dict) -> Optional[ClippingOpportunity]:
 
         market_id = market.get("market_id")
+
+        # Check if we already have an active trade for this market
+        for trade in self.trades.values():
+            if trade.opportunity.market_id == market_id and not trade.resolved:
+                return None
+
         question = market.get("question", "")
         fixture_id = market.get("fixture_id", 0)
         
