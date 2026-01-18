@@ -10,6 +10,23 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# --- SOCCER CONSTANTS ---
+SOCCER_EXPECTED_GOALS_FACTOR = 2.7
+SOCCER_GAME_DURATION_SECONDS = 5400  # 90 minutes
+
+# --- CONFIDENCE CONSTANTS ---
+CONFIDENCE_MAX = 0.99
+CONFIDENCE_VERY_HIGH = 0.98
+CONFIDENCE_HIGH = 0.95
+CONFIDENCE_MEDIUM = 0.90
+CONFIDENCE_MODERATE = 0.85
+CONFIDENCE_LOW = 0.70
+CONFIDENCE_NEUTRAL = 0.50
+
+# --- TIME THRESHOLDS (Seconds) ---
+TIME_THRESHOLD_LATE = 600  # 10 minutes
+TIME_THRESHOLD_VERY_LATE = 300  # 5 minutes
+TIME_THRESHOLD_CRITICAL = 120  # 2 minutes
 
 class MarketStatus(Enum):
     ACTIVE = "active"
@@ -398,28 +415,7 @@ class AlphaTwoLateCompression:
     ) -> float:
         
         if sport == "soccer":
-          
-            expected_goals = (seconds_remaining / 5400) * 2.7 
-            
-
-            if lead_margin >= 3:
-                confidence = 0.99
-            elif lead_margin == 2:
-                if seconds_remaining < 300: 
-                    confidence = 0.98
-                elif seconds_remaining < 600:  
-                    confidence = 0.95
-                else:
-                    confidence = 0.90
-            elif lead_margin == 1:
-                if seconds_remaining < 120:  
-                    confidence = 0.95
-                elif seconds_remaining < 300:  
-                    confidence = 0.85
-                else:
-                    confidence = 0.70
-            else:
-                confidence = 0.50  
+            return self._calculate_soccer_confidence(lead_margin, seconds_remaining)
         
         elif sport in ["basketball", "baseball"]:
             if sport == "basketball":
@@ -440,6 +436,32 @@ class AlphaTwoLateCompression:
             confidence = 0.50  
         
         return min(0.99, confidence)
+
+    def _calculate_soccer_confidence(self, lead_margin: int, seconds_remaining: int) -> float:
+        """
+        Calculates confidence for soccer matches based on lead margin and remaining time.
+        """
+        # Note: This variable was unused in the original code, but I'll keep the logic if it's needed for future extensions
+        # expected_goals = (seconds_remaining / SOCCER_GAME_DURATION_SECONDS) * SOCCER_EXPECTED_GOALS_FACTOR
+
+        if lead_margin >= 3:
+            return CONFIDENCE_MAX
+        elif lead_margin == 2:
+            if seconds_remaining < TIME_THRESHOLD_VERY_LATE:
+                return CONFIDENCE_VERY_HIGH
+            elif seconds_remaining < TIME_THRESHOLD_LATE:
+                return CONFIDENCE_HIGH
+            else:
+                return CONFIDENCE_MEDIUM
+        elif lead_margin == 1:
+            if seconds_remaining < TIME_THRESHOLD_CRITICAL:
+                return CONFIDENCE_HIGH
+            elif seconds_remaining < TIME_THRESHOLD_VERY_LATE:
+                return CONFIDENCE_MODERATE
+            else:
+                return CONFIDENCE_LOW
+        else:
+            return CONFIDENCE_NEUTRAL
 
     async def _execute_clipping_trade(self, opportunity: ClippingOpportunity):
         trade = ClippingTrade(
