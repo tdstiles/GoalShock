@@ -159,8 +159,16 @@ class AlphaTwoLateCompression:
                     mid for mid, m in self.monitored_markets.items()
                     if m.get("status") == "resolved"
                 ]
+
+                # Check for active trades on these markets
+                active_market_ids = set()
+                for trade in self.trades.values():
+                    if not trade.resolved:
+                        active_market_ids.add(trade.opportunity.market_id)
+
                 for mid in resolved:
-                    del self.monitored_markets[mid]
+                    if mid not in active_market_ids:
+                        del self.monitored_markets[mid]
                 
                 await asyncio.sleep(10)  
                 
