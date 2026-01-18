@@ -413,6 +413,13 @@ class AlphaTwoLateCompression:
                         market_type
                     )
                     return {"outcome": "NO", "confidence": confidence}
+
+            else:
+                # DRAW CASE (Scores Equal)
+                # If the market is checking for a "Win", a Draw means NO.
+                # Specifically needed for Trade Resolution when match ends in Draw.
+                if market.get("status") == "resolved" or time_remaining <= 0:
+                    return {"outcome": "NO", "confidence": 1.0}
         
         return None
 
