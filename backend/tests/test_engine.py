@@ -40,6 +40,130 @@ def goal_event() -> GoalEvent:
     )
 
 
+@pytest.fixture
+def fixture_details() -> dict:
+    """Return fixture details with known home and away teams.
+
+    Returns:
+        dict: Fixture details payload with home and away teams.
+    """
+    return {
+        "teams": {"home": {"name": "Home FC"}, "away": {"name": "Away FC"}},
+    }
+
+
+@pytest.mark.asyncio
+async def test_is_underdog_leading_returns_false_when_underdog_not_in_fixture(
+    trading_engine: TradingEngine, fixture_details: dict
+) -> None:
+    """Return False when the underdog team is not part of the fixture.
+
+    Args:
+        trading_engine: Trading engine under test.
+        fixture_details: Fixture details payload with home and away teams.
+    """
+    trading_engine.api_football.get_fixture_details = AsyncMock(
+        return_value=fixture_details
+    )
+    goal = GoalEvent(
+        fixture_id=99,
+        minute=12,
+        team="Other FC",
+        player="Striker",
+        home_score=1,
+        away_score=0,
+        timestamp=datetime.now(),
+    )
+
+    result = await trading_engine.is_underdog_leading(goal, "Underdog FC")
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_is_underdog_leading_returns_false_when_tied(
+    trading_engine: TradingEngine, fixture_details: dict
+) -> None:
+    """Return False when the underdog has only tied the match.
+
+    Args:
+        trading_engine: Trading engine under test.
+        fixture_details: Fixture details payload with home and away teams.
+    """
+    trading_engine.api_football.get_fixture_details = AsyncMock(
+        return_value=fixture_details
+    )
+    goal = GoalEvent(
+        fixture_id=100,
+        minute=30,
+        team="Home FC",
+        player="Equalizer",
+        home_score=1,
+        away_score=1,
+        timestamp=datetime.now(),
+    )
+
+    result = await trading_engine.is_underdog_leading(goal, "Home FC")
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_is_underdog_leading_returns_false_when_still_losing(
+    trading_engine: TradingEngine, fixture_details: dict
+) -> None:
+    """Return False when the underdog remains behind after scoring.
+
+    Args:
+        trading_engine: Trading engine under test.
+        fixture_details: Fixture details payload with home and away teams.
+    """
+    trading_engine.api_football.get_fixture_details = AsyncMock(
+        return_value=fixture_details
+    )
+    goal = GoalEvent(
+        fixture_id=101,
+        minute=44,
+        team="Home FC",
+        player="Consolation",
+        home_score=1,
+        away_score=2,
+        timestamp=datetime.now(),
+    )
+
+    result = await trading_engine.is_underdog_leading(goal, "Home FC")
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_is_underdog_leading_returns_true_when_leading(
+    trading_engine: TradingEngine, fixture_details: dict
+) -> None:
+    """Return True when the underdog moves ahead after scoring.
+
+    Args:
+        trading_engine: Trading engine under test.
+        fixture_details: Fixture details payload with home and away teams.
+    """
+    trading_engine.api_football.get_fixture_details = AsyncMock(
+        return_value=fixture_details
+    )
+    goal = GoalEvent(
+        fixture_id=102,
+        minute=67,
+        team="Away FC",
+        player="Winner",
+        home_score=1,
+        away_score=2,
+        timestamp=datetime.now(),
+    )
+
+    result = await trading_engine.is_underdog_leading(goal, "Away FC")
+
+    assert result is True
+
+
 def test_process_goal_event_skips_trade_when_underdog_not_leading(
     trading_engine: TradingEngine, goal_event: GoalEvent
 ) -> None:
