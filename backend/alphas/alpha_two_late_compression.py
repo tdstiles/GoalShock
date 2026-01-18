@@ -3,7 +3,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass, field
 from enum import Enum
 import json
@@ -130,6 +130,7 @@ class AlphaTwoLateCompression:
         self.monitored_markets: Dict[str, Dict] = {} 
         self.active_opportunities: Dict[str, ClippingOpportunity] = {}
         self.trades: Dict[str, ClippingTrade] = {}
+        self.pending_orders: Set[str] = set()
         self.closed_trades: List[ClippingTrade] = []
         self.stats = AlphaTwoStats()
         
@@ -297,6 +298,10 @@ class AlphaTwoLateCompression:
     async def _analyze_market_for_clipping(self, market: Dict) -> Optional[ClippingOpportunity]:
 
         market_id = market.get("market_id")
+
+        # Check if we have a pending order execution for this market
+        if market_id in self.pending_orders:
+            return None
 
         # Check if we already have an active trade for this market
         for trade in self.trades.values():
@@ -494,14 +499,20 @@ class AlphaTwoLateCompression:
             logger.info(f"  Expected profit: {opportunity.expected_profit_pct:.1f}%")
         
         else:
-            success = await self._place_exchange_order(opportunity)
-            
-            if success:
-                self.trades[trade.trade_id] = trade
-                self.stats.trades_executed += 1
-                logger.info(f"[LIVE] Clipping trade executed: {trade.trade_id}")
-            else:
-                logger.error(f"Failed to execute clipping trade: {trade.trade_id}")
+            # Mark as pending to prevent duplicate signals during async execution
+            self.pending_orders.add(opportunity.market_id)
+            try:
+                success = await self._place_exchange_order(opportunity)
+
+                if success:
+                    self.trades[trade.trade_id] = trade
+                    self.stats.trades_executed += 1
+                    logger.info(f"[LIVE] Clipping trade executed: {trade.trade_id}")
+                else:
+                    logger.error(f"Failed to execute clipping trade: {trade.trade_id}")
+            finally:
+                if opportunity.market_id in self.pending_orders:
+                    self.pending_orders.remove(opportunity.market_id)
 
     async def _place_exchange_order(self, opportunity: ClippingOpportunity) -> bool:
         if self.polymarket:
