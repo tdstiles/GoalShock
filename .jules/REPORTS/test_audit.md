@@ -27,3 +27,5 @@
 - **2026-01-18**: Added `backend/tests/test_engine_unified.py` covering 54% of `engine_unified.py`, including the critical `_on_goal_event` logic and startup/shutdown lifecycle.
 - **2026-01-18**: Added `backend/tests/test_alpha_one.py` covering the "Alpha One" strategy, including signals, edge cases, and position limits.
 - **2026-01-18**: Added `backend/tests/test_alpha_two.py` covering "Alpha Two" (Late-Stage Compression) strategy, verifying opportunity detection logic and confidence calculations.
+- **2026-01-18**: Added `backend/tests/bot/test_websocket_goal_listener.py` covering  core logic (message parsing, filtering, deduplication).
+- **2026-01-18**: Added `backend/tests/bot/test_websocket_goal_listener.py` covering WebSocketGoalListener core logic (message parsing, filtering, deduplication).
