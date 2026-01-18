@@ -65,3 +65,24 @@ def test_process_goal_event_skips_trade_when_underdog_not_leading(
     )
     trading_engine.get_market_price.assert_not_awaited()
     trading_engine.execute_trade.assert_not_awaited()
+
+
+def test_identify_pre_match_underdog_uses_cache(
+    trading_engine: TradingEngine,
+) -> None:
+    """Ensure identify_pre_match_underdog caches and returns the lowest-odds team.
+
+    Args:
+        trading_engine: Trading engine under test.
+    """
+    trading_engine.fetch_pre_match_odds = AsyncMock(
+        return_value={"Favorite FC": 0.65, "Underdog FC": 0.35}
+    )
+
+    first_result = asyncio.run(trading_engine.identify_pre_match_underdog(101))
+    second_result = asyncio.run(trading_engine.identify_pre_match_underdog(101))
+
+    trading_engine.fetch_pre_match_odds.assert_awaited_once_with(101)
+    assert first_result == "Underdog FC"
+    assert second_result == "Underdog FC"
+    assert trading_engine.underdog_cache[101] == "Underdog FC"
