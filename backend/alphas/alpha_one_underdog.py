@@ -60,7 +60,9 @@ class SimulatedPosition:
     exit_time: Optional[datetime] = None
     exit_price: Optional[float] = None
     pnl: float = 0.0
-    status: str = "open"  
+    status: str = "open"
+    last_price: Optional[float] = None
+    last_update_time: Optional[datetime] = None
 
 
 @dataclass
@@ -310,7 +312,9 @@ class AlphaOneUnderdog:
         position = SimulatedPosition(
             position_id=signal.signal_id,
             signal=signal,
-            entry_time=datetime.now()
+            entry_time=datetime.now(),
+            last_price=signal.entry_price,
+            last_update_time=datetime.now()
         )
         
         self.positions[signal.signal_id] = position
@@ -390,16 +394,45 @@ class AlphaOneUnderdog:
     def _simulate_price_movement(self, position: SimulatedPosition) -> float:
         import random
         
-        entry_price = position.signal.entry_price
-        elapsed = (datetime.now() - position.entry_time).total_seconds()
+        now = datetime.now()
         
-        volatility = 0.02 * max(0.5, 1 - elapsed / 3600)
-        drift = 0.001  
+        # Initialize if not set (for backward compatibility or recovery)
+        if position.last_price is None:
+            position.last_price = position.signal.entry_price
+        if position.last_update_time is None:
+            position.last_update_time = position.entry_time
+
+        # Calculate time step
+        elapsed_step = (now - position.last_update_time).total_seconds()
+        if elapsed_step <= 0:
+            return position.last_price
+
+        # Volatility decreases slightly over time but remains relative to price
+        # Using a simpler model: Annualized Volatility scaled to time step
+        # Assuming ~50% daily volatility for these markets
+        annual_vol = 0.5
+        dt = elapsed_step / (24 * 3600) # Fraction of day
         
-        change = random.gauss(drift, volatility)
-        new_price = entry_price * (1 + change * elapsed / 60)
+        # Drift towards 0.5 slightly if extreme, else random walk
+        current_p = position.last_price
+        drift = 0.0
         
-        return max(0.01, min(0.99, new_price))
+        # Mean reversion for extreme prices
+        if current_p > 0.9: drift = -0.001 * elapsed_step
+        elif current_p < 0.1: drift = 0.001 * elapsed_step
+
+        # Random walk step: P_t = P_{t-1} + P_{t-1} * shock
+        # shock ~ N(drift * dt, vol * sqrt(dt))
+        shock = random.gauss(drift, annual_vol * (dt ** 0.5))
+
+        new_price = current_p * (1 + shock)
+        new_price = max(0.01, min(0.99, new_price))
+
+        # Update state
+        position.last_price = new_price
+        position.last_update_time = now
+
+        return new_price
 
     async def _close_position(self, position: SimulatedPosition, exit_price: float, reason: str):
         position.exit_time = datetime.now()
