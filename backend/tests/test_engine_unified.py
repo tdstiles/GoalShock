@@ -1,17 +1,24 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
-from backend.engine_unified import UnifiedTradingEngine, EngineConfig
-from backend.alphas.alpha_one_underdog import TradingMode
+
+try:
+    from backend.engine_unified import UnifiedTradingEngine, EngineConfig
+    from backend.alphas.alpha_one_underdog import TradingMode
+    MODULE_PREFIX = "backend."
+except ImportError:
+    from engine_unified import UnifiedTradingEngine, EngineConfig
+    from alphas.alpha_one_underdog import TradingMode
+    MODULE_PREFIX = ""
 
 @pytest.fixture
 def mock_dependencies():
-    with patch("backend.engine_unified.PolymarketClient") as mock_poly, \
-         patch("backend.engine_unified.KalshiClient") as mock_kalshi, \
-         patch("backend.engine_unified.APIFootballClient") as mock_football, \
-         patch("backend.engine_unified.HybridGoalListener") as mock_listener, \
-         patch("backend.engine_unified.AlphaOneUnderdog") as mock_alpha_one, \
-         patch("backend.engine_unified.AlphaTwoLateCompression") as mock_alpha_two:
+    with patch(f"{MODULE_PREFIX}engine_unified.PolymarketClient") as mock_poly, \
+         patch(f"{MODULE_PREFIX}engine_unified.KalshiClient") as mock_kalshi, \
+         patch(f"{MODULE_PREFIX}engine_unified.APIFootballClient") as mock_football, \
+         patch(f"{MODULE_PREFIX}engine_unified.HybridGoalListener") as mock_listener, \
+         patch(f"{MODULE_PREFIX}engine_unified.AlphaOneUnderdog") as mock_alpha_one, \
+         patch(f"{MODULE_PREFIX}engine_unified.AlphaTwoLateCompression") as mock_alpha_two:
 
         mock_poly.return_value = MagicMock()
         mock_kalshi.return_value = MagicMock()

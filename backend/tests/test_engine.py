@@ -1,13 +1,18 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
-from backend.engine import TradingEngine, GoalEvent, Position
+try:
+    from backend.engine import TradingEngine, GoalEvent, Position
+    MODULE_PREFIX = "backend."
+except ImportError:
+    from engine import TradingEngine, GoalEvent, Position
+    MODULE_PREFIX = ""
 
 @pytest.fixture
 def mock_dependencies():
-    with patch("backend.engine.PolymarketClient") as mock_poly, \
-         patch("backend.engine.KalshiClient") as mock_kalshi, \
-         patch("backend.engine.APIFootballClient") as mock_football:
+    with patch(f"{MODULE_PREFIX}engine.PolymarketClient") as mock_poly, \
+         patch(f"{MODULE_PREFIX}engine.KalshiClient") as mock_kalshi, \
+         patch(f"{MODULE_PREFIX}engine.APIFootballClient") as mock_football:
 
         mock_poly.return_value = MagicMock()
         mock_kalshi.return_value = MagicMock()
