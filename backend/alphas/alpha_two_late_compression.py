@@ -494,6 +494,17 @@ class AlphaTwoLateCompression:
         # DANIEL NOTE: In production: Query exchange for resolution status
         # Return {"outcome": "YES"|"NO", "resolution_time": datetime}
         """
+        if self.simulation_mode:
+            market = self.monitored_markets.get(market_id)
+            if market and market.get("status") == "resolved":
+                # Determine outcome based on final score
+                outcome_analysis = await self._predict_outcome(market)
+                if outcome_analysis:
+                    return {
+                        "outcome": outcome_analysis["outcome"],
+                        "resolution_time": datetime.now()
+                    }
+
         return None
 
     async def _process_trade_resolution(self, trade: ClippingTrade, resolution: Dict):
@@ -536,9 +547,21 @@ class AlphaTwoLateCompression:
         
         minute = fixture_data.get("minute", 0)
         status = fixture_data.get("status", "")
+        market_id = fixture_data.get("market_id", f"fixture_{fixture_data['fixture_id']}")
         
+        # Handle Match End / Resolution
         if status in ["FT", "AET", "PEN"]:
-            return  
+            if market_id in self.monitored_markets:
+                logger.info(f"Market {market_id} ended (Status: {status}). Marking resolved.")
+                self.monitored_markets[market_id]["status"] = "resolved"
+                # Update final score
+                self.monitored_markets[market_id]["current_score"] = {
+                    "home": fixture_data.get("home_score", 0),
+                    "away": fixture_data.get("away_score", 0)
+                }
+                # Set seconds to 0 to ensure logic downstream treats it as over
+                self.monitored_markets[market_id]["seconds_to_close"] = 0
+            return
         
        
         total_minutes = 90

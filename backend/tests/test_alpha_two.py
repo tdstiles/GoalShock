@@ -116,3 +116,87 @@ async def test_analyze_market_ignores_low_profit(alpha_two):
 
     opportunity = await alpha_two._analyze_market_for_clipping(market_data)
     assert opportunity is None
+
+@pytest.mark.asyncio
+async def test_alpha_two_simulation_resolution(alpha_two):
+    """
+    Test that trades correctly resolve in simulation mode when a fixture ends.
+    """
+
+    # 1. Setup a market near the end (88th minute)
+    market_id = "fixture_1001"
+    fixture_active = {
+        "fixture_id": 1001,
+        "market_id": market_id,
+        "minute": 88,
+        "status": "2H",
+        "home_score": 2,
+        "away_score": 0,
+        "home_team": "Home",
+        "away_team": "Away",
+        "question": "Will Home win?",
+        "yes_price": 0.95,
+        "no_price": 0.05
+    }
+
+    # Update state
+    await alpha_two.feed_live_fixture_update(fixture_active)
+
+    # 2. Force-execute a trade
+    opp = ClippingOpportunity(
+        opportunity_id="opp_1",
+        market_id=market_id,
+        market_question="Will Home win?",
+        fixture_id=1001,
+        yes_price=0.95,
+        no_price=0.05,
+        spread=0.9,
+        expected_outcome="YES",
+        confidence=0.99,
+        expected_profit_pct=5.0,
+        seconds_to_resolution=120,
+        recommended_side="YES",
+        recommended_price=0.95,
+        recommended_size=10
+    )
+
+    await alpha_two._execute_clipping_trade(opp)
+
+    # Verify trade is active
+    assert len(alpha_two.trades) == 1
+    trade = list(alpha_two.trades.values())[0]
+    assert not trade.resolved
+
+    # 3. Simulate match ending (FT)
+    fixture_ended = {
+        "fixture_id": 1001,
+        "market_id": market_id,
+        "minute": 90,
+        "status": "FT",
+        "home_score": 2,
+        "away_score": 0,
+        "home_team": "Home",
+        "away_team": "Away",
+        "question": "Will Home win?"
+    }
+
+    await alpha_two.feed_live_fixture_update(fixture_ended)
+
+    # 4. Check resolution
+    resolution = await alpha_two._check_market_resolution(market_id)
+
+    # Expectation:
+    # 1. Market should be marked resolved in internal state
+    market_state = alpha_two.monitored_markets.get(market_id)
+    assert market_state is not None
+    assert market_state["status"] == "resolved"
+
+    # 2. Resolution check should return valid outcome
+    assert resolution is not None
+    assert resolution["outcome"] == "YES"
+
+    # 3. Process resolution
+    await alpha_two._process_trade_resolution(trade, resolution)
+    assert trade.resolved
+    assert trade.pnl > 0
+    assert alpha_two.stats.trades_won == 1
