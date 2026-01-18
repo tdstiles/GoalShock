@@ -130,6 +130,7 @@ class AlphaTwoLateCompression:
         self.monitored_markets: Dict[str, Dict] = {} 
         self.active_opportunities: Dict[str, ClippingOpportunity] = {}
         self.trades: Dict[str, ClippingTrade] = {}
+        self.active_trade_market_ids: Set[str] = set()
         self.pending_orders: Set[str] = set()
         self.closed_trades: List[ClippingTrade] = []
         self.stats = AlphaTwoStats()
@@ -179,13 +180,8 @@ class AlphaTwoLateCompression:
                 ]
 
                 # Check for active trades on these markets
-                active_market_ids = set()
-                for trade in self.trades.values():
-                    if not trade.resolved:
-                        active_market_ids.add(trade.opportunity.market_id)
-
                 for mid in resolved:
-                    if mid not in active_market_ids:
+                    if mid not in self.active_trade_market_ids:
                         del self.monitored_markets[mid]
                 
                 await asyncio.sleep(10)  
@@ -304,9 +300,8 @@ class AlphaTwoLateCompression:
             return None
 
         # Check if we already have an active trade for this market
-        for trade in self.trades.values():
-            if trade.opportunity.market_id == market_id and not trade.resolved:
-                return None
+        if market_id in self.active_trade_market_ids:
+            return None
 
         question = market.get("question", "")
         fixture_id = market.get("fixture_id", 0)
@@ -484,6 +479,7 @@ class AlphaTwoLateCompression:
         if self.simulation_mode:
             
             self.trades[trade.trade_id] = trade
+            self.active_trade_market_ids.add(opportunity.market_id)
             self.stats.trades_executed += 1
             
             self._log_event("trade_executed_simulation", {
@@ -506,6 +502,7 @@ class AlphaTwoLateCompression:
 
                 if success:
                     self.trades[trade.trade_id] = trade
+                    self.active_trade_market_ids.add(opportunity.market_id)
                     self.stats.trades_executed += 1
                     logger.info(f"[LIVE] Clipping trade executed: {trade.trade_id}")
                 else:
@@ -579,6 +576,13 @@ class AlphaTwoLateCompression:
         self.stats.avg_profit_per_trade = self.stats.total_pnl / total if total > 0 else 0
         
         del self.trades[trade.trade_id]
+
+        # Only remove from set if no other trades for this market exist
+        # (Handles edge case where multiple trades might exist for same market)
+        has_active = any(t.opportunity.market_id == trade.opportunity.market_id for t in self.trades.values())
+        if not has_active:
+            self.active_trade_market_ids.discard(trade.opportunity.market_id)
+
         self.closed_trades.append(trade)
         
         self._log_event("trade_resolved", {
