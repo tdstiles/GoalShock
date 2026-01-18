@@ -10,6 +10,27 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# --- CONFIGURATION CONSTANTS ---
+DEFAULT_UNDERDOG_THRESHOLD = 0.45
+DEFAULT_MAX_TRADE_SIZE = 500.0
+DEFAULT_MAX_POSITIONS = 5
+DEFAULT_TAKE_PROFIT_PCT = 15.0
+DEFAULT_STOP_LOSS_PCT = 10.0
+DEFAULT_MAX_DAILY_LOSS = 2000.0
+
+# --- CONFIDENCE CALCULATION CONSTANTS ---
+MIN_CONFIDENCE = 0.3
+MAX_CONFIDENCE = 1.0
+ODDS_FACTOR_FLOOR = 0.3
+TIME_FACTOR_EARLY_FLOOR = 0.7
+TIME_FACTOR_EARLY_SLOPE = 0.3
+TIME_FACTOR_LATE_FLOOR = 0.5
+TIME_FACTOR_LATE_SLOPE = 0.5
+MARGIN_FACTOR_BASE = 0.7
+MARGIN_FACTOR_SLOPE = 0.15
+EARLY_GAME_MINUTE = 30
+LATE_GAME_MINUTE = 70
+LATE_GAME_DURATION = 20
 
 class TradingMode(Enum):
     SIMULATION = "simulation"
@@ -69,12 +90,12 @@ class AlphaOneUnderdog:
         self.polymarket = polymarket_client
         self.kalshi = kalshi_client
         
-        self.underdog_threshold = float(os.getenv("UNDERDOG_THRESHOLD", "0.45"))
-        self.max_trade_size = float(os.getenv("MAX_TRADE_SIZE_USD", "500"))
-        self.max_positions = int(os.getenv("MAX_POSITIONS", "5"))
-        self.take_profit_pct = float(os.getenv("TAKE_PROFIT_PERCENT", "15"))
-        self.stop_loss_pct = float(os.getenv("STOP_LOSS_PERCENT", "10"))
-        self.max_daily_loss = float(os.getenv("MAX_DAILY_LOSS_USD", "2000"))
+        self.underdog_threshold = float(os.getenv("UNDERDOG_THRESHOLD", str(DEFAULT_UNDERDOG_THRESHOLD)))
+        self.max_trade_size = float(os.getenv("MAX_TRADE_SIZE_USD", str(DEFAULT_MAX_TRADE_SIZE)))
+        self.max_positions = int(os.getenv("MAX_POSITIONS", str(DEFAULT_MAX_POSITIONS)))
+        self.take_profit_pct = float(os.getenv("TAKE_PROFIT_PERCENT", str(DEFAULT_TAKE_PROFIT_PCT)))
+        self.stop_loss_pct = float(os.getenv("STOP_LOSS_PERCENT", str(DEFAULT_STOP_LOSS_PCT)))
+        self.max_daily_loss = float(os.getenv("MAX_DAILY_LOSS_USD", str(DEFAULT_MAX_DAILY_LOSS)))
         
         self.pre_match_odds: Dict[int, Dict[str, float]] = {}  
         self.positions: Dict[str, SimulatedPosition] = {}
@@ -240,22 +261,20 @@ class AlphaOneUnderdog:
         return signal
 
     def _calculate_confidence(self, pre_match_odds: float, minute: int, lead_margin: int) -> float:
+        odds_factor = max(ODDS_FACTOR_FLOOR, 1 - (pre_match_odds / self.underdog_threshold))
         
-  
-        odds_factor = max(0.3, 1 - (pre_match_odds / self.underdog_threshold))
-        
-        if minute < 30:
-            time_factor = 0.7 + (minute / 30) * 0.3
-        elif minute < 70:
+        if minute < EARLY_GAME_MINUTE:
+            time_factor = TIME_FACTOR_EARLY_FLOOR + (minute / EARLY_GAME_MINUTE) * TIME_FACTOR_EARLY_SLOPE
+        elif minute < LATE_GAME_MINUTE:
             time_factor = 1.0
         else:
-            time_factor = max(0.5, 1 - (minute - 70) / 20 * 0.5)
+            time_factor = max(TIME_FACTOR_LATE_FLOOR, 1 - (minute - LATE_GAME_MINUTE) / LATE_GAME_DURATION * TIME_FACTOR_LATE_SLOPE)
         
-        margin_factor = min(1.0, 0.7 + lead_margin * 0.15)
+        margin_factor = min(1.0, MARGIN_FACTOR_BASE + lead_margin * MARGIN_FACTOR_SLOPE)
         
         confidence = odds_factor * time_factor * margin_factor
         
-        return min(1.0, max(0.3, confidence))
+        return min(MAX_CONFIDENCE, max(MIN_CONFIDENCE, confidence))
 
     async def _get_current_market_price(self, fixture_id: int, team: str) -> Optional[float]:
         if self.mode == TradingMode.SIMULATION:
