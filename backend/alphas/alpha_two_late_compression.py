@@ -541,7 +541,14 @@ class AlphaTwoLateCompression:
         elif status == "ET":
             seconds_remaining = 30 * 60  
         else:
-            seconds_remaining = max(0, (total_minutes - minute) * 60)
+            seconds_remaining = (total_minutes - minute) * 60
+
+            # Handle Stoppage Time: If minute >= 90 but status is still active (e.g. "2H"),
+            # ensure we keep the market active by setting a small positive duration.
+            if seconds_remaining <= 0 and status not in ["FT", "AET", "PEN"]:
+                seconds_remaining = 60  # Treat as 1 minute remaining (Final Seconds)
+            else:
+                seconds_remaining = max(0, seconds_remaining)
         
     
         market = {
