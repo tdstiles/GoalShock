@@ -314,6 +314,10 @@ class AlphaTwoLateCompression:
             current_price = no_price
             target_price = 1.0
         
+        # Sherlock: Fix Division by Zero risk
+        if current_price <= 0.001:
+            return None
+
         expected_profit_pct = ((target_price - current_price) / current_price) * 100
         
         if expected_profit_pct < self.min_profit_threshold:
@@ -521,7 +525,14 @@ class AlphaTwoLateCompression:
         trade.actual_outcome = resolution.get("outcome")
         
         if trade.actual_outcome == trade.opportunity.expected_outcome:
-            trade.pnl = (1.0 - trade.entry_price) * trade.size_usd / trade.entry_price
+            # Sherlock: Fix Division by Zero risk
+            if trade.entry_price > 0.001:
+                trade.pnl = (1.0 - trade.entry_price) * trade.size_usd / trade.entry_price
+            else:
+                # If we somehow entered at 0, treat it as pure profit on the size?
+                # Or just protect the crash.
+                trade.pnl = trade.size_usd
+
             self.stats.trades_won += 1
         else:
             trade.pnl = -trade.size_usd
