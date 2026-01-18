@@ -57,16 +57,27 @@ class EngineConfig:
 
 class UnifiedTradingEngine:
     """
-    Daniel This is the new features:
-    Integrates:
-    1. WebSocket Goal Listener (replaces polling)
-    2. Alpha One: Underdog Goal Momentum Strategy
-    3. Alpha Two: Late-Stage Compression Strategy
-    Features:
-    Dual mode: Simulation for backtesting, Live for real trading
-     Real-time event processing via WebSocket
-     Automatic position management
-    Performance tracking and logging
+    The main trading engine that orchestrates data ingestion, strategy execution, and trade management.
+
+    This unified engine integrates multiple trading strategies (Alpha One, Alpha Two) with real-time
+    data feeds via WebSockets. It supports both simulation and live trading modes.
+
+    Key Features:
+        - Real-time Goal Detection: Uses WebSocketGoalListener for sub-second event updates.
+        - Multi-Strategy Support:
+            - Alpha One: Underdog Momentum (betting on underdogs taking the lead).
+            - Alpha Two: Late-Stage Compression (betting on high-probability outcomes near match end).
+        - Dual Operation Modes:
+            - Simulation: Paper trading for backtesting strategies.
+            - Live: Real-money trading on Polymarket and Kalshi.
+        - Automatic Risk Management: Position sizing, stop-loss, and take-profit handling.
+
+    Attributes:
+        config (EngineConfig): Configuration parameters for the engine.
+        polymarket (PolymarketClient): Client for interacting with Polymarket exchange.
+        kalshi (KalshiClient): Client for interacting with Kalshi exchange.
+        api_football (APIFootballClient): Client for fetching sports data.
+        goal_listener (HybridGoalListener): Service for listening to real-time goal events.
     """
     
     def __init__(self, config: Optional[EngineConfig] = None):
