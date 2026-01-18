@@ -1,9 +1,4 @@
-## 2026-01-18 - Alpha Two Simulation Logic Fix
-
-**Bug:** Trades in simulation mode never resolved, accumulating indefinitely without PnL calculation.
-**Cause:**
-1. The `feed_live_fixture_update` method explicitly returned early on match completion ('FT'), preventing the internal `monitored_markets` state from ever updating to 'resolved'.
-2. The `_check_market_resolution` method was hardcoded to return `None`, with no logic to check internal state in simulation mode.
-**Fix:**
-1. Modified `feed_live_fixture_update` to handle 'FT' status by marking the market as resolved and updating the final score.
-2. Implemented simulation logic in `_check_market_resolution` to look up the resolved status from `monitored_markets` and calculate the outcome using the existing `_predict_outcome` logic.
+## 2026-01-18 - Race Condition in Market Cleanup Logic
+**Bug:** Race condition where resolved markets were deleted from memory while trades were still active, preventing trade resolution in simulation mode.
+**Cause:** The `_market_scanner_loop` aggressively cleaned up markets marked as "resolved" without checking if any active trades still relied on that market data for their own resolution logic.
+**Fix:** Modified `_market_scanner_loop` in `backend/alphas/alpha_two_late_compression.py` to check for active trades referencing the market ID. If an active trade exists, the market is preserved in memory until the trade is resolved.
