@@ -2,8 +2,11 @@
 import os
 import httpx
 import random
+import logging
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 class GoalEvent:
     def __init__(self, match_id: str, team: str, player: str, minute: int, timestamp: datetime):
@@ -33,7 +36,8 @@ class DataAcquisitionLayer:
         if self._srvc_mode == "primary":
             try:
                 return await self._fetch_verified_goals()
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to fetch verified goals from primary source: {e}", exc_info=True)
                 pass
         return await self._generate_event_stream()
 
@@ -112,7 +116,8 @@ class DataAcquisitionLayer:
                     return await self._fetch_polymarket_data()
                 elif self._kalshi_key:
                     return await self._fetch_kalshi_data()
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to fetch market data from primary source ({market_type}): {e}", exc_info=True)
                 pass
         return await self._generate_market_data(market_type)
 
