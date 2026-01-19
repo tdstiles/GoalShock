@@ -275,7 +275,10 @@ class AlphaOneUnderdog:
         return signal
 
     def _calculate_confidence(self, pre_match_odds: float, minute: int, lead_margin: int) -> float:
-        odds_factor = max(ODDS_FACTOR_FLOOR, 1 - (pre_match_odds / self.underdog_threshold))
+        # Sherlock Fix: Previous logic was inverted (1 - ...), favoring weaker underdogs.
+        # We want higher confidence for stronger underdogs (odds closer to threshold).
+        odds_ratio = pre_match_odds / self.underdog_threshold
+        odds_factor = max(ODDS_FACTOR_FLOOR, min(1.0, odds_ratio))
         
         if minute < EARLY_GAME_MINUTE:
             time_factor = TIME_FACTOR_EARLY_FLOOR + (minute / EARLY_GAME_MINUTE) * TIME_FACTOR_EARLY_SLOPE

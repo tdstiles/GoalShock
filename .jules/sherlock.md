@@ -14,3 +14,8 @@
 **Bug:** `AlphaTwoLateCompression` silently ignored trading opportunities for matches that were tied (Draw) late in the game.
 **Cause:** The `_predict_outcome` method returned `None` for any Draw scenario where the market was not yet resolved or `time_remaining > 0`. This prevented the bot from detecting high-confidence "NO" opportunities for "Team to Win" markets during late-game draws.
 **Fix:** Updated `_predict_outcome` to calculate confidence for Draw scenarios instead of returning `None`. Updated `_calculate_soccer_confidence` to return `CONFIDENCE_HIGH` for Draws (lead margin 0) when `seconds_remaining < TIME_THRESHOLD_CRITICAL`.
+
+## 2026-06-15 - AlphaOneUnderdog Inverted Confidence Logic
+**Bug:** `AlphaOneUnderdog` assigned higher trade confidence to weaker underdogs (e.g., 1% win probability) than to stronger underdogs (e.g., 40% win probability) when they took the lead.
+**Cause:** The confidence formula `1 - (odds / threshold)` inverted the relationship. Since "odds" here represented probability (0.0-1.0), a lower probability resulted in a higher factor. This contradicted the strategy of backing capable underdogs.
+**Fix:** Corrected the formula to `min(1.0, odds / threshold)`, ensuring confidence scales positively with the underdog's pre-match win probability.
