@@ -76,6 +76,7 @@ class SimulatedPosition:
     last_price: Optional[float] = None
     last_update_time: Optional[datetime] = None
     token_id: Optional[str] = None
+    quantity: Optional[float] = None
 
 
 @dataclass
@@ -363,11 +364,19 @@ class AlphaOneUnderdog:
                     token_id = market.get("clobTokenIds", [None])[0]
                     
                     if token_id:
+                        # Sherlock Fix: Convert USD Size to Share Count
+                        # size_usd is the amount to invest.
+                        # shares = size_usd / price
+                        if signal.entry_price > 0:
+                            quantity = signal.size_usd / signal.entry_price
+                        else:
+                            quantity = signal.size_usd # Fallback if price 0, though unsafe
+
                         result = await self.polymarket.place_order(
                             token_id=token_id,
                             side="BUY",
                             price=signal.entry_price,
-                            size=signal.size_usd
+                            size=quantity
                         )
                         
                         if result:
@@ -375,12 +384,13 @@ class AlphaOneUnderdog:
                                 position_id=result.get("order_id", signal.signal_id),
                                 signal=signal,
                                 entry_time=datetime.now(),
-                                token_id=token_id
+                                token_id=token_id,
+                                quantity=quantity
                             )
                             self.positions[position.position_id] = position
                             self.stats.total_trades += 1
                             
-                            logger.info(f"[LIVE] Trade executed on Polymarket: {position.position_id}")
+                            logger.info(f"[LIVE] Trade executed on Polymarket: {position.position_id} (Qty: {quantity:.2f})")
                             return
             except Exception as e:
                 logger.error(f"Polymarket trade error: {e}")
@@ -405,12 +415,22 @@ class AlphaOneUnderdog:
                 logger.error(f"Could not find token_id for position {position.position_id}")
                 return False
 
+            # Determine quantity to close
+            if position.quantity:
+                qty_to_close = position.quantity
+            else:
+                # Fallback for positions opened before this fix or in simulation
+                if position.signal.entry_price > 0:
+                    qty_to_close = position.signal.size_usd / position.signal.entry_price
+                else:
+                    qty_to_close = position.signal.size_usd
+
             # Execute SELL order
             result = await self.polymarket.place_order(
                 token_id=token_id,
                 side="SELL",
                 price=price,
-                size=position.signal.size_usd
+                size=qty_to_close
             )
 
             return result is not None
