@@ -334,25 +334,34 @@ class UnifiedTradingEngine:
                 await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
 
     async def _get_fixture_market_prices(self, fixture) -> Dict[str, float]:
-        if self.polymarket:
-            event_name = f"{fixture.home_team} vs {fixture.away_team}"
-            try:
-                markets = await self.polymarket.get_markets_by_event(event_name)
-                if markets:
-                    market = markets[0]
-                    token_id = market.get("clobTokenIds", [None])[0]
-                    if token_id:
-                        yes_price = await self.polymarket.get_yes_price(token_id)
-                        if yes_price:
-                            return {KEY_YES: yes_price, KEY_NO: 1 - yes_price}
-                        else:
-                            logger.warning(f"Price not found for token {token_id} (Fixture: {fixture.fixture_id})")
-                    else:
-                        logger.warning(f"No CLOB token ID found for market {market.get('id')} (Fixture: {fixture.fixture_id})")
-                else:
-                    logger.debug(f"No markets found for event: {event_name}")
-            except Exception as e:
-                logger.error(f"Error fetching market prices for {event_name}: {e}", exc_info=True)
+        if not self.polymarket:
+            return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
+
+        event_name = f"{fixture.home_team} vs {fixture.away_team}"
+
+        try:
+            markets = await self.polymarket.get_markets_by_event(event_name)
+
+            if not markets:
+                logger.debug(f"No markets found for event: {event_name}")
+                return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
+
+            market = markets[0]
+            token_id = market.get("clobTokenIds", [None])[0]
+
+            if not token_id:
+                logger.warning(f"No CLOB token ID found for market {market.get('id')} (Fixture: {fixture.fixture_id})")
+                return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
+
+            yes_price = await self.polymarket.get_yes_price(token_id)
+
+            if yes_price:
+                return {KEY_YES: yes_price, KEY_NO: 1 - yes_price}
+
+            logger.warning(f"Price not found for token {token_id} (Fixture: {fixture.fixture_id})")
+
+        except Exception as e:
+            logger.error(f"Error fetching market prices for {event_name}: {e}", exc_info=True)
         
         return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
 
