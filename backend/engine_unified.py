@@ -26,6 +26,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# Loop Intervals (Seconds)
+INTERVAL_PRE_MATCH_ODDS = 1800  # 30 minutes
+INTERVAL_ERROR_RETRY = 60       # 1 minute
+INTERVAL_LIVE_FIXTURE = 30      # 30 seconds
+INTERVAL_STATS_REPORT = 300     # 5 minutes
+
+DEFAULT_MARKET_PRICE = 0.5
+
+
 @dataclass
 class EngineConfig:
     mode: TradingMode = TradingMode.SIMULATION
@@ -215,8 +224,8 @@ class UnifiedTradingEngine:
                 "away_score": goal.away_score,
                 "minute": goal.minute,
                 "status": "2H" if goal.minute > 45 else "1H",
-                "yes_price": 0.5,  # Would get from market
-                "no_price": 0.5
+                "yes_price": DEFAULT_MARKET_PRICE,  # Would get from market
+                "no_price": DEFAULT_MARKET_PRICE
             }
             await self.alpha_two.feed_live_fixture_update(fixture_data)
 
@@ -234,11 +243,11 @@ class UnifiedTradingEngine:
                         if odds:
                             await self.alpha_one.cache_pre_match_odds(fixture_id, odds)
                 
-                await asyncio.sleep(1800)
+                await asyncio.sleep(INTERVAL_PRE_MATCH_ODDS)
                 
             except Exception as e:
                 logger.error(f"Pre-match odds loop error: {e}")
-                await asyncio.sleep(60)
+                await asyncio.sleep(INTERVAL_ERROR_RETRY)
 
     async def _fetch_todays_fixtures(self) -> List[Dict]:
         if not self.api_football:
@@ -286,17 +295,17 @@ class UnifiedTradingEngine:
                             "away_score": fixture.away_score,
                             "minute": fixture.minute,
                             "status": fixture.status,
-                            "yes_price": market_prices.get("yes", 0.5),
-                            "no_price": market_prices.get("no", 0.5)
+                            "yes_price": market_prices.get("yes", DEFAULT_MARKET_PRICE),
+                            "no_price": market_prices.get("no", DEFAULT_MARKET_PRICE)
                         }
                         
                         await self.alpha_two.feed_live_fixture_update(fixture_data)
                 
-                await asyncio.sleep(30)  
+                await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
                 
             except Exception as e:
                 logger.error(f"Live fixture loop error: {e}")
-                await asyncio.sleep(30)
+                await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
 
     async def _get_fixture_market_prices(self, fixture) -> Dict[str, float]:
         if self.polymarket:
@@ -314,13 +323,13 @@ class UnifiedTradingEngine:
             except Exception:
                 pass
         
-        return {"yes": 0.5, "no": 0.5}
+        return {"yes": DEFAULT_MARKET_PRICE, "no": DEFAULT_MARKET_PRICE}
 
     async def _stats_reporter_loop(self):
         """Periodically report engine statistics"""
         while self.running:
             try:
-                await asyncio.sleep(300) 
+                await asyncio.sleep(INTERVAL_STATS_REPORT)
                 
                 logger.info("=" * 40)
                 logger.info("ENGINE STATISTICS")
