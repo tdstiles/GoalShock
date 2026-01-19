@@ -13,26 +13,26 @@ def _is_win_market(question: str) -> bool:
     """Check whether a market question describes a win/result market.
 
     Args:
-        question: The market question text.
+        question: The market question text (assumed to be lowercased).
 
     Returns:
         True if the question contains win-related keywords.
     """
-    normalized = question.lower()
-    return any(keyword in normalized for keyword in WIN_KEYWORDS)
+    # Bolt Optimization: Expecting pre-lowercased string to avoid redundant operations
+    return any(keyword in question for keyword in WIN_KEYWORDS)
 
 
 def _is_total_goals_market(question: str) -> bool:
     """Check whether a market question describes a total-goals market.
 
     Args:
-        question: The market question text.
+        question: The market question text (assumed to be lowercased).
 
     Returns:
         True if the question contains total-goals keywords.
     """
-    normalized = question.lower()
-    return any(keyword in normalized for keyword in GOAL_KEYWORDS)
+    # Bolt Optimization: Expecting pre-lowercased string to avoid redundant operations
+    return any(keyword in question for keyword in GOAL_KEYWORDS)
 
 
 class MarketMapper:
@@ -93,22 +93,29 @@ class MarketMapper:
         """
         relevant = []
 
+        # Pre-calculate lowercase strings to avoid re-computation in the loop
+        # Bolt Optimization: Lifting these invariants out of the loop
+        goal_team_lower = goal.team.lower()
+        home_team_lower = goal.home_team.lower()
+        away_team_lower = goal.away_team.lower()
+        player_lower = goal.player.lower()
+
         for market in markets:
             question = market.question.lower()
 
             if _is_win_market(question):
-                if goal.team.lower() in question:
+                if goal_team_lower in question:
                     relevant.append(market)
                 elif (
-                    goal.home_team.lower() in question
-                    or goal.away_team.lower() in question
+                    home_team_lower in question
+                    or away_team_lower in question
                 ):
                     relevant.append(market)
 
             elif _is_total_goals_market(question):
                 relevant.append(market)
 
-            elif goal.player.lower() in question:
+            elif player_lower in question:
                 relevant.append(market)
 
         return relevant or markets  # Return all if no specific matches
