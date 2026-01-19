@@ -160,18 +160,7 @@ class AlphaOneUnderdog:
         odds = self.pre_match_odds[fixture_id]
         
        
-        team_odds_map = {}
-        for key, value in odds.items():
-            if "home" in key.lower() or home_team.lower() in key.lower():
-                team_odds_map[home_team] = value
-            elif "away" in key.lower() or away_team.lower() in key.lower():
-                team_odds_map[away_team] = value
-            elif key.lower() not in ["draw", "tie"]:
-                # Try exact match
-                if home_team.lower() in key.lower():
-                    team_odds_map[home_team] = value
-                elif away_team.lower() in key.lower():
-                    team_odds_map[away_team] = value
+        team_odds_map = self._map_odds_to_teams(odds, home_team, away_team)
         
         if not team_odds_map:
             logger.warning(f"Could not map teams to odds for fixture {fixture_id}")
@@ -273,6 +262,23 @@ class AlphaOneUnderdog:
         await self._execute_trade(signal)
         
         return signal
+
+    def _map_odds_to_teams(self, odds: Dict[str, float], home_team: str, away_team: str) -> Dict[str, float]:
+        """
+        Maps team names to odds values using fuzzy matching on the odds keys.
+        """
+        team_odds_map = {}
+        for key, value in odds.items():
+            key_lower = key.lower()
+            home_lower = home_team.lower()
+            away_lower = away_team.lower()
+
+            if "home" in key_lower or home_lower in key_lower:
+                team_odds_map[home_team] = value
+            elif "away" in key_lower or away_lower in key_lower:
+                team_odds_map[away_team] = value
+
+        return team_odds_map
 
     def _calculate_confidence(self, pre_match_odds: float, minute: int, lead_margin: int) -> float:
         # Sherlock Fix: Previous logic was inverted (1 - ...), favoring weaker underdogs.
