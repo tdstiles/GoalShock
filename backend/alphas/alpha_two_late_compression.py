@@ -662,6 +662,7 @@ class AlphaTwoLateCompression:
             # Since we don't know the exact added time, we assume a conservative buffer (e.g., 8 minutes total).
             # This prevents assuming "1 minute left" and triggering high-risk trades prematurely.
 
+            # NOTE: We considered increasing this to 13m to handle deep stoppage, but decided against it.
             STOPPAGE_BUFFER_MINUTES = 8
 
             if minute >= 90 and status not in ["FT", "AET", "PEN"]:
