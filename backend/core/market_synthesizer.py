@@ -143,7 +143,10 @@ class MarketMicrostructure:
                 "timestamp": timestamp.isoformat()
             })
 
-        return sorted(trades, key=lambda x: x["timestamp"], reverse=True)
+        # Optimization: Trades are generated in chronological reverse order (newest first)
+        # by the loop structure above, so explicit sorting is redundant.
+        # Removing sorted() converts O(N log N) to O(N).
+        return trades
 
     def generate_pnl_path(self, initial_value: float = 1000, num_points: int = 100) -> List[Dict]:
         """Generate realistic P&L path with proper risk characteristics"""
