@@ -373,6 +373,13 @@ class HybridGoalListener:
         """Run the WebSocket listener with error handling."""
         try:
             await self.ws_listener.start()
+
+            # If start() returns cleanly but we are still running, it means
+            # the listener gave up (e.g. max retries). Switch to fallback.
+            if self.running and not self.ws_listener.running:
+                logger.warning("WebSocket listener stopped unexpectedly. Switching to polling.")
+                self.use_polling_fallback = True
+
         except Exception as e:
             logger.error(f"WebSocket listener failed: {e}")
             self.use_polling_fallback = True
