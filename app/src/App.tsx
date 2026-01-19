@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CustomCursor from './components/CustomCursor';
 import SubtleRippleBackground from './components/SubtleRippleBackground';
 import ButtonText from './components/ButtonText';
+import ProbabilityBar from './components/ProbabilityBar';
 import {
   fetchLiveMatches,
   fetchAllMarkets,
@@ -92,6 +93,14 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
     </motion.div>
   );
 }
+
+// Helper to format volume
+const formatVolume = (vol: number | undefined) => {
+  if (!vol) return '$0';
+  if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
+  if (vol >= 1000) return `$${(vol / 1000).toFixed(1)}k`;
+  return `$${vol.toLocaleString()}`;
+};
 
 // Main App
 export default function App() {
@@ -290,9 +299,10 @@ function LiveMarketsSection() {
                       </div>
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                      Vol: ${market.volume_24h?.toLocaleString() || market.volume?.toLocaleString()}
+                      Vol: {formatVolume(market.volume_24h || market.volume)}
                     </p>
                   </div>
+                  <ProbabilityBar yesPrice={market.yes_price || 0} noPrice={market.no_price || 0} />
                 </motion.div>
               ))}
             </div>
@@ -719,9 +729,10 @@ function MarketsView({ onBack }: { onBack: () => void }) {
                       </div>
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                      Vol: ${market.volume_24h?.toLocaleString() || market.volume?.toLocaleString()}
+                      Vol: {formatVolume(market.volume_24h || market.volume)}
                     </p>
                   </div>
+                  <ProbabilityBar yesPrice={market.yes_price || 0} noPrice={market.no_price || 0} />
                 </motion.div>
               ))}
             </div>
