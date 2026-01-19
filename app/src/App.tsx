@@ -839,10 +839,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           <h2 style={{ color: '#10b981', marginBottom: '20px' }}>API Keys</h2>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+            <label htmlFor="api-football-key" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
               API-Football Key
             </label>
             <input
+              id="api-football-key"
               type="text"
               value={settings.api_football_key || ''}
               onChange={(e) => updateSetting('api_football_key', e.target.value)}
@@ -860,10 +861,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+            <label htmlFor="polymarket-api-key" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
               Polymarket API Key
             </label>
             <input
+              id="polymarket-api-key"
               type="text"
               value={settings.polymarket_api_key || ''}
               onChange={(e) => updateSetting('polymarket_api_key', e.target.value)}
@@ -881,10 +883,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+            <label htmlFor="kalshi-api-key" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
               Kalshi API Key
             </label>
             <input
+              id="kalshi-api-key"
               type="text"
               value={settings.kalshi_api_key || ''}
               onChange={(e) => updateSetting('kalshi_api_key', e.target.value)}
@@ -902,10 +905,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           </div>
 
           <div style={{ marginBottom: '30px' }}>
-            <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+            <label htmlFor="kalshi-api-secret" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
               Kalshi API Secret
             </label>
             <input
+              id="kalshi-api-secret"
               type="password"
               value={settings.kalshi_api_secret || ''}
               onChange={(e) => updateSetting('kalshi_api_secret', e.target.value)}
@@ -926,10 +930,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
-              <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+              <label htmlFor="max-trade-size" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
                 Max Trade Size (USD)
               </label>
               <input
+                id="max-trade-size"
                 type="number"
                 value={settings.max_trade_size || ''}
                 onChange={(e) => updateSetting('max_trade_size', e.target.value)}
@@ -946,10 +951,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+              <label htmlFor="max-daily-loss" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
                 Max Daily Loss (USD)
               </label>
               <input
+                id="max-daily-loss"
                 type="number"
                 value={settings.max_daily_loss || ''}
                 onChange={(e) => updateSetting('max_daily_loss', e.target.value)}
@@ -966,10 +972,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+              <label htmlFor="underdog-threshold" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
                 Underdog Threshold
               </label>
               <input
+                id="underdog-threshold"
                 type="number"
                 step="0.01"
                 value={settings.underdog_threshold || ''}
@@ -987,10 +994,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
+              <label htmlFor="max-positions" style={{ display: 'block', color: '#94a3b8', marginBottom: '8px' }}>
                 Max Positions
               </label>
               <input
+                id="max-positions"
                 type="number"
                 value={settings.max_positions || ''}
                 onChange={(e) => updateSetting('max_positions', e.target.value)}
