@@ -41,6 +41,6 @@ async def test_goal_listener_trims_seen_goals() -> None:
     assert len(listener.seen_goals) == listener_module.SEEN_GOALS_TRIM_TO
 
 
-def _build_goal_ids(count: int) -> Set[str]:
-    """Build a set of synthetic goal IDs."""
-    return {f"fixture_{index}_minute_{index}_player_{index}" for index in range(count)}
+def _build_goal_ids(count: int) -> dict[str, bool]:
+    """Build a dict of synthetic goal IDs."""
+    return {f"fixture_{index}_minute_{index}_player_{index}": True for index in range(count)}

@@ -12,7 +12,7 @@ SUPPORTED_LEAGUE_ID = 39 # Premier League
 def listener():
     listener = WebSocketGoalListener(api_key="test_key")
     # Reset seen_goals for each test
-    listener.seen_goals = set()
+    listener.seen_goals = {}
     return listener
 
 @pytest.mark.asyncio
