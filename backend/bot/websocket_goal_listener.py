@@ -10,6 +10,8 @@ import httpx
 import websockets
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError
 
+from backend.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 MAX_RECONNECT_ATTEMPTS = 10
@@ -68,21 +70,12 @@ class WebSocketGoalListener:
     """Listens for live goal events over a WebSocket connection."""
   
     
-    SUPPORTED_LEAGUES = {
-        39,   
-        140, 
-        78,   
-        135,  
-        61,   
-        2,    
-        3,    
-        848,  
-    }
+    SUPPORTED_LEAGUES = set(settings.SUPPORTED_LEAGUES)
     
     WS_ENDPOINTS = {
-        "primary": "wss://api-football-v1.p.rapidapi.com/ws/live",
-        "sofascore": "wss://ws.sofascore.com/live/events",
-        "backup": "wss://sportdata.io/ws/soccer"
+        "primary": settings.GOAL_WS_PRIMARY,
+        "sofascore": settings.GOAL_WS_SOFASCORE,
+        "backup": settings.GOAL_WS_BACKUP
     }
     
     def __init__(self, api_key: str = "") -> None:
