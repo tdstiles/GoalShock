@@ -222,8 +222,25 @@ class AlphaOneUnderdog:
         
         if current_price is None:
             logger.warning(f"Could not get market price for {underdog_team}")
-            current_price = underdog_odds * MARKET_PRICE_MULTIPLIER_BACKUP
-        
+            # Sherlock Fix: More realistic simulation pricing.
+            # When underdog leads, price jumps significantly, not just 1.2x pre-match odds.
+
+            # Base price for taking the lead (approx 0.45 usually)
+            base_lead_price = 0.45
+
+            # Time decay factor: Price increases as time runs out (if leading)
+            time_progression = minute / 90.0
+            time_component = time_progression * 0.40  # Adds up to 0.40 by end of game
+
+            # Margin factor: Extra cushion for bigger leads (e.g. 2-0 vs 1-0)
+            lead_margin = underdog_score - favorite_score
+            margin_component = (lead_margin - 1) * 0.15
+
+            estimated_price = base_lead_price + time_component + margin_component
+
+            # Clamp between 0.01 and 0.99, but ensure it's at least significantly higher than pre-match odds
+            current_price = max(underdog_odds * 1.5, min(0.99, estimated_price))
+
         
         confidence = self._calculate_confidence(underdog_odds, minute, underdog_score - favorite_score)
         adjusted_size = self.max_trade_size * confidence
