@@ -29,3 +29,4 @@
 - **2026-01-18**: Added `backend/tests/test_alpha_two.py` covering "Alpha Two" (Late-Stage Compression) strategy, verifying opportunity detection logic and confidence calculations.
 - **2026-01-18**: Added `backend/tests/bot/test_websocket_goal_listener.py` covering  core logic (message parsing, filtering, deduplication).
 - **2026-01-18**: Added `backend/tests/bot/test_websocket_goal_listener.py` covering WebSocketGoalListener core logic (message parsing, filtering, deduplication).
+- **2026-01-18**: Added `backend/tests/core/test_data_pipeline.py` covering `DataAcquisitionLayer`, including operational mode switching, API fallbacks, and simulation logic.
