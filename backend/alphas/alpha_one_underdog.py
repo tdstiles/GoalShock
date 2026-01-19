@@ -75,6 +75,7 @@ class SimulatedPosition:
     status: str = "open"
     last_price: Optional[float] = None
     last_update_time: Optional[datetime] = None
+    token_id: Optional[str] = None
 
 
 @dataclass
@@ -373,7 +374,8 @@ class AlphaOneUnderdog:
                             position = SimulatedPosition(
                                 position_id=result.get("order_id", signal.signal_id),
                                 signal=signal,
-                                entry_time=datetime.now()
+                                entry_time=datetime.now(),
+                                token_id=token_id
                             )
                             self.positions[position.position_id] = position
                             self.stats.total_trades += 1
@@ -384,6 +386,38 @@ class AlphaOneUnderdog:
                 logger.error(f"Polymarket trade error: {e}")
         
         logger.error("Failed to execute live trade")
+
+    async def _execute_live_close(self, position: SimulatedPosition, price: float) -> bool:
+        if not self.polymarket:
+            return False
+
+        try:
+            # Prefer using stored token_id, fallback to re-fetching if missing (backward compat)
+            token_id = position.token_id
+
+            if not token_id:
+                markets = await self.polymarket.get_markets_by_event(f"{position.signal.team} to win")
+                if markets:
+                    market = markets[0]
+                    token_id = market.get("clobTokenIds", [None])[0]
+
+            if not token_id:
+                logger.error(f"Could not find token_id for position {position.position_id}")
+                return False
+
+            # Execute SELL order
+            result = await self.polymarket.place_order(
+                token_id=token_id,
+                side="SELL",
+                price=price,
+                size=position.signal.size_usd
+            )
+
+            return result is not None
+
+        except Exception as e:
+            logger.error(f"Error closing position {position.position_id}: {e}")
+            return False
 
     async def monitor_positions(self):
         while True:
@@ -457,6 +491,15 @@ class AlphaOneUnderdog:
         return new_price
 
     async def _close_position(self, position: SimulatedPosition, exit_price: float, reason: str):
+        # Sherlock Fix: Execute SELL on exchange if in LIVE mode
+        if self.mode == TradingMode.LIVE:
+            success = await self._execute_live_close(position, exit_price)
+            if not success:
+                logger.error(f"CRITICAL: Failed to close position {position.position_id} on exchange!")
+                # We DO NOT proceed to update stats or remove position,
+                # so the monitor loop tries again next time.
+                return
+
         position.exit_time = datetime.now()
         position.exit_price = exit_price
         position.status = f"closed_{reason.lower()}"
