@@ -662,22 +662,16 @@ class AlphaTwoLateCompression:
             # Since we don't know the exact added time, we assume a conservative buffer (e.g., 8 minutes total).
             # This prevents assuming "1 minute left" and triggering high-risk trades prematurely.
 
-            # Sherlock Fix: Modern soccer often has >10m stoppage.
-            # If we assume 8m and it goes to 12m, we incorrectly treat minutes 98-102 as "60s left",
-            # triggering high-confidence trades during high-volatility moments.
-            STOPPAGE_BUFFER_MINUTES = 13
+            # NOTE: We considered increasing this to 13m to handle deep stoppage, but decided against it.
+            STOPPAGE_BUFFER_MINUTES = 8
 
             if minute >= 90 and status not in ["FT", "AET", "PEN"]:
+                # Calculate remaining based on a theoretical 98th minute end
+                # Ensure it decays as minute increases (91, 92...)
+                # Clamp at 60s minimum to keep market "alive" until FT signal
                 stoppage_end_minute = 90 + STOPPAGE_BUFFER_MINUTES
-
-                if minute >= stoppage_end_minute:
-                    # If we exceeded our buffer, we are in "Deep Unknown Stoppage".
-                    # Treat as 5 minutes remaining (300s) to force CONFIDENCE_NEUTRAL
-                    # instead of artificially clamping to 60s (CONFIDENCE_HIGH).
-                    seconds_remaining = 300
-                else:
-                    seconds_remaining = (stoppage_end_minute - minute) * 60
-                    seconds_remaining = max(60, seconds_remaining)
+                seconds_remaining = (stoppage_end_minute - minute) * 60
+                seconds_remaining = max(60, seconds_remaining)
             else:
                 seconds_remaining = (total_minutes - minute) * 60
                 seconds_remaining = max(0, seconds_remaining)
