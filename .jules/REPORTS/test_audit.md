@@ -1,7 +1,7 @@
 # 🧐 Inspector: Quality Report 2026-01-18
 
 ### 1. Executive Summary
-- **Coverage:** Improving (Alpha Two Logic now covered)
+- **Coverage:** Improving (Realtime Parsing Logic now covered)
 - **Health:** **Improving**
 - **Failures:** 0 tests failing.
 
@@ -16,7 +16,7 @@
 *Everything is a gap. Prioritize the core trading logic.*
 
 1. `backend/engine.py` - 0% coverage. Core trading engine. High Risk.
-2. `backend/bot/` - 0% coverage. Market data ingestion and websocket handling.
+2. `backend/bot/` - Parsing logic for goals was exposed, now covered.
 
 ### 4. Qualitative Notes
 - **False Confidence:** `backend/tests/test_smoke.py` asserts `True`. It verifies the runner works, but tests nothing else.
@@ -28,5 +28,5 @@
 - **2026-01-18**: Added `backend/tests/test_alpha_one.py` covering the "Alpha One" strategy, including signals, edge cases, and position limits.
 - **2026-01-18**: Added `backend/tests/test_alpha_two.py` covering "Alpha Two" (Late-Stage Compression) strategy, verifying opportunity detection logic and confidence calculations.
 - **2026-01-18**: Added `backend/tests/bot/test_websocket_goal_listener.py` covering  core logic (message parsing, filtering, deduplication).
-- **2026-01-18**: Added `backend/tests/bot/test_websocket_goal_listener.py` covering WebSocketGoalListener core logic (message parsing, filtering, deduplication).
 - **2026-01-18**: Added `backend/tests/core/test_data_pipeline.py` covering `DataAcquisitionLayer`, including operational mode switching, API fallbacks, and simulation logic.
+- **2026-01-18**: Added `backend/tests/bot/test_realtime_ingestor_parsing.py` covering the complex JSON parsing logic in `RealtimeIngestor._create_goal_event`, securing the "Sad Path" of API goal extraction.
