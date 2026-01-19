@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 from dataclasses import dataclass
+from enum import Enum
 from dotenv import load_dotenv
 
 # Import components
@@ -26,21 +27,46 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# --- CONSTANTS ---
+
 # Loop Intervals (Seconds)
 INTERVAL_PRE_MATCH_ODDS = 1800  # 30 minutes
 INTERVAL_ERROR_RETRY = 60       # 1 minute
 INTERVAL_LIVE_FIXTURE = 30      # 30 seconds
 INTERVAL_STATS_REPORT = 300     # 5 minutes
 
+# Default Values
 DEFAULT_MARKET_PRICE = 0.5
+DEFAULT_ENABLE_WEBSOCKET = True
+DEFAULT_ENABLE_ALPHA_ONE = True
+DEFAULT_ENABLE_ALPHA_TWO = True
+
+# Environment Variable Keys
+ENV_TRADING_MODE = "TRADING_MODE"
+ENV_ENABLE_ALPHA_ONE = "ENABLE_ALPHA_ONE"
+ENV_ENABLE_ALPHA_TWO = "ENABLE_ALPHA_TWO"
+ENV_ENABLE_WEBSOCKET = "ENABLE_WEBSOCKET"
+ENV_API_FOOTBALL_KEY = "API_FOOTBALL_KEY"
+ENV_POLYMARKET_API_KEY = "POLYMARKET_API_KEY"
+ENV_KALSHI_API_KEY = "KALSHI_API_KEY"
+ENV_KALSHI_API_SECRET = "KALSHI_API_SECRET"
+
+# String Literals
+MODE_SIMULATION = "simulation"
+MODE_LIVE = "live"
+VAL_TRUE = "true"
+KEY_YES = "yes"
+KEY_NO = "no"
+STATUS_RESOLVED = "resolved"
+STATUS_ACTIVE = "active"
 
 
 @dataclass
 class EngineConfig:
     mode: TradingMode = TradingMode.SIMULATION
-    enable_alpha_one: bool = True
-    enable_alpha_two: bool = True
-    enable_websocket: bool = True
+    enable_alpha_one: bool = DEFAULT_ENABLE_ALPHA_ONE
+    enable_alpha_two: bool = DEFAULT_ENABLE_ALPHA_TWO
+    enable_websocket: bool = DEFAULT_ENABLE_WEBSOCKET
     
     api_football_key: str = ""
     polymarket_key: str = ""
@@ -49,18 +75,18 @@ class EngineConfig:
     
     @classmethod
     def from_env(cls) -> "EngineConfig":
-        mode_str = os.getenv("TRADING_MODE", "simulation").lower()
-        mode = TradingMode.LIVE if mode_str == "live" else TradingMode.SIMULATION
+        mode_str = os.getenv(ENV_TRADING_MODE, MODE_SIMULATION).lower()
+        mode = TradingMode.LIVE if mode_str == MODE_LIVE else TradingMode.SIMULATION
         
         return cls(
             mode=mode,
-            enable_alpha_one=os.getenv("ENABLE_ALPHA_ONE", "true").lower() == "true",
-            enable_alpha_two=os.getenv("ENABLE_ALPHA_TWO", "true").lower() == "true",
-            enable_websocket=os.getenv("ENABLE_WEBSOCKET", "true").lower() == "true",
-            api_football_key=os.getenv("API_FOOTBALL_KEY", ""),
-            polymarket_key=os.getenv("POLYMARKET_API_KEY", ""),
-            kalshi_key=os.getenv("KALSHI_API_KEY", ""),
-            kalshi_secret=os.getenv("KALSHI_API_SECRET", "")
+            enable_alpha_one=os.getenv(ENV_ENABLE_ALPHA_ONE, VAL_TRUE).lower() == VAL_TRUE,
+            enable_alpha_two=os.getenv(ENV_ENABLE_ALPHA_TWO, VAL_TRUE).lower() == VAL_TRUE,
+            enable_websocket=os.getenv(ENV_ENABLE_WEBSOCKET, VAL_TRUE).lower() == VAL_TRUE,
+            api_football_key=os.getenv(ENV_API_FOOTBALL_KEY, ""),
+            polymarket_key=os.getenv(ENV_POLYMARKET_API_KEY, ""),
+            kalshi_key=os.getenv(ENV_KALSHI_API_KEY, ""),
+            kalshi_secret=os.getenv(ENV_KALSHI_API_SECRET, "")
         )
 
 
@@ -295,8 +321,8 @@ class UnifiedTradingEngine:
                             "away_score": fixture.away_score,
                             "minute": fixture.minute,
                             "status": fixture.status,
-                            "yes_price": market_prices.get("yes", DEFAULT_MARKET_PRICE),
-                            "no_price": market_prices.get("no", DEFAULT_MARKET_PRICE)
+                            "yes_price": market_prices.get(KEY_YES, DEFAULT_MARKET_PRICE),
+                            "no_price": market_prices.get(KEY_NO, DEFAULT_MARKET_PRICE)
                         }
                         
                         await self.alpha_two.feed_live_fixture_update(fixture_data)
@@ -318,7 +344,7 @@ class UnifiedTradingEngine:
                     if token_id:
                         yes_price = await self.polymarket.get_yes_price(token_id)
                         if yes_price:
-                            return {"yes": yes_price, "no": 1 - yes_price}
+                            return {KEY_YES: yes_price, KEY_NO: 1 - yes_price}
                         else:
                             logger.warning(f"Price not found for token {token_id} (Fixture: {fixture.fixture_id})")
                     else:
@@ -328,7 +354,7 @@ class UnifiedTradingEngine:
             except Exception as e:
                 logger.error(f"Error fetching market prices for {event_name}: {e}", exc_info=True)
         
-        return {"yes": DEFAULT_MARKET_PRICE, "no": DEFAULT_MARKET_PRICE}
+        return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
 
     async def _stats_reporter_loop(self):
         """Periodically report engine statistics"""
@@ -378,8 +404,8 @@ async def main():
     parser = argparse.ArgumentParser(description="Unified Trading Engine")
     parser.add_argument(
         "--mode",
-        choices=["simulation", "live"],
-        default="simulation",
+        choices=[MODE_SIMULATION, MODE_LIVE],
+        default=MODE_SIMULATION,
         help="Trading mode"
     )
     parser.add_argument(
@@ -403,7 +429,7 @@ async def main():
     args = parser.parse_args()
     
     config = EngineConfig.from_env()
-    config.mode = TradingMode.LIVE if args.mode == "live" else TradingMode.SIMULATION
+    config.mode = TradingMode.LIVE if args.mode == MODE_LIVE else TradingMode.SIMULATION
     config.enable_alpha_one = args.alpha_one
     config.enable_alpha_two = args.alpha_two
     config.enable_websocket = not args.no_websocket
