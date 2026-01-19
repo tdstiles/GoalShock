@@ -1,4 +1,4 @@
-# GoalShock v1.1.2
+# GoalShock v1.2
 
 GoalShock is an autonomous sports trading engine designed for prediction markets like Polymarket and Kalshi. It leverages real-time data to execute high-probability trades based on match events.
 
