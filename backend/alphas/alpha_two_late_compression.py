@@ -656,13 +656,23 @@ class AlphaTwoLateCompression:
             if seconds_remaining <= 0:
                  seconds_remaining = 60
         else:
-            seconds_remaining = (total_minutes - minute) * 60
+            # Regular Time (90 minutes) logic
+            # Sherlock Fix: Handle Stoppage Time conservatively.
+            # If minute >= 90 but status is still active (e.g. "2H"), we are in stoppage time.
+            # Since we don't know the exact added time, we assume a conservative buffer (e.g., 8 minutes total).
+            # This prevents assuming "1 minute left" and triggering high-risk trades prematurely.
 
-            # Handle Stoppage Time: If minute >= 90 but status is still active (e.g. "2H"),
-            # ensure we keep the market active by setting a small positive duration.
-            if seconds_remaining <= 0 and status not in ["FT", "AET", "PEN"]:
-                seconds_remaining = 60  # Treat as 1 minute remaining (Final Seconds)
+            STOPPAGE_BUFFER_MINUTES = 8
+
+            if minute >= 90 and status not in ["FT", "AET", "PEN"]:
+                # Calculate remaining based on a theoretical 98th minute end
+                # Ensure it decays as minute increases (91, 92...)
+                # Clamp at 60s minimum to keep market "alive" until FT signal
+                stoppage_end_minute = 90 + STOPPAGE_BUFFER_MINUTES
+                seconds_remaining = (stoppage_end_minute - minute) * 60
+                seconds_remaining = max(60, seconds_remaining)
             else:
+                seconds_remaining = (total_minutes - minute) * 60
                 seconds_remaining = max(0, seconds_remaining)
         
     
