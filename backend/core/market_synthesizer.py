@@ -4,6 +4,44 @@ import math
 from typing import Dict, List
 from datetime import datetime, timedelta
 
+# Market Simulation Constants
+ORDER_FLOW_IMBALANCE_STD = 0.3
+MICROSTRUCTURE_NOISE_STD = 0.0005
+
+# Orderbook Generation
+BASE_PRICE_MIN = 0.3
+BASE_PRICE_MAX = 0.7
+VOLATILITY_MIN = 0.02
+VOLATILITY_MAX = 0.08
+VOLATILITY_SHOCK_STD = 0.01
+VOLATILITY_DECAY = 0.9
+VOLATILITY_SHOCK_WEIGHT = 0.1
+DRIFT_DT = 0.1
+PRICE_MIN = 0.01
+PRICE_MAX = 0.99
+VOLATILITY_FLOOR = 0.01
+BASE_SPREAD = 0.02
+ORDERBOOK_DEPTH = 5
+TICK_SIZE = 0.01
+ORDER_SIZE_MIN = 100
+ORDER_SIZE_MAX = 5000
+VOLUME_MIN = 50000
+VOLUME_MAX = 500000
+
+# Trade History
+TRADE_PRICE_NOISE_STD = 0.001
+TRADE_SIZE_MIN = 10
+TRADE_SIZE_MAX = 1000
+TRADE_INTERVAL_MIN = 1
+TRADE_INTERVAL_MAX = 5
+
+# PnL Simulation
+PNL_WIN_RATE = 0.58
+PNL_AVG_WIN = 0.02
+PNL_WIN_STD = 0.01
+PNL_AVG_LOSS_RET = -0.015
+PNL_LOSS_STD = 0.008
+
 class MarketMicrostructure:
     def __init__(self):
         self._vol_state = {}
@@ -17,45 +55,44 @@ class MarketMicrostructure:
 
     def _order_flow_imbalance(self) -> float:
         """Simulate order flow imbalance (-1 to 1)"""
-        return random.gauss(0, 0.3)
+        return random.gauss(0, ORDER_FLOW_IMBALANCE_STD)
 
     def _microstructure_noise(self) -> float:
         """High-frequency tick noise"""
-        return random.gauss(0, 0.0005)
+        return random.gauss(0, MICROSTRUCTURE_NOISE_STD)
 
     def synthesize_orderbook(self, market_id: str, base_price: float = None) -> Dict:
         """Generate realistic limit order book"""
         if base_price is None:
-            base_price = random.uniform(0.3, 0.7)
+            base_price = random.uniform(BASE_PRICE_MIN, BASE_PRICE_MAX)
 
         if market_id not in self._vol_state:
-            self._vol_state[market_id] = random.uniform(0.02, 0.08)
+            self._vol_state[market_id] = random.uniform(VOLATILITY_MIN, VOLATILITY_MAX)
 
         current_vol = self._vol_state[market_id]
-        vol_shock = random.gauss(0, 0.01)
-        self._vol_state[market_id] = max(0.01, current_vol * 0.9 + abs(vol_shock) * 0.1)
+        vol_shock = random.gauss(0, VOLATILITY_SHOCK_STD)
+        self._vol_state[market_id] = max(VOLATILITY_FLOOR, current_vol * VOLATILITY_DECAY + abs(vol_shock) * VOLATILITY_SHOCK_WEIGHT)
 
-        mid_price = self._brownian_drift(base_price, current_vol, 0.1)
-        mid_price = max(0.01, min(0.99, mid_price))
+        mid_price = self._brownian_drift(base_price, current_vol, DRIFT_DT)
+        mid_price = max(PRICE_MIN, min(PRICE_MAX, mid_price))
 
         mid_price += self._microstructure_noise()
 
-        base_spread = 0.02
-        spread = base_spread * (1 + abs(self._order_flow_imbalance()))
+        spread = BASE_SPREAD * (1 + abs(self._order_flow_imbalance()))
 
         bids = []
         asks = []
 
-        for i in range(5):
-            bid_price = mid_price - spread / 2 - i * 0.01
-            bid_size = random.randint(100, 5000) * (1 + random.random())
+        for i in range(ORDERBOOK_DEPTH):
+            bid_price = mid_price - spread / 2 - i * TICK_SIZE
+            bid_size = random.randint(ORDER_SIZE_MIN, ORDER_SIZE_MAX) * (1 + random.random())
             bids.append({"price": round(bid_price, 4), "size": int(bid_size)})
 
-            ask_price = mid_price + spread / 2 + i * 0.01
-            ask_size = random.randint(100, 5000) * (1 + random.random())
+            ask_price = mid_price + spread / 2 + i * TICK_SIZE
+            ask_size = random.randint(ORDER_SIZE_MIN, ORDER_SIZE_MAX) * (1 + random.random())
             asks.append({"price": round(ask_price, 4), "size": int(ask_size)})
 
-        total_volume = random.randint(50000, 500000)
+        total_volume = random.randint(VOLUME_MIN, VOLUME_MAX)
 
         return {
             "mid_price": round(mid_price, 4),
@@ -72,19 +109,20 @@ class MarketMicrostructure:
         current_time = datetime.now()
 
         orderbook = self.synthesize_orderbook(market_id)
-        current_price = orderbook["mid_price"]
+
+        # Unused variable: current_price = orderbook["mid_price"]
 
         for i in range(num_trades):
             is_buy = random.random() > 0.5
             if is_buy:
                 price = random.choice(orderbook["asks"])["price"]
-                price += random.gauss(0, 0.001)
+                price += random.gauss(0, TRADE_PRICE_NOISE_STD)
             else:
                 price = random.choice(orderbook["bids"])["price"]
-                price -= random.gauss(0, 0.001)
+                price -= random.gauss(0, TRADE_PRICE_NOISE_STD)
 
-            size = random.randint(10, 1000)
-            timestamp = current_time - timedelta(minutes=i * random.randint(1, 5))
+            size = random.randint(TRADE_SIZE_MIN, TRADE_SIZE_MAX)
+            timestamp = current_time - timedelta(minutes=i * random.randint(TRADE_INTERVAL_MIN, TRADE_INTERVAL_MAX))
 
             trades.append({
                 "price": round(price, 4),
@@ -100,15 +138,11 @@ class MarketMicrostructure:
         pnl_history = []
         current_pnl = initial_value
 
-        win_rate = 0.58
-        avg_win = 0.02
-        avg_loss = -0.015
-
         for i in range(num_points):
-            if random.random() < win_rate:
-                change_pct = random.gauss(avg_win, 0.01)
+            if random.random() < PNL_WIN_RATE:
+                change_pct = random.gauss(PNL_AVG_WIN, PNL_WIN_STD)
             else:
-                change_pct = random.gauss(avg_loss, 0.008)
+                change_pct = random.gauss(PNL_AVG_LOSS_RET, PNL_LOSS_STD)
 
             current_pnl *= (1 + change_pct)
 
