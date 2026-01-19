@@ -159,12 +159,15 @@ class MarketMicrostructure:
             else:
                 change_pct = random.gauss(PNL_AVG_LOSS_RET, PNL_LOSS_STD)
 
+            # Sherlock Fix: Ensure internal state matches persisted state to prevent drift
+            change_pct = round(change_pct, 4)  # Normalize precision
             current_pnl *= (1 + change_pct)
+            current_pnl = round(current_pnl, 2)  # Snap to grid
 
             timestamp = datetime.now() - timedelta(hours=num_points - i)
             pnl_history.append({
                 "timestamp": timestamp.isoformat(),
-                "pnl": round(current_pnl, 2),
+                "pnl": current_pnl,
                 "change_pct": round(change_pct * 100, 2)
             })
 
