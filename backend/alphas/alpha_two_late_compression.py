@@ -303,6 +303,11 @@ class AlphaTwoLateCompression:
         if market_id in self.active_trade_market_ids:
             return None
 
+        # Sherlock Fix: Check if we already have a pending opportunity for this market
+        # This prevents queuing multiple opportunities for the same market in race conditions
+        if any(op.market_id == market_id for op in self.active_opportunities.values()):
+            return None
+
         question = market.get("question", "")
         fixture_id = market.get("fixture_id", 0)
         
@@ -489,6 +494,15 @@ class AlphaTwoLateCompression:
             return CONFIDENCE_NEUTRAL
 
     async def _execute_clipping_trade(self, opportunity: ClippingOpportunity):
+        # Sherlock Fix: Guard against double execution
+        if opportunity.market_id in self.active_trade_market_ids:
+            logger.warning(f"Skipping duplicate trade execution for {opportunity.market_id}")
+            return
+
+        if opportunity.market_id in self.pending_orders:
+            logger.warning(f"Skipping execution: Order pending for {opportunity.market_id}")
+            return
+
         trade = ClippingTrade(
             trade_id=opportunity.opportunity_id,
             opportunity=opportunity,
