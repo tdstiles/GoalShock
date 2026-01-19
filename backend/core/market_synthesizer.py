@@ -120,6 +120,7 @@ class MarketMicrostructure:
 
         # Unused variable: current_price = orderbook["mid_price"]
 
+        current_offset_minutes = 0
         for i in range(num_trades):
             is_buy = random.random() > 0.5
             if is_buy:
@@ -130,7 +131,10 @@ class MarketMicrostructure:
                 price -= random.gauss(0, TRADE_PRICE_NOISE_STD)
 
             size = random.randint(TRADE_SIZE_MIN, TRADE_SIZE_MAX)
-            timestamp = current_time - timedelta(minutes=i * random.randint(TRADE_INTERVAL_MIN, TRADE_INTERVAL_MAX))
+
+            # Sherlock Fix: Accumulate time offsets to ensure consistent intervals
+            current_offset_minutes += random.randint(TRADE_INTERVAL_MIN, TRADE_INTERVAL_MAX)
+            timestamp = current_time - timedelta(minutes=current_offset_minutes)
 
             trades.append({
                 "price": round(price, 4),
