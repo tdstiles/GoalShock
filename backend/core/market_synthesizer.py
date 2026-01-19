@@ -46,6 +46,7 @@ class MarketMicrostructure:
     def __init__(self):
         self._vol_state = {}
         self._flow_imbalance = {}
+        self._price_state = {}
 
     def _brownian_drift(self, current: float, volatility: float, dt: float = 1.0) -> float:
         mu = 0.0 
@@ -64,7 +65,11 @@ class MarketMicrostructure:
     def synthesize_orderbook(self, market_id: str, base_price: float = None) -> Dict:
         """Generate realistic limit order book"""
         if base_price is None:
-            base_price = random.uniform(BASE_PRICE_MIN, BASE_PRICE_MAX)
+            # Check for existing state to ensure continuity
+            if market_id in self._price_state:
+                base_price = self._price_state[market_id]
+            else:
+                base_price = random.uniform(BASE_PRICE_MIN, BASE_PRICE_MAX)
 
         if market_id not in self._vol_state:
             self._vol_state[market_id] = random.uniform(VOLATILITY_MIN, VOLATILITY_MAX)
@@ -77,6 +82,9 @@ class MarketMicrostructure:
         mid_price = max(PRICE_MIN, min(PRICE_MAX, mid_price))
 
         mid_price += self._microstructure_noise()
+
+        # Update price state for continuity
+        self._price_state[market_id] = mid_price
 
         spread = BASE_SPREAD * (1 + abs(self._order_flow_imbalance()))
 
