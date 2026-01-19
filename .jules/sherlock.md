@@ -9,3 +9,8 @@
 **Bug:** `HybridGoalListener` failed to switch to polling mode when the WebSocket listener exhausted all reconnection attempts.
 **Cause:** `WebSocketGoalListener.start()` catches all exceptions internally and returns gracefully when `max_reconnect_attempts` is reached. The calling `_run_websocket` method assumed a clean return meant intentional stoppage, thus bypassing the `except Exception` block intended to trigger `use_polling_fallback`.
 **Fix:** Modified `_run_websocket` to check if `self.running` is True but `self.ws_listener.running` is False after `start()` returns. This state indicates an unexpected stop, triggering the fallback to HTTP polling.
+
+## 2025-02-19 - AlphaTwo Blind Spot on Draw Logic
+**Bug:** `AlphaTwoLateCompression` silently ignored trading opportunities for matches that were tied (Draw) late in the game.
+**Cause:** The `_predict_outcome` method returned `None` for any Draw scenario where the market was not yet resolved or `time_remaining > 0`. This prevented the bot from detecting high-confidence "NO" opportunities for "Team to Win" markets during late-game draws.
+**Fix:** Updated `_predict_outcome` to calculate confidence for Draw scenarios instead of returning `None`. Updated `_calculate_soccer_confidence` to return `CONFIDENCE_HIGH` for Draws (lead margin 0) when `seconds_remaining < TIME_THRESHOLD_CRITICAL`.
