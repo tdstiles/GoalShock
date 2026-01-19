@@ -8,7 +8,11 @@ import pytest
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.append(PROJECT_ROOT)
 
-from backend.bot.market_fetcher import MarketFetcher
+from backend.bot.market_fetcher import (
+    MarketFetcher,
+    POLY_MSG_TYPE_PRICE_UPDATE,
+    KALSHI_MSG_TYPE_SNAPSHOT,
+)
 from backend.models.schemas import MarketPrice, MarketUpdate
 
 
@@ -142,7 +146,7 @@ async def test_process_polymarket_update_with_cache_updates_and_callbacks(
 
     await market_fetcher._process_polymarket_update(
         {
-            "type": "price_update",
+            "type": POLY_MSG_TYPE_PRICE_UPDATE,
             "market_id": "mkt-2",
             "yes_price": 0.55,
             "no_price": 0.45,
@@ -250,7 +254,7 @@ async def test_process_kalshi_update_normalizes_prices_and_callbacks(
 
     await market_fetcher._process_kalshi_update(
         {
-            "type": "market_snapshot",
+            "type": KALSHI_MSG_TYPE_SNAPSHOT,
             "market_ticker": "mkt-4",
             "yes_bid": 55.0,
             "no_ask": 45.0,
