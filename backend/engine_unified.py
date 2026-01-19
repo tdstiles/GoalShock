@@ -265,14 +265,14 @@ class UnifiedTradingEngine:
             try:
                
                 pass
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Error fetching Polymarket pre-match odds for fixture {fixture_id}: {e}")
         
         if self.api_football:
             try:
                 return await self.api_football.get_pre_match_odds(fixture_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Error fetching API-Football pre-match odds for fixture {fixture_id}: {e}")
         
         return None
 
@@ -309,10 +309,9 @@ class UnifiedTradingEngine:
 
     async def _get_fixture_market_prices(self, fixture) -> Dict[str, float]:
         if self.polymarket:
+            event_name = f"{fixture.home_team} vs {fixture.away_team}"
             try:
-                markets = await self.polymarket.get_markets_by_event(
-                    f"{fixture.home_team} vs {fixture.away_team}"
-                )
+                markets = await self.polymarket.get_markets_by_event(event_name)
                 if markets:
                     market = markets[0]
                     token_id = market.get("clobTokenIds", [None])[0]
@@ -320,8 +319,14 @@ class UnifiedTradingEngine:
                         yes_price = await self.polymarket.get_yes_price(token_id)
                         if yes_price:
                             return {"yes": yes_price, "no": 1 - yes_price}
-            except Exception:
-                pass
+                        else:
+                            logger.warning(f"Price not found for token {token_id} (Fixture: {fixture.fixture_id})")
+                    else:
+                        logger.warning(f"No CLOB token ID found for market {market.get('id')} (Fixture: {fixture.fixture_id})")
+                else:
+                    logger.debug(f"No markets found for event: {event_name}")
+            except Exception as e:
+                logger.error(f"Error fetching market prices for {event_name}: {e}", exc_info=True)
         
         return {"yes": DEFAULT_MARKET_PRICE, "no": DEFAULT_MARKET_PRICE}
 
