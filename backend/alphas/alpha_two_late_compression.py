@@ -415,6 +415,15 @@ class AlphaTwoLateCompression:
                 # Specifically needed for Trade Resolution when match ends in Draw.
                 if market.get("status") == "resolved" or time_remaining <= 0:
                     return {"outcome": "NO", "confidence": 1.0}
+
+                # Sherlock Fix: Also evaluate active Draws. If it's a draw late in the game,
+                # the chance of a specific team winning is low -> outcome NO.
+                confidence = self._calculate_lead_confidence(
+                    0,
+                    time_remaining,
+                    market_type
+                )
+                return {"outcome": "NO", "confidence": confidence}
         
         return None
 
@@ -471,6 +480,11 @@ class AlphaTwoLateCompression:
                 return CONFIDENCE_MODERATE
             else:
                 return CONFIDENCE_LOW
+        elif lead_margin == 0:
+            # DRAW Logic: High confidence "NO Win" only if very close to end
+            if seconds_remaining < TIME_THRESHOLD_CRITICAL:
+                return CONFIDENCE_HIGH
+            return CONFIDENCE_NEUTRAL
         else:
             return CONFIDENCE_NEUTRAL
 
