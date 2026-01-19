@@ -665,15 +665,19 @@ class AlphaTwoLateCompression:
             # NOTE: We considered increasing this to 13m to handle deep stoppage, but decided against it.
             STOPPAGE_BUFFER_MINUTES = 8
 
+            # Use the buffer for both Pre-90 and Post-90 to ensure smooth time continuity.
+            # If we didn't add it for < 90, we'd have a jump from 1 min remaining (at min 89)
+            # to 8 mins remaining (at min 90), causing false confidence spikes.
+            stoppage_end_minute = 90 + STOPPAGE_BUFFER_MINUTES
+
             if minute >= 90 and status not in ["FT", "AET", "PEN"]:
                 # Calculate remaining based on a theoretical 98th minute end
                 # Ensure it decays as minute increases (91, 92...)
                 # Clamp at 60s minimum to keep market "alive" until FT signal
-                stoppage_end_minute = 90 + STOPPAGE_BUFFER_MINUTES
                 seconds_remaining = (stoppage_end_minute - minute) * 60
                 seconds_remaining = max(60, seconds_remaining)
             else:
-                seconds_remaining = (total_minutes - minute) * 60
+                seconds_remaining = (stoppage_end_minute - minute) * 60
                 seconds_remaining = max(0, seconds_remaining)
         
     
