@@ -118,6 +118,10 @@ class AlphaOneUnderdog:
         self.closed_positions: List[SimulatedPosition] = []
         self.daily_pnl = 0.0
         self.stats = AlphaOneStats()
+
+        # Cache for token IDs to avoid expensive search calls
+        # Key: (fixture_id, team_name) -> Value: token_id
+        self.token_map: Dict[tuple, str] = {}
         
         self.event_log: List[Dict] = []
         
@@ -319,19 +323,30 @@ class AlphaOneUnderdog:
         return min(MAX_CONFIDENCE, max(MIN_CONFIDENCE, confidence))
 
     async def _get_current_market_price(self, fixture_id: int, team: str) -> Optional[float]:
-        if self.mode == TradingMode.SIMULATION:
-            return None
+        # Shadow Mode: Even in simulation, try to fetch real prices if clients are available
         
         if self.polymarket:
             try:
-                markets = await self.polymarket.get_markets_by_event(f"{team} to win")
-                if markets:
-                    market = markets[0]
-                    token_id = market.get("clobTokenIds", [None])[0]
-                    if token_id:
-                        return await self.polymarket.get_yes_price(token_id)
+                # Check cache first
+                cache_key = (fixture_id, team)
+                token_id = self.token_map.get(cache_key)
+
+                if not token_id:
+                    # Search for market
+                    markets = await self.polymarket.get_markets_by_event(f"{team} to win")
+                    if markets:
+                        market = markets[0]
+                        token_id = market.get("clobTokenIds", [None])[0]
+                        if token_id:
+                            self.token_map[cache_key] = token_id
+
+                if token_id:
+                    price = await self.polymarket.get_yes_price(token_id)
+                    if price is not None:
+                        return price
             except Exception as e:
-                logger.error(f"Polymarket price fetch error: {e}")
+                # Log only if verbose, as this might happen frequently in offline mode
+                logger.debug(f"Polymarket price fetch error: {e}")
         
         if self.kalshi:
             try:
@@ -349,12 +364,18 @@ class AlphaOneUnderdog:
             await self._execute_live_trade(signal)
 
     async def _execute_simulation_trade(self, signal: TradeSignal):
+        # Capture token_id if we have it cached, to facilitate price tracking
+        token_id = self.token_map.get((signal.fixture_id, signal.team))
+
         position = SimulatedPosition(
             position_id=signal.signal_id,
             signal=signal,
             entry_time=datetime.now(),
             last_price=signal.entry_price,
-            last_update_time=datetime.now()
+            last_update_time=datetime.now(),
+            token_id=token_id,
+            # In simulation, we assume full fill at the requested size
+            quantity=signal.size_usd / signal.entry_price if signal.entry_price > 0 else 0
         )
         
         self.positions[signal.signal_id] = position
