@@ -90,7 +90,8 @@ class WebSocketGoalListener:
         
         self.goal_callbacks: List[GoalCallback] = []
         
-        self.seen_goals: Set[str] = set()
+        # Sherlock Fix: Use Dict (Ordered in Python 3.7+) instead of Set to preserve order
+        self.seen_goals: Dict[str, bool] = {}
         
         self.reconnect_attempts = 0
         self.max_reconnect_attempts = MAX_RECONNECT_ATTEMPTS
@@ -230,10 +231,16 @@ class WebSocketGoalListener:
                 logger.debug(f"Duplicate goal ignored: {goal_id}")
                 return
             
-            self.seen_goals.add(goal_id)
+            # Record goal in ordered dictionary
+            self.seen_goals[goal_id] = True
             
+            # Sherlock Fix: Deterministic trimming of oldest items
             if len(self.seen_goals) > MAX_SEEN_GOALS:
-                self.seen_goals = set(list(self.seen_goals)[-SEEN_GOALS_TRIM_TO:])
+                excess = len(self.seen_goals) - SEEN_GOALS_TRIM_TO
+                # Remove oldest items (keys at the start of the insertion-ordered dict)
+                keys_to_remove = list(self.seen_goals.keys())[:excess]
+                for k in keys_to_remove:
+                    del self.seen_goals[k]
             
             goal_event = GoalEventWS(
                 fixture_id=fixture_id,
