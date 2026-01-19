@@ -10,6 +10,20 @@ from ..config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# Polymarket Constants
+POLY_MSG_TYPE_SUBSCRIBE = "subscribe"
+POLY_MSG_TYPE_PRICE_UPDATE = "price_update"
+POLY_CHANNEL_MARKETS = "markets"
+POLY_FILTER_TAGS = ["soccer", "football"]
+POLY_API_TAG = "soccer"
+
+# Kalshi Constants
+KALSHI_MSG_TYPE_SUBSCRIBE = "subscribe"
+KALSHI_MSG_TYPE_SNAPSHOT = "market_snapshot"
+KALSHI_MARKET_TYPE = "sports"
+KALSHI_SPORT = "soccer"
+KALSHI_CATEGORY = "sports"
+
 
 class MarketFetcher:
     """Fetch and process real-time market prices from vendor sources."""
@@ -77,9 +91,9 @@ class MarketFetcher:
                     await ws.send(
                         json.dumps(
                             {
-                                "type": "subscribe",
-                                "channel": "markets",
-                                "filter": {"tags": ["soccer", "football"]},
+                                "type": POLY_MSG_TYPE_SUBSCRIBE,
+                                "channel": POLY_CHANNEL_MARKETS,
+                                "filter": {"tags": POLY_FILTER_TAGS},
                             }
                         )
                     )
@@ -111,9 +125,9 @@ class MarketFetcher:
                     await ws.send(
                         json.dumps(
                             {
-                                "type": "subscribe",
-                                "market_type": "sports",
-                                "sport": "soccer",
+                                "type": KALSHI_MSG_TYPE_SUBSCRIBE,
+                                "market_type": KALSHI_MARKET_TYPE,
+                                "sport": KALSHI_SPORT,
                             }
                         )
                     )
@@ -136,7 +150,7 @@ class MarketFetcher:
             data: Raw websocket payload from Polymarket.
         """
         try:
-            if data.get("type") != "price_update":
+            if data.get("type") != POLY_MSG_TYPE_PRICE_UPDATE:
                 return
 
             market_id = data.get("market_id")
@@ -166,7 +180,7 @@ class MarketFetcher:
             data: Raw websocket payload from Kalshi.
         """
         try:
-            if data.get("type") != "market_snapshot":
+            if data.get("type") != KALSHI_MSG_TYPE_SNAPSHOT:
                 return
 
             market_id = data.get("market_ticker")
@@ -278,7 +292,7 @@ class MarketFetcher:
             response = await self.client.get(
                 "https://api.polymarket.com/markets",
                 headers={"Authorization": f"Bearer {settings.POLYMARKET_API_KEY}"},
-                params={"tag": "soccer", "query": f"{home_team} {away_team}"},
+                params={"tag": POLY_API_TAG, "query": f"{home_team} {away_team}"},
             )
 
             if response.status_code != 200:
@@ -326,8 +340,8 @@ class MarketFetcher:
                 "https://api.kalshi.com/v1/markets",
                 headers={"Authorization": f"Bearer {settings.KALSHI_API_KEY}"},
                 params={
-                    "category": "sports",
-                    "sport": "soccer",
+                    "category": KALSHI_CATEGORY,
+                    "sport": KALSHI_SPORT,
                     "query": f"{home_team} {away_team}",
                 },
             )
