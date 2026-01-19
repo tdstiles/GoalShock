@@ -11,3 +11,11 @@
 - Specific exceptions when API calls fail.
 - Warnings when markets are not found or prices are missing (instead of just returning 0.5).
 **Metric:** New logs with `logger.error` and `logger.warning` containing context (fixture info) will signal connectivity or data integrity issues that were previously invisible.
+
+## 2026-01-19 - Latency Visibility in Data Acquisition
+**Blindspot:** We had no visibility into how long external API calls to RapidAPI, Polymarket, or Kalshi were taking, nor specific details on failure status codes beyond "Exception".
+**Instrument:** Wrapped `_fetch_verified_goals`, `_fetch_polymarket_data`, and `_fetch_kalshi_data` in `backend/core/data_pipeline.py` with timing logic and enhanced try/catch blocks.
+**Metric:** Logs now include:
+- `logger.warning` if an API call takes > 1.0 second.
+- `logger.error` with specific HTTP status codes and response text snippets (first 200 chars) on failure.
+- `logger.error` with total duration if a request raises an exception.

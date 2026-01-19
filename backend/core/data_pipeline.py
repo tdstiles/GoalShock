@@ -1,5 +1,6 @@
 
 import os
+import time
 import httpx
 import random
 import logging
@@ -42,21 +43,32 @@ class DataAcquisitionLayer:
         return await self._generate_event_stream()
 
     async def _fetch_verified_goals(self) -> List[GoalEvent]:
+        start_time = time.time()
         headers = {
             "x-rapidapi-key": self._api_football_key,
             "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
         }
 
-        response = await self._client.get(
-            "https://api-football-v1.p.rapidapi.com/v3/fixtures",
-            headers=headers,
-            params={"live": "all"}
-        )
+        try:
+            response = await self._client.get(
+                "https://api-football-v1.p.rapidapi.com/v3/fixtures",
+                headers=headers,
+                params={"live": "all"}
+            )
 
-        if response.status_code != 200:
-            raise Exception("API request failed")
+            duration = time.time() - start_time
+            if duration > 1.0:
+                logger.warning(f"Slow API response from API-Football: {duration:.3f}s")
 
-        data = response.json()
+            if response.status_code != 200:
+                logger.error(f"API-Football error {response.status_code}: {response.text[:200]}")
+                raise Exception(f"API request failed with status {response.status_code}")
+
+            data = response.json()
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"API-Football request failed after {duration:.3f}s: {e}")
+            raise
         goals = []
 
         for fixture in data.get("response", []):
@@ -122,37 +134,60 @@ class DataAcquisitionLayer:
         return await self._generate_market_data(market_type)
 
     async def _fetch_polymarket_data(self) -> Dict:
+        start_time = time.time()
         headers = {"Authorization": f"Bearer {self._polymarket_key}"}
-        response = await self._client.get(
-            "https://api.polymarket.com/markets",
-            headers=headers,
-            params={"tag": "sports"}
-        )
 
-        if response.status_code != 200:
-            raise Exception("Polymarket API failed")
+        try:
+            response = await self._client.get(
+                "https://api.polymarket.com/markets",
+                headers=headers,
+                params={"tag": "sports"}
+            )
 
-        return response.json()
+            duration = time.time() - start_time
+            if duration > 1.0:
+                logger.warning(f"Slow API response from Polymarket: {duration:.3f}s")
+
+            if response.status_code != 200:
+                logger.error(f"Polymarket error {response.status_code}: {response.text[:200]}")
+                raise Exception("Polymarket API failed")
+
+            return response.json()
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"Polymarket request failed after {duration:.3f}s: {e}")
+            raise
 
     async def _fetch_kalshi_data(self) -> Dict:
-        auth_response = await self._client.post(
-            "https://api.kalshi.com/v1/login",
-            json={"email": self._kalshi_key, "password": self._kalshi_secret}
-        )
+        start_time = time.time()
+        try:
+            auth_response = await self._client.post(
+                "https://api.kalshi.com/v1/login",
+                json={"email": self._kalshi_key, "password": self._kalshi_secret}
+            )
 
-        if auth_response.status_code != 200:
-            raise Exception("Kalshi auth failed")
+            if auth_response.status_code != 200:
+                logger.error(f"Kalshi auth error {auth_response.status_code}: {auth_response.text[:200]}")
+                raise Exception("Kalshi auth failed")
 
-        token = auth_response.json()["token"]
-        headers = {"Authorization": f"Bearer {token}"}
+            token = auth_response.json()["token"]
+            headers = {"Authorization": f"Bearer {token}"}
 
-        markets_response = await self._client.get(
-            "https://api.kalshi.com/v1/markets",
-            headers=headers,
-            params={"category": "sports"}
-        )
+            markets_response = await self._client.get(
+                "https://api.kalshi.com/v1/markets",
+                headers=headers,
+                params={"category": "sports"}
+            )
 
-        return markets_response.json()
+            duration = time.time() - start_time
+            if duration > 1.0:
+                logger.warning(f"Slow API response from Kalshi: {duration:.3f}s")
+
+            return markets_response.json()
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"Kalshi request failed after {duration:.3f}s: {e}")
+            raise
 
     async def _generate_market_data(self, market_type: str) -> Dict:
         from .market_synthesizer import MarketMicrostructure
