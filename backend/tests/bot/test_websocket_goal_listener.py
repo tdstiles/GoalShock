@@ -1,39 +1,62 @@
 import pytest
 import asyncio
-import json
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
-from bot.websocket_goal_listener import WebSocketGoalListener, GoalEventWS
+from backend.bot.websocket_goal_listener import WebSocketGoalListener, GoalEventWS
+from backend.data.api_football import LiveFixture, Goal
 
 # Mock supported league ID
 SUPPORTED_LEAGUE_ID = 39 # Premier League
 
 @pytest.fixture
 def listener():
-    listener = WebSocketGoalListener(api_key="test_key")
-    # Reset seen_goals for each test
-    listener.seen_goals = {}
-    return listener
+    with patch("backend.bot.websocket_goal_listener.APIFootballClient") as MockClient:
+        listener = WebSocketGoalListener(api_key="test_key")
+        # Ensure client mock is accessible
+        listener.client = MockClient.return_value
+        # Reset seen_goals for each test
+        listener.seen_goals = {}
+        return listener
 
 @pytest.mark.asyncio
-async def test_process_valid_goal_message(listener):
-    """Test that a valid goal message is processed and triggers callbacks."""
+async def test_poll_cycle_detects_goal(listener):
+    """Test that polling cycle detects a goal and triggers callbacks."""
 
     # Arrange
     callback = AsyncMock()
+    callback.__name__ = "async_callback"
     listener.register_goal_callback(callback)
 
-    message_data = {
-        "type": "goal",
-        "fixture": {"id": 1001, "home_team": "Team A", "away_team": "Team B"},
-        "league": {"id": SUPPORTED_LEAGUE_ID, "name": "Premier League"},
-        "goal": {"team": "Team A", "player": "Player 1", "minute": 15, "type": "Normal"},
-        "score": {"home": 1, "away": 0}
-    }
-    json_message = json.dumps(message_data)
+    # Mock fixture data
+    fixture = LiveFixture(
+        fixture_id=1001,
+        league_id=SUPPORTED_LEAGUE_ID,
+        league_name="Premier League",
+        home_team="Team A",
+        away_team="Team B",
+        home_score=1,
+        away_score=0,
+        minute=15,
+        status="1H",
+        timestamp=datetime.now()
+    )
+
+    # Mock detected goal
+    detected_goal = Goal(
+        fixture_id=1001,
+        team="Team A",
+        player="Player 1",
+        minute=15,
+        home_score=1,
+        away_score=0
+    )
+
+    # Setup client mocks
+    listener.client.get_live_fixtures = AsyncMock(return_value=[fixture])
+    listener.client.detect_goals = AsyncMock(return_value=[detected_goal])
 
     # Act
-    await listener._process_message(json_message)
+    await listener._poll_cycle()
 
     # Assert
     assert callback.call_count == 1
@@ -43,111 +66,70 @@ async def test_process_valid_goal_message(listener):
     assert call_args.player == "Player 1"
     assert call_args.home_score == 1
     assert call_args.away_score == 0
+    assert call_args.minute == 15
 
 @pytest.mark.asyncio
-async def test_ignore_unsupported_league(listener):
-    """Test that goals from unsupported leagues are ignored."""
+async def test_poll_cycle_no_goals(listener):
+    """Test that polling cycle triggers no callbacks if no goals detected."""
 
     # Arrange
     callback = AsyncMock()
+    callback.__name__ = "async_callback"
     listener.register_goal_callback(callback)
 
-    UNSUPPORTED_LEAGUE_ID = 9999
-    message_data = {
-        "type": "goal",
-        "fixture": {"id": 1002},
-        "league": {"id": UNSUPPORTED_LEAGUE_ID, "name": "Unknown League"},
-        "goal": {"team": "Team C", "player": "Player 2", "minute": 20, "type": "Normal"},
-        "score": {"home": 0, "away": 1}
-    }
-    json_message = json.dumps(message_data)
+    fixture = LiveFixture(
+        fixture_id=1001,
+        league_id=SUPPORTED_LEAGUE_ID,
+        league_name="Premier League",
+        home_team="Team A",
+        away_team="Team B",
+        home_score=0,
+        away_score=0,
+        minute=10,
+        status="1H",
+        timestamp=datetime.now()
+    )
+
+    listener.client.get_live_fixtures = AsyncMock(return_value=[fixture])
+    listener.client.detect_goals = AsyncMock(return_value=[]) # No new goals
 
     # Act
-    await listener._process_message(json_message)
+    await listener._poll_cycle()
 
     # Assert
     callback.assert_not_called()
+    # But fixture should be in active list
+    assert 1001 in listener.active_fixtures
 
 @pytest.mark.asyncio
-async def test_goal_deduplication(listener):
-    """Test that duplicate goal messages are ignored."""
+async def test_poll_cycle_empty_response(listener):
+    """Test that empty fixture list is handled gracefully."""
 
-    # Arrange
-    callback = AsyncMock()
-    listener.register_goal_callback(callback)
+    listener.client.get_live_fixtures = AsyncMock(return_value=[])
 
-    message_data = {
-        "type": "goal",
-        "fixture": {"id": 1003, "home_team": "Team D", "away_team": "Team E"},
-        "league": {"id": SUPPORTED_LEAGUE_ID, "name": "Premier League"},
-        "goal": {"team": "Team D", "player": "Player 3", "minute": 30, "type": "Normal"},
-        "score": {"home": 1, "away": 0}
-    }
-    json_message = json.dumps(message_data)
+    await listener._poll_cycle()
 
-    # Act
-    # First message should trigger callback
-    await listener._process_message(json_message)
-    assert callback.call_count == 1
-
-    # Second message (identical) should be ignored
-    await listener._process_message(json_message)
-    assert callback.call_count == 1
+    assert len(listener.active_fixtures) == 0
 
 @pytest.mark.asyncio
-async def test_malformed_json_handled_gracefully(listener):
-    """Test that malformed JSON does not crash the listener."""
+async def test_notify_multiple_callbacks(listener):
+    """Test that all registered callbacks are notified."""
 
-    # Arrange
-    callback = AsyncMock()
-    listener.register_goal_callback(callback)
+    cb1 = AsyncMock()
+    cb1.__name__ = "async_callback"
+    cb2 = Mock() # Synchronous callback
+    cb2.__name__ = "sync_callback"
 
-    malformed_message = "this is not json"
+    listener.register_goal_callback(cb1)
+    listener.register_goal_callback(cb2)
 
-    # Act
-    try:
-        await listener._process_message(malformed_message)
-    except Exception as e:
-        pytest.fail(f"Listener raised exception on malformed JSON: {e}")
+    event = GoalEventWS(
+        fixture_id=1, league_id=1, league_name="L", home_team="H", away_team="A",
+        team="H", player="P", minute=1, home_score=1, away_score=0, goal_type="G",
+        timestamp=datetime.now()
+    )
 
-    # Assert
-    callback.assert_not_called()
+    await listener._notify_goal_callbacks(event)
 
-@pytest.mark.asyncio
-async def test_unknown_message_type(listener):
-    """Test that unknown message types are ignored."""
-
-    # Arrange
-    callback = AsyncMock()
-    listener.register_goal_callback(callback)
-
-    message_data = {
-        "type": "unknown_type",
-        "data": "some data"
-    }
-    json_message = json.dumps(message_data)
-
-    # Act
-    await listener._process_message(json_message)
-
-    # Assert
-    callback.assert_not_called()
-
-@pytest.mark.asyncio
-async def test_fixture_update_handling(listener):
-    """Test processing of fixture update messages."""
-
-    # Arrange
-    message_data = {
-        "type": "fixture_update",
-        "fixture": {"id": 2001},
-        "status": "HT"
-    }
-    json_message = json.dumps(message_data)
-
-    # Act
-    await listener._process_message(json_message)
-
-    # Assert
-    assert 2001 in listener.active_fixtures
-    assert listener.active_fixtures[2001]["status"] == "HT"
+    cb1.assert_called_once_with(event)
+    cb2.assert_called_once_with(event)

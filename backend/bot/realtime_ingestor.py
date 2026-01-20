@@ -67,8 +67,7 @@ class RealtimeIngestor:
     async def _fetch_live_fixtures(self) -> List[Dict]:
         try:
             headers = {
-                "x-rapidapi-key": settings.API_FOOTBALL_KEY,
-                "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+                "x-apisports-key": settings.API_FOOTBALL_KEY
             }
 
             response = await self.client.get(
