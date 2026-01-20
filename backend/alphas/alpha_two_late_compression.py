@@ -14,6 +14,24 @@ logger = logging.getLogger(__name__)
 SOCCER_EXPECTED_GOALS_FACTOR = 2.7
 SOCCER_GAME_DURATION_SECONDS = 5400  # 90 minutes
 
+# --- SPORT CONSTANTS ---
+SPORT_SOCCER = "soccer"
+SPORT_FOOTBALL = "football"
+SPORT_BASKETBALL = "basketball"
+SPORT_BASEBALL = "baseball"
+SUPPORTED_SPORTS = [SPORT_SOCCER, SPORT_FOOTBALL, SPORT_BASKETBALL, SPORT_BASEBALL]
+
+# --- LEAD MARGIN CONSTANTS ---
+LEAD_MARGIN_SAFE = 3
+LEAD_MARGIN_COMFORTABLE = 2
+LEAD_MARGIN_NARROW = 1
+LEAD_MARGIN_DRAW = 0
+
+# --- SCORING RATE CONSTANTS ---
+# Points per second estimates for volatility calculation
+PPS_BASKETBALL = 0.04
+PPS_BASEBALL = 0.003
+
 # --- CONFIDENCE CONSTANTS ---
 CONFIDENCE_MAX = 0.99
 CONFIDENCE_VERY_HIGH = 0.98
@@ -21,7 +39,11 @@ CONFIDENCE_HIGH = 0.95
 CONFIDENCE_MEDIUM = 0.90
 CONFIDENCE_MODERATE = 0.85
 CONFIDENCE_LOW = 0.70
+CONFIDENCE_FAVORABLE = 0.60
 CONFIDENCE_NEUTRAL = 0.50
+
+# --- STRATEGY CONSTANTS ---
+SWING_BUFFER_MULTIPLIER = 1.5
 
 # --- TIME THRESHOLDS (Seconds) ---
 TIME_THRESHOLD_LATE = 600  # 10 minutes
@@ -369,7 +391,7 @@ class AlphaTwoLateCompression:
     
         market_type = market.get("type", "unknown")
         
-        if market_type not in ["soccer", "football", "basketball", "baseball"]:
+        if market_type not in SUPPORTED_SPORTS:
             return None
         
         current_score = market.get("current_score", {})
@@ -439,28 +461,28 @@ class AlphaTwoLateCompression:
         sport: str
     ) -> float:
         
-        if sport == "soccer":
+        if sport == SPORT_SOCCER:
             return self._calculate_soccer_confidence(lead_margin, seconds_remaining)
         
-        elif sport in ["basketball", "baseball"]:
-            if sport == "basketball":
-                points_per_second = 0.04 
+        elif sport in [SPORT_BASKETBALL, SPORT_BASEBALL]:
+            if sport == SPORT_BASKETBALL:
+                points_per_second = PPS_BASKETBALL
             else:
-                points_per_second = 0.003  
+                points_per_second = PPS_BASEBALL
             
             expected_swing = points_per_second * seconds_remaining * 2
             
-            if lead_margin > expected_swing * 1.5:
-                confidence = 0.98
+            if lead_margin > expected_swing * SWING_BUFFER_MULTIPLIER:
+                confidence = CONFIDENCE_VERY_HIGH
             elif lead_margin > expected_swing:
-                confidence = 0.90
+                confidence = CONFIDENCE_MEDIUM
             else:
-                confidence = 0.60
+                confidence = CONFIDENCE_FAVORABLE
         
         else:
-            confidence = 0.50  
+            confidence = CONFIDENCE_NEUTRAL
         
-        return min(0.99, confidence)
+        return min(CONFIDENCE_MAX, confidence)
 
     def _calculate_soccer_confidence(self, lead_margin: int, seconds_remaining: int) -> float:
         """
@@ -469,23 +491,23 @@ class AlphaTwoLateCompression:
         # Note: This variable was unused in the original code, but I'll keep the logic if it's needed for future extensions
         # expected_goals = (seconds_remaining / SOCCER_GAME_DURATION_SECONDS) * SOCCER_EXPECTED_GOALS_FACTOR
 
-        if lead_margin >= 3:
+        if lead_margin >= LEAD_MARGIN_SAFE:
             return CONFIDENCE_MAX
-        elif lead_margin == 2:
+        elif lead_margin == LEAD_MARGIN_COMFORTABLE:
             if seconds_remaining < TIME_THRESHOLD_VERY_LATE:
                 return CONFIDENCE_VERY_HIGH
             elif seconds_remaining < TIME_THRESHOLD_LATE:
                 return CONFIDENCE_HIGH
             else:
                 return CONFIDENCE_MEDIUM
-        elif lead_margin == 1:
+        elif lead_margin == LEAD_MARGIN_NARROW:
             if seconds_remaining < TIME_THRESHOLD_CRITICAL:
                 return CONFIDENCE_HIGH
             elif seconds_remaining < TIME_THRESHOLD_VERY_LATE:
                 return CONFIDENCE_MODERATE
             else:
                 return CONFIDENCE_LOW
-        elif lead_margin == 0:
+        elif lead_margin == LEAD_MARGIN_DRAW:
             # DRAW Logic: High confidence "NO Win" only if very close to end
             if seconds_remaining < TIME_THRESHOLD_CRITICAL:
                 return CONFIDENCE_HIGH
@@ -699,7 +721,7 @@ class AlphaTwoLateCompression:
             "market_id": fixture_data.get("market_id", f"fixture_{fixture_data['fixture_id']}"),
             "question": fixture_data.get("question", ""),
             "fixture_id": fixture_data.get("fixture_id"),
-            "type": "soccer",
+            "type": SPORT_SOCCER,
             "home_team": fixture_data.get("home_team"),
             "away_team": fixture_data.get("away_team"),
             "current_score": {
