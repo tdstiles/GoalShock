@@ -68,9 +68,6 @@ class WebSocketGoalListener:
         
         self.goal_callbacks: List[GoalCallback] = []
         
-        # Determine strict FIFO cache for seen goals
-        self.seen_goals: Dict[str, bool] = {}
-        
         self.active_fixtures: Dict[int, LiveFixture] = {}
         
         # Polling interval from settings

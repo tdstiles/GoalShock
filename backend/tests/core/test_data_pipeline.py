@@ -76,7 +76,7 @@ async def test_fetch_live_goals_primary_success(mock_env_primary):
 
             mock_client.get.assert_called_once()
             args, kwargs = mock_client.get.call_args
-            assert "api-football-v1.p.rapidapi.com" in args[0]
+            assert "v3.football.api-sports.io" in args[0]
 
 @pytest.mark.asyncio
 async def test_fetch_live_goals_primary_fallback_on_failure(mock_env_primary):
