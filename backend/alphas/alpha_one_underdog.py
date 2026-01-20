@@ -40,6 +40,11 @@ SIM_PRICE_FLOOR = 0.01
 SIM_DRIFT_THRESHOLD_HIGH = 0.9
 SIM_DRIFT_THRESHOLD_LOW = 0.1
 SIM_DRIFT_FACTOR = 0.001
+SIM_BASE_LEAD_PRICE = 0.45
+SIM_TIME_COMPONENT_WEIGHT = 0.40
+SIM_MARGIN_COMPONENT_WEIGHT = 0.15
+SIM_ODDS_MULTIPLIER = 1.5
+MATCH_DURATION_MINUTES = 90.0
 
 # --- MARKET PRICE CONSTANTS ---
 MARKET_PRICE_MULTIPLIER_BACKUP = 1.2
@@ -230,20 +235,20 @@ class AlphaOneUnderdog:
             # When underdog leads, price jumps significantly, not just 1.2x pre-match odds.
 
             # Base price for taking the lead (approx 0.45 usually)
-            base_lead_price = 0.45
+            base_lead_price = SIM_BASE_LEAD_PRICE
 
             # Time decay factor: Price increases as time runs out (if leading)
-            time_progression = minute / 90.0
-            time_component = time_progression * 0.40  # Adds up to 0.40 by end of game
+            time_progression = minute / MATCH_DURATION_MINUTES
+            time_component = time_progression * SIM_TIME_COMPONENT_WEIGHT  # Adds up to SIM_TIME_COMPONENT_WEIGHT by end of game
 
             # Margin factor: Extra cushion for bigger leads (e.g. 2-0 vs 1-0)
             lead_margin = underdog_score - favorite_score
-            margin_component = (lead_margin - 1) * 0.15
+            margin_component = (lead_margin - 1) * SIM_MARGIN_COMPONENT_WEIGHT
 
             estimated_price = base_lead_price + time_component + margin_component
 
-            # Clamp between 0.01 and 0.99, but ensure it's at least significantly higher than pre-match odds
-            current_price = max(underdog_odds * 1.5, min(0.99, estimated_price))
+            # Clamp between SIM_PRICE_FLOOR and SIM_PRICE_CEILING, but ensure it's at least significantly higher than pre-match odds
+            current_price = max(underdog_odds * SIM_ODDS_MULTIPLIER, min(SIM_PRICE_CEILING, estimated_price))
 
         
         confidence = self._calculate_confidence(underdog_odds, minute, underdog_score - favorite_score)
