@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
 
+// OPTIMIZATION: Render at lower resolution to save CPU cycles
+// 0.5 means 1/2 width and 1/2 height -> 1/4 total pixels to process
+const RESOLUTION_SCALE = 0.5;
+
 export default function SubtleRippleBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -10,10 +14,10 @@ export default function SubtleRippleBackground() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
+    // Set canvas size (scaled down for performance)
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.width = window.innerWidth * RESOLUTION_SCALE;
+      canvas.height = window.innerHeight * RESOLUTION_SCALE;
     };
     resize();
     window.addEventListener('resize', resize);
@@ -110,8 +114,9 @@ export default function SubtleRippleBackground() {
     let lastY = 0;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const x = Math.floor(e.clientX);
-      const y = Math.floor(e.clientY);
+      // Scale mouse coordinates to match the scaled canvas
+      const x = Math.floor(e.clientX * RESOLUTION_SCALE);
+      const y = Math.floor(e.clientY * RESOLUTION_SCALE);
 
       // Calculate movement distance
       const dx = Math.abs(x - lastX);
