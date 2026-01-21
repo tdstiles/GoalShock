@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import random
 from datetime import datetime
 from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field
@@ -296,10 +297,13 @@ class AlphaOneUnderdog:
         Maps team names to odds values using fuzzy matching on the odds keys.
         """
         team_odds_map = {}
+
+        # Pre-compute lower case strings to avoid re-computation in loop
+        home_lower = home_team.lower()
+        away_lower = away_team.lower()
+
         for key, value in odds.items():
             key_lower = key.lower()
-            home_lower = home_team.lower()
-            away_lower = away_team.lower()
 
             if "home" in key_lower or home_lower in key_lower:
                 team_odds_map[home_team] = value
@@ -530,8 +534,10 @@ class AlphaOneUnderdog:
                 await asyncio.sleep(5)
 
     def _simulate_price_movement(self, position: SimulatedPosition) -> float:
-        import random
-        
+        """
+        Simulate a random walk price movement for the position.
+        Uses module-level simulation constants.
+        """
         now = datetime.now()
         
         # Initialize if not set (for backward compatibility or recovery)

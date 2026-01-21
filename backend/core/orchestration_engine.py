@@ -2,6 +2,7 @@
 from .data_pipeline import DataAcquisitionLayer
 from .stream_processor import StreamProcessor
 from .market_synthesizer import MarketMicrostructure
+from .synthetic_data import SYNTHETIC_POSITIONS
 from typing import Dict, List
 
 class OrchestrationEngine:
@@ -39,8 +40,6 @@ class OrchestrationEngine:
         }
 
     async def get_portfolio_status(self) -> Dict:
-        from .synthetic_data import SYNTHETIC_POSITIONS
-
         pnl_history = self._mm.generate_pnl_path()
 
         # Current positions (synthetic for demo)
