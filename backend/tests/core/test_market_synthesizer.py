@@ -1,6 +1,6 @@
 from backend.core.market_synthesizer import MarketMicrostructure
 import pytest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def test_generate_trade_history_order():
     market = MarketMicrostructure()
@@ -34,3 +34,20 @@ def test_synthesize_orderbook_prices_valid():
 
     # Spread should be positive
     assert best_ask > best_bid
+
+def test_pnl_path_timestamp_correctness():
+    """Verify that the generated PnL path ends at the current time (now), not 1 hour ago."""
+    mm = MarketMicrostructure()
+    num_points = 10
+    history = mm.generate_pnl_path(num_points=num_points)
+
+    assert len(history) == num_points
+
+    last_point = history[-1]
+    last_time = datetime.fromisoformat(last_point["timestamp"])
+
+    now = datetime.now()
+    diff = now - last_time
+
+    # The last point should be "now" (offset 0), allowing for minimal execution time delta
+    assert diff.total_seconds() < 60, f"Last point timestamp is too old: {diff}"
