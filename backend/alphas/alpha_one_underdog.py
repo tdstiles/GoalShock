@@ -476,9 +476,15 @@ class AlphaOneUnderdog:
                 # Only try to fetch orderbook if the client supports it
                 if hasattr(self.polymarket, 'get_orderbook'):
                     orderbook = await self.polymarket.get_orderbook(token_id)
+
+                    # Sherlock Fix: Validate Bid Price > 0 to prevent selling for free
                     if orderbook and orderbook.get("best_bid"):
-                        execution_price = float(orderbook["best_bid"])
-                        logger.info(f"Using Best Bid {execution_price} for closing trade (Trigger Price: {price})")
+                        bid_price = float(orderbook["best_bid"])
+                        if bid_price > 0:
+                            execution_price = bid_price
+                            logger.info(f"Using Best Bid {execution_price} for closing trade (Trigger Price: {price})")
+                        else:
+                            logger.warning(f"Best Bid is {bid_price}, ignoring. Using trigger price {price}.")
             except Exception as e:
                 logger.warning(f"Failed to fetch orderbook for execution price, falling back to trigger price: {e}")
 
