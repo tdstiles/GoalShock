@@ -1,7 +1,7 @@
 # 🧐 Inspector: Quality Report 2026-01-21
 
 ### 1. Executive Summary
-- **Coverage:** Improving (Unified Engine Loops covered)
+- **Coverage:** Improving (Exchange Clients covered)
 - **Health:** **Improving**
 - **Failures:** 0 tests failing.
 
@@ -17,6 +17,7 @@
 
 1. `backend/engine.py` - 0% coverage. (DEPRECATED: Using `engine_unified.py` instead)
 2. `backend/bot/` - Parsing logic for goals was exposed, now covered.
+3. `backend/exchanges/` - Clients were exposed, now `PolymarketClient` is covered.
 
 ### 4. Qualitative Notes
 - **False Confidence:** `backend/tests/test_smoke.py` asserts `True`. It verifies the runner works, but tests nothing else.
@@ -24,6 +25,7 @@
 - **Architecture Risk:** The system is complex (WebSockets, Trading Engines, API integrations) but has zero automated verification. Refactoring will be dangerous.
 
 ### 5. Progress
+- **2026-01-21**: Added `backend/tests/exchanges/test_polymarket_client.py` covering the `PolymarketClient` class. This secures the critical integration point for market data retrieval and order placement, including error handling for 4xx/5xx responses and empty orderbooks.
 - **2026-01-21**: Added `backend/tests/test_engine_unified_loops.py` covering the critical infinite loops in `UnifiedTradingEngine` (`_pre_match_odds_loop` and `_live_fixture_loop`) which were previously mocked out. This secures the data flow from API to Strategy.
 - **2026-01-18**: Added `backend/tests/test_engine_unified.py` covering 54% of `engine_unified.py`, including the critical `_on_goal_event` logic and startup/shutdown lifecycle.
 - **2026-01-18**: Added `backend/tests/test_alpha_one.py` covering the "Alpha One" strategy, including signals, edge cases, and position limits.
