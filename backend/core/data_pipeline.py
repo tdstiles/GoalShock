@@ -192,18 +192,12 @@ class DataAcquisitionLayer:
 
     async def _generate_market_data(self, market_type: str) -> Dict:
         from .market_synthesizer import MarketMicrostructure
+        from .synthetic_data import SYNTHETIC_MARKET_SCENARIOS
 
         mm = MarketMicrostructure()
         markets = []
 
-        market_scenarios = [
-            {"question": "Will Manchester City win the Premier League?", "yes_price": 0.72},
-            {"question": "Will Real Madrid beat Barcelona?", "yes_price": 0.58},
-            {"question": "Will Haaland score 30+ goals this season?", "yes_price": 0.65},
-            {"question": "Will Liverpool finish in top 4?", "yes_price": 0.81},
-        ]
-
-        for idx, scenario in enumerate(market_scenarios):
+        for idx, scenario in enumerate(SYNTHETIC_MARKET_SCENARIOS):
             market_id = f"market_{idx}"
             orderbook = mm.synthesize_orderbook(market_id, scenario["yes_price"])
 
