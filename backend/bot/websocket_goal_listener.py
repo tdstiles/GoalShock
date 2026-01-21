@@ -102,16 +102,22 @@ class WebSocketGoalListener:
     async def _poll_cycle(self) -> None:
         """Fetch live fixtures and detect changes."""
         fixtures = await self.client.get_live_fixtures()
-        
-        if not fixtures:
-            return
+
+        current_fixture_ids = set()
 
         for fixture in fixtures:
+            current_fixture_ids.add(fixture.fixture_id)
             # Update active fixture cache
             self.active_fixtures[fixture.fixture_id] = fixture
             
             # Check for goals
             await self._detect_goals_in_fixture(fixture)
+
+        # Sherlock Fix: Remove stale fixtures that are no longer live
+        # to prevent infinite memory growth of 'active_fixtures'
+        stale_ids = [fid for fid in self.active_fixtures if fid not in current_fixture_ids]
+        for fid in stale_ids:
+            del self.active_fixtures[fid]
 
     async def _detect_goals_in_fixture(self, fixture: LiveFixture) -> None:
         """Compare current fixture state with previous state to detect goals."""
