@@ -39,29 +39,12 @@ class OrchestrationEngine:
         }
 
     async def get_portfolio_status(self) -> Dict:
+        from .synthetic_data import SYNTHETIC_POSITIONS
+
         pnl_history = self._mm.generate_pnl_path()
 
         # Current positions (synthetic for demo)
-        positions = [
-            {
-                "market_id": "market_0",
-                "question": "Will Manchester City win?",
-                "side": "yes",
-                "entry_price": 0.68,
-                "current_price": 0.72,
-                "size": 100,
-                "pnl": 4.0
-            },
-            {
-                "market_id": "market_2",
-                "question": "Will Haaland score 30+ goals?",
-                "side": "yes",
-                "entry_price": 0.63,
-                "current_price": 0.65,
-                "size": 150,
-                "pnl": 3.0
-            }
-        ]
+        positions = SYNTHETIC_POSITIONS
 
         return {
             "pnl_history": pnl_history,
