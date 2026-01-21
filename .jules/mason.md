@@ -7,3 +7,8 @@
 **Anti-Pattern:** Hardcoded numeric literals (e.g., `0.5`, `0.001`, `0.99`) were scattered throughout the price simulation logic in `AlphaOneUnderdog`, making the random walk behavior opaque and difficult to tune.
 **Improvement:** Extracted these values into semantic constants (e.g., `SIM_ANNUAL_VOLATILITY`, `SIM_DRIFT_FACTOR`, `SIM_PRICE_CEILING`) grouped at the module level.
 **Guideline:** Simulation parameters and thresholds should be defined as named constants to clarify the mathematical model being used.
+
+## 2025-02-19 - Local Imports and Mixed Responsibilities
+**Anti-Pattern:** Found `import random` inside a method (`_simulate_price_movement`) and simulation logic mixed with state updates. Also found local imports in `OrchestrationEngine` masking dependencies.
+**Improvement:** Moved imports to module level. Extracted clean logic flow.
+**Guideline:** Imports should always be at the top of the file to make dependencies explicit.
