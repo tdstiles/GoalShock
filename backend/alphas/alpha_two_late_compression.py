@@ -471,13 +471,22 @@ class AlphaTwoLateCompression:
                 points_per_second = PPS_BASEBALL
             
             expected_swing = points_per_second * seconds_remaining * 2
+
+            # Sherlock Fix: Enforce minimum volatility for Basketball (one possession)
+            # The linear model underestimates risk in final seconds.
+            # A 2-3 point lead is never safe in Basketball until the buzzer.
+            if sport == SPORT_BASKETBALL:
+                expected_swing = max(3.5, expected_swing)
             
             if lead_margin > expected_swing * SWING_BUFFER_MULTIPLIER:
                 confidence = CONFIDENCE_VERY_HIGH
             elif lead_margin > expected_swing:
                 confidence = CONFIDENCE_MEDIUM
-            else:
+            elif lead_margin > 0:
                 confidence = CONFIDENCE_FAVORABLE
+            else:
+                # Tie Game or Negative Margin (should be handled by outcome logic, but safe fallback)
+                confidence = CONFIDENCE_NEUTRAL
         
         else:
             confidence = CONFIDENCE_NEUTRAL
