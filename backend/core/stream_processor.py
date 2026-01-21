@@ -1,13 +1,36 @@
-
-from typing import List, Dict
+from typing import List, Dict, Protocol, Any, Optional
 from datetime import datetime
 import random
 
+# Constants for synthetic data generation
+SYNTH_MARKET_ID_MIN = 1000
+SYNTH_MARKET_ID_MAX = 9999
+SYNTH_PRICE_MIN = 0.4
+SYNTH_PRICE_MAX = 0.8
+SYNTH_PRICE_ROUNDING = 2
+SYNTH_VOLUME_MIN = 10000
+SYNTH_VOLUME_MAX = 100000
+
+# Constants for statistics
+STATS_AVG_MINUTE_ROUNDING = 1
+STATS_TOP_SCORERS_LIMIT = 5
+
+
+class GoalEventProtocol(Protocol):
+    match_id: str
+    team: str
+    player: str
+    minute: int
+    timestamp: datetime
+
+
 class StreamProcessor:
     def __init__(self):
-        self._event_cache = []
+        self._event_cache: List[Dict] = []
 
-    async def enrich_events(self, raw_events: List, market_data: Dict) -> List[Dict]:
+    async def enrich_events(
+        self, raw_events: List[GoalEventProtocol], market_data: Dict
+    ) -> List[Dict]:
         enriched = []
 
         markets = market_data.get("markets", [])
@@ -29,7 +52,9 @@ class StreamProcessor:
 
         return enriched
 
-    def _match_event_to_market(self, event, markets: List[Dict]) -> Dict:
+    def _match_event_to_market(
+        self, event: GoalEventProtocol, markets: List[Dict]
+    ) -> Optional[Dict]:
 
         for market in markets:
             if event.team in market.get("question", ""):
@@ -43,10 +68,13 @@ class StreamProcessor:
 
     def _generate_market_context(self) -> Dict:
         return {
-            "market_id": f"synth_{random.randint(1000, 9999)}",
+            "market_id": f"synth_{random.randint(SYNTH_MARKET_ID_MIN, SYNTH_MARKET_ID_MAX)}",
             "question": "Related match outcome market",
-            "current_price": round(random.uniform(0.4, 0.8), 2),
-            "volume": random.randint(10000, 100000)
+            "current_price": round(
+                random.uniform(SYNTH_PRICE_MIN, SYNTH_PRICE_MAX),
+                SYNTH_PRICE_ROUNDING
+            ),
+            "volume": random.randint(SYNTH_VOLUME_MIN, SYNTH_VOLUME_MAX)
         }
 
     async def aggregate_statistics(self, events: List[Dict]) -> Dict:
@@ -62,7 +90,7 @@ class StreamProcessor:
         unique_matches = len(set(e["match_id"] for e in events))
         avg_minute = sum(e["minute"] for e in events) / total_goals
 
-        player_goals = {}
+        player_goals: Dict[str, int] = {}
         for event in events:
             player = event["player"]
             player_goals[player] = player_goals.get(player, 0) + 1
@@ -71,12 +99,12 @@ class StreamProcessor:
             [{"player": p, "goals": g} for p, g in player_goals.items()],
             key=lambda x: x["goals"],
             reverse=True
-        )[:5]
+        )[:STATS_TOP_SCORERS_LIMIT]
 
         return {
             "total_goals": total_goals,
             "unique_matches": unique_matches,
-            "avg_minute": round(avg_minute, 1),
+            "avg_minute": round(avg_minute, STATS_AVG_MINUTE_ROUNDING),
             "top_scorers": top_scorers,
             "last_updated": datetime.now().isoformat()
         }
