@@ -164,7 +164,10 @@ class MarketMicrostructure:
             current_pnl *= (1 + change_pct)
             current_pnl = round(current_pnl, 2)  # Snap to grid
 
-            timestamp = datetime.now() - timedelta(hours=num_points - i)
+            # Sherlock Fix: Corrected timestamp calculation to align last point with 'now'
+            # Previous: num_points - i (last point = 1 hour ago)
+            # New: num_points - 1 - i (last point = 0 hours ago)
+            timestamp = datetime.now() - timedelta(hours=num_points - 1 - i)
             pnl_history.append({
                 "timestamp": timestamp.isoformat(),
                 "pnl": current_pnl,
