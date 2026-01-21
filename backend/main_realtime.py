@@ -14,6 +14,7 @@ from bot.market_fetcher import MarketFetcher
 from bot.market_mapper import MarketMapper
 from models.schemas import GoalEvent, MarketPrice, GoalAlert, MarketUpdate
 from config.settings import settings
+from core.security_utils import safe_error_response
 
 load_dotenv()
 
@@ -146,8 +147,7 @@ async def get_live_matches():
         }
 
     except Exception as e:
-        logger.error(f"Failed to fetch live matches: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        safe_error_response(e, context="Failed to fetch live matches")
 
 @app.get("/api/markets/{fixture_id}")
 async def get_markets_for_fixture(fixture_id: int):
@@ -170,8 +170,7 @@ async def get_markets_for_fixture(fixture_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to fetch markets for fixture {fixture_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        safe_error_response(e, context=f"Failed to fetch markets for fixture {fixture_id}")
 
 @app.get("/api/markets/all")
 async def get_all_markets():
@@ -196,8 +195,7 @@ async def load_settings():
             "market_access": settings.has_market_access()
         }
     except Exception as e:
-        logger.error(f"Failed to load settings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        safe_error_response(e, context="Failed to load settings")
 
 @app.websocket("/ws/live")
 async def websocket_live_feed(websocket: WebSocket):

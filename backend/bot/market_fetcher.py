@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Dict, List, Optional, Callable
 import websockets
 import httpx
-from ..models.schemas import MarketPrice, MarketUpdate
-from ..config.settings import settings
+from backend.models.schemas import MarketPrice, MarketUpdate
+from backend.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
