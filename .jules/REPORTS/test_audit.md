@@ -34,3 +34,4 @@
 - **2026-01-18**: Added `backend/tests/core/test_data_pipeline.py` covering `DataAcquisitionLayer`, including operational mode switching, API fallbacks, and simulation logic.
 - **2026-01-18**: Added `backend/tests/bot/test_realtime_ingestor_parsing.py` covering the complex JSON parsing logic in `RealtimeIngestor._create_goal_event`, securing the "Sad Path" of API goal extraction.
 - **2026-01-18**: Installed Frontend Test Harness (Vitest, React Testing Library) and added unit tests for `app/src/utils/api.ts` (API wrappers) and `app/src/components/ProbabilityBar.tsx` (UI Component).
+- **2026-01-21**: Added `app/src/hooks/useTradingEngine.test.tsx` covering the `useTradingEngine` hook. This ensures the frontend correctly handles WebSocket connections, real-time updates (goals, market changes), and reconnection logic.
