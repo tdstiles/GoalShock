@@ -4,8 +4,8 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Callable
 import httpx
-from ..models.schemas import GoalEvent, LiveMatch
-from ..config.settings import settings
+from backend.models.schemas import GoalEvent, LiveMatch
+from backend.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Tuple
-from ..models.schemas import GoalEvent, MarketPrice, LiveMatch
-from .market_fetcher import MarketFetcher
+from backend.models.schemas import GoalEvent, MarketPrice, LiveMatch
+from backend.bot.market_fetcher import MarketFetcher
 
 logger = logging.getLogger(__name__)
 
