@@ -44,14 +44,15 @@ class DataAcquisitionLayer:
 
     async def _fetch_verified_goals(self) -> List[GoalEvent]:
         start_time = time.time()
+        # Use new Direct API headers
         headers = {
-            "x-rapidapi-key": self._api_football_key,
-            "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+            "x-apisports-key": self._api_football_key
         }
 
         try:
+            # Use new Direct API URL
             response = await self._client.get(
-                "https://api-football-v1.p.rapidapi.com/v3/fixtures",
+                "https://v3.football.api-sports.io/fixtures",
                 headers=headers,
                 params={"live": "all"}
             )

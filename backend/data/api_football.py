@@ -6,6 +6,7 @@ import logging
 from typing import Dict, List, Optional
 from datetime import datetime
 from dataclasses import dataclass
+from backend.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -38,20 +39,13 @@ class Goal:
 class APIFootballClient:
 
     def __init__(self):
-        self.api_key = os.getenv("API_FOOTBALL_KEY", "")
-        self.base_url = "https://api-football-v1.p.rapidapi.com/v3"
+        self.api_key = settings.API_FOOTBALL_KEY
+        self.base_url = settings.API_FOOTBALL_BASE
         self.client = httpx.AsyncClient(timeout=10.0)
 
         self.previous_scores: Dict[int, tuple] = {} 
 
-        self.supported_leagues = [
-            39,   # Premier League
-            140,  # La Liga
-            78,   # Bundesliga
-            135,  # Serie A
-            61,   # Ligue 1
-            2,    # Champions League
-        ]
+        self.supported_leagues = settings.SUPPORTED_LEAGUES
 
         logger.info("⚽ API-Football client initialized")
         logger.info(f"   Monitoring {len(self.supported_leagues)} leagues")
@@ -59,12 +53,12 @@ class APIFootballClient:
     async def get_live_fixtures(self) -> List[LiveFixture]:
        
         try:
+            # Using the new header for v3.football.api-sports.io
             response = await self.client.get(
                 f"{self.base_url}/fixtures",
                 params={"live": "all"},
                 headers={
-                    "x-rapidapi-key": self.api_key,
-                    "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+                    "x-apisports-key": self.api_key
                 }
             )
 
@@ -157,8 +151,7 @@ class APIFootballClient:
                 f"{self.base_url}/odds",
                 params={"fixture": fixture_id, "bookmaker": 1}, 
                 headers={
-                    "x-rapidapi-key": self.api_key,
-                    "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+                    "x-apisports-key": self.api_key
                 }
             )
 
@@ -202,8 +195,7 @@ class APIFootballClient:
                 f"{self.base_url}/fixtures",
                 params={"id": fixture_id},
                 headers={
-                    "x-rapidapi-key": self.api_key,
-                    "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+                    "x-apisports-key": self.api_key
                 }
             )
 

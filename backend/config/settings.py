@@ -10,23 +10,28 @@ class Settings:
     POLYMARKET_API_KEY = os.getenv("POLYMARKET_API_KEY", "")
     KALSHI_API_KEY = os.getenv("KALSHI_API_KEY", "")
 
-    API_FOOTBALL_BASE = "https://api-football-v1.p.rapidapi.com/v3"
+    # Updated to V3 Direct API
+    API_FOOTBALL_BASE = "https://v3.football.api-sports.io"
     POLYMARKET_WS = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     KALSHI_WS = "wss://trading-api.kalshi.com/trade-api/ws/v2"
 
-    GOAL_WS_PRIMARY = "wss://api-football-v1.p.rapidapi.com/ws/live"
-    GOAL_WS_SOFASCORE = "wss://ws.sofascore.com/live/events"
-    GOAL_WS_BACKUP = "wss://sportdata.io/ws/soccer"
+    # Deprecated/Unused WebSocket endpoints (removed for clarity)
+    # GOAL_WS_PRIMARY = "wss://api-football-v1.p.rapidapi.com/ws/live"
+    # GOAL_WS_SOFASCORE = "wss://ws.sofascore.com/live/events"
+    # GOAL_WS_BACKUP = "wss://sportdata.io/ws/soccer"
 
     WS_RECONNECT_DELAY = 5  
     WS_PING_INTERVAL = 30  
     WS_TIMEOUT = 10         
     WS_MAX_RECONNECT_ATTEMPTS = 10
     WS_RECONNECT_BACKOFF_BASE = 2  
+
+    # Polling settings for the new API
     POLL_INTERVAL_SECONDS = 10
     MAX_POLL_RETRIES = 3
 
-    API_FOOTBALL_REQUESTS_PER_DAY = 100
+    # Updated rate limits for Pro plan
+    API_FOOTBALL_REQUESTS_PER_DAY = 7500
     REQUEST_DELAY_MS = 1000
 
     SUPPORTED_LEAGUES = [
