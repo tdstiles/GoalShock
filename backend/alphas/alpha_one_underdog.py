@@ -468,11 +468,25 @@ class AlphaOneUnderdog:
                 else:
                     qty_to_close = position.signal.size_usd
 
+            # Sherlock Fix: Fetch execution price from Orderbook (Bid) instead of using passed price (Ask/Last).
+            # We want to sell INTO the Bid (taker) to ensure immediate exit, especially for Stop Loss.
+            execution_price = price  # Default fallback
+
+            try:
+                # Only try to fetch orderbook if the client supports it
+                if hasattr(self.polymarket, 'get_orderbook'):
+                    orderbook = await self.polymarket.get_orderbook(token_id)
+                    if orderbook and orderbook.get("best_bid"):
+                        execution_price = float(orderbook["best_bid"])
+                        logger.info(f"Using Best Bid {execution_price} for closing trade (Trigger Price: {price})")
+            except Exception as e:
+                logger.warning(f"Failed to fetch orderbook for execution price, falling back to trigger price: {e}")
+
             # Execute SELL order
             result = await self.polymarket.place_order(
                 token_id=token_id,
                 side="SELL",
-                price=price,
+                price=execution_price,
                 size=qty_to_close
             )
 
