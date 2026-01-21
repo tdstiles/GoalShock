@@ -1,7 +1,7 @@
-# 🧐 Inspector: Quality Report 2026-01-18
+# 🧐 Inspector: Quality Report 2026-01-21
 
 ### 1. Executive Summary
-- **Coverage:** Improving (Frontend tests added)
+- **Coverage:** Improving (Unified Engine Loops covered)
 - **Health:** **Improving**
 - **Failures:** 0 tests failing.
 
@@ -15,7 +15,7 @@
 ### 3. The "Shield" List (Top Coverage Gaps)
 *Everything is a gap. Prioritize the core trading logic.*
 
-1. `backend/engine.py` - 0% coverage. Core trading engine. High Risk.
+1. `backend/engine.py` - 0% coverage. (DEPRECATED: Using `engine_unified.py` instead)
 2. `backend/bot/` - Parsing logic for goals was exposed, now covered.
 
 ### 4. Qualitative Notes
@@ -24,6 +24,7 @@
 - **Architecture Risk:** The system is complex (WebSockets, Trading Engines, API integrations) but has zero automated verification. Refactoring will be dangerous.
 
 ### 5. Progress
+- **2026-01-21**: Added `backend/tests/test_engine_unified_loops.py` covering the critical infinite loops in `UnifiedTradingEngine` (`_pre_match_odds_loop` and `_live_fixture_loop`) which were previously mocked out. This secures the data flow from API to Strategy.
 - **2026-01-18**: Added `backend/tests/test_engine_unified.py` covering 54% of `engine_unified.py`, including the critical `_on_goal_event` logic and startup/shutdown lifecycle.
 - **2026-01-18**: Added `backend/tests/test_alpha_one.py` covering the "Alpha One" strategy, including signals, edge cases, and position limits.
 - **2026-01-18**: Added `backend/tests/test_alpha_two.py` covering "Alpha Two" (Late-Stage Compression) strategy, verifying opportunity detection logic and confidence calculations.
