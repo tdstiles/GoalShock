@@ -1,7 +1,7 @@
 
 from datetime import datetime
 from typing import Optional, List, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class GoalEvent(BaseModel):
     id: str = Field(..., description="Unique event ID")
@@ -29,8 +29,8 @@ class GoalEvent(BaseModel):
     # Market context
     market_ids: List[str] = Field(default_factory=list)
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "evt_123456",
                 "fixture_id": 12345,
@@ -45,6 +45,7 @@ class GoalEvent(BaseModel):
                 "away_score": 2
             }
         }
+    )
 
 class MarketPrice(BaseModel):
     market_id: str
