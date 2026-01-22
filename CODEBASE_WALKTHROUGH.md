@@ -57,12 +57,7 @@ This is the modern, feature-rich entry point that runs both strategies simultane
 *   **Features:** WebSockets for faster data, dual-strategy support, detailed stats logging.
 *   **Usage:** Best for production and serious simulation.
 
-### 2. Simple Headless Engine (`backend/engine.py`)
-A lighter, simpler version of the engine that focuses primarily on the Underdog strategy.
-*   **Features:** Polling-based (slower), simple logic, easy to debug.
-*   **Usage:** Good for testing basic connectivity or running on low-resource environments.
-
-### 3. Real-Time Dashboard API (`backend/main_realtime.py`)
+### 2. Real-Time Dashboard API (`backend/main_realtime.py`)
 A FastAPI backend designed to power a frontend dashboard (if one exists). It streams match data and trade signals via WebSockets to a UI.
 
 ---
@@ -135,7 +130,6 @@ python engine_unified.py --alpha-one --no-websocket
 ## 📂 File Structure Guide
 
 *   `backend/engine_unified.py`: Main entry point for the bot.
-*   `backend/engine.py`: Alternative simple entry point.
 *   `backend/alphas/`: Contains the strategy logic.
     *   `alpha_one_underdog.py`: Logic for betting on upsets.
     *   `alpha_two_late_compression.py`: Logic for "sure thing" late bets.
