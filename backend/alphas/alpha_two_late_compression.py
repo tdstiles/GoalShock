@@ -476,7 +476,13 @@ class AlphaTwoLateCompression:
             # The linear model underestimates risk in final seconds.
             # A 2-3 point lead is never safe in Basketball until the buzzer.
             if sport == SPORT_BASKETBALL:
-                expected_swing = max(3.5, expected_swing)
+                if seconds_remaining < 24:
+                    # If under shot clock (24s), risk is lower (fewer possessions possible)
+                    # A 3 point lead (one possession) is still risky, but 4 pts (2 pos) is safer.
+                    # 2.5 * 1.5 = 3.75. Lead > 3.75 (i.e. 4) -> High Confidence.
+                    expected_swing = max(2.5, expected_swing)
+                else:
+                    expected_swing = max(3.5, expected_swing)
             
             if lead_margin > expected_swing * SWING_BUFFER_MULTIPLIER:
                 confidence = CONFIDENCE_VERY_HIGH
