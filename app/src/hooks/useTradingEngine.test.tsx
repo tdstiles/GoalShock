@@ -1,5 +1,5 @@
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useTradingEngine } from './useTradingEngine';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
@@ -52,7 +52,6 @@ class MockWebSocket {
 }
 
 describe('useTradingEngine', () => {
-  let originalWebSocket: any;
   let originalNotification: any;
   let mockWSInstance: MockWebSocket | null = null;
 
@@ -60,12 +59,12 @@ describe('useTradingEngine', () => {
     vi.useFakeTimers();
 
     // Mock WebSocket
-    originalWebSocket = global.WebSocket;
-    global.WebSocket = vi.fn((url) => {
+    const MockSocket = vi.fn((url) => {
       mockWSInstance = new MockWebSocket(url);
       return mockWSInstance;
     }) as any;
-    global.WebSocket.OPEN = 1;
+    MockSocket.OPEN = 1;
+    vi.stubGlobal('WebSocket', MockSocket);
 
     // Mock Notification
     originalNotification = global.Notification;
@@ -79,7 +78,7 @@ describe('useTradingEngine', () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
-    global.WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
     global.Notification = originalNotification;
     mockWSInstance = null;
   });
