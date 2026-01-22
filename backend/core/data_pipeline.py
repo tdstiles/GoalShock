@@ -9,6 +9,32 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
+# --- CONFIGURATION CONSTANTS ---
+API_KEY_MIN_LENGTH = 20
+
+# --- SYNTHETIC DATA CONSTANTS ---
+SYNTH_TEAMS = [
+    ("Manchester City", "Liverpool"),
+    ("Real Madrid", "Barcelona"),
+    ("Bayern Munich", "Borussia Dortmund"),
+    ("PSG", "Marseille"),
+    ("Arsenal", "Chelsea")
+]
+
+SYNTH_PLAYERS = [
+    "Haaland", "Salah", "Mbappe", "Lewandowski", "Kane",
+    "Vinicius Jr", "Saka", "De Bruyne", "Rodri", "Bellingham"
+]
+
+SYNTH_MATCHES_MIN = 2
+SYNTH_MATCHES_MAX = 4
+SYNTH_GOALS_MIN = 1
+SYNTH_GOALS_MAX = 3
+SYNTH_MATCH_DURATION_MIN = 1
+SYNTH_MATCH_DURATION_MAX = 90
+SYNTH_TIME_OFFSET_MAX = 45
+
+
 class GoalEvent:
     def __init__(self, match_id: str, team: str, player: str, minute: int, timestamp: datetime):
         self.match_id = match_id
@@ -28,7 +54,7 @@ class DataAcquisitionLayer:
         self._client = httpx.AsyncClient(timeout=10.0)
 
     def _determine_operational_mode(self) -> str:
-        if self._api_football_key and len(self._api_football_key) > 20:
+        if self._api_football_key and len(self._api_football_key) > API_KEY_MIN_LENGTH:
             if self._polymarket_key or (self._kalshi_key and self._kalshi_secret):
                 return "primary"
         return "auxiliary"
@@ -87,37 +113,24 @@ class DataAcquisitionLayer:
         return goals
 
     async def _generate_event_stream(self) -> List[GoalEvent]:
-        teams = [
-            ("Manchester City", "Liverpool"),
-            ("Real Madrid", "Barcelona"),
-            ("Bayern Munich", "Borussia Dortmund"),
-            ("PSG", "Marseille"),
-            ("Arsenal", "Chelsea")
-        ]
-
-        players_pool = [
-            "Haaland", "Salah", "Mbappe", "Lewandowski", "Kane",
-            "Vinicius Jr", "Saka", "De Bruyne", "Rodri", "Bellingham"
-        ]
-
         goals = []
-        num_matches = random.randint(2, 4)
+        num_matches = random.randint(SYNTH_MATCHES_MIN, SYNTH_MATCHES_MAX)
 
         for i in range(num_matches):
-            team_pair = random.choice(teams)
-            num_goals = random.randint(1, 3)
+            team_pair = random.choice(SYNTH_TEAMS)
+            num_goals = random.randint(SYNTH_GOALS_MIN, SYNTH_GOALS_MAX)
 
             for _ in range(num_goals):
                 team = random.choice(team_pair)
-                player = random.choice(players_pool)
-                minute = random.randint(1, 90)
+                player = random.choice(SYNTH_PLAYERS)
+                minute = random.randint(SYNTH_MATCH_DURATION_MIN, SYNTH_MATCH_DURATION_MAX)
 
                 goals.append(GoalEvent(
                     match_id=f"synth_{i}",
                     team=team,
                     player=player,
                     minute=minute,
-                    timestamp=datetime.now() - timedelta(minutes=random.randint(0, 45))
+                    timestamp=datetime.now() - timedelta(minutes=random.randint(0, SYNTH_TIME_OFFSET_MAX))
                 ))
 
         return sorted(goals, key=lambda x: x.timestamp, reverse=True)
