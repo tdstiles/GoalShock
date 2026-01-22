@@ -37,23 +37,23 @@ KALSHI_API_KEY=your-kalshi-email
 KALSHI_API_SECRET=your-kalshi-password
 ```
 
-### Step 3: Run Headless Engine
+### Step 3: Run Unified Engine
 
 ```bash
-python engine.py --mode headless
+python engine_unified.py --mode simulation
 ```
 
 **You should see:**
 ```
 ============================================================
-🤖 GOALSHOCK HEADLESS TRADING ENGINE
+🤖 GOALSHOCK UNIFIED TRADING ENGINE
 ============================================================
-2025-12-03 23:30:00 | INFO | 🤖 GoalShock Trading Engine Initialized
+2025-12-03 23:30:00 | INFO | 🤖 GoalShock Unified Trading Engine Initialized
 2025-12-03 23:30:00 | INFO |    Max Trade Size: $1000.0
 2025-12-03 23:30:00 | INFO |    Max Positions: 10
 2025-12-03 23:30:00 | INFO |    Take-Profit: 15.0%
 2025-12-03 23:30:00 | INFO |    Stop-Loss: 10.0%
-2025-12-03 23:30:01 | INFO | 🚀 Starting Headless Trading Engine...
+2025-12-03 23:30:01 | INFO | 🚀 Starting Unified Trading Engine...
 2025-12-03 23:30:01 | INFO | 👁️  Goal detection loop started
 2025-12-03 23:30:01 | INFO | 📈 Position monitoring loop started
 ```
@@ -74,7 +74,7 @@ KALSHI_API_KEY=test@email.com
 KALSHI_API_SECRET=test-password
 
 # Run engine
-python engine.py --mode headless
+python engine_unified.py --mode simulation
 ```
 
 Engine will start but won't fetch real data (expected behavior without valid keys).
@@ -184,7 +184,7 @@ For each open position:
 
 ### Engine Starting
 ```
-2025-12-03 23:30:00 | INFO | 🤖 GoalShock Trading Engine Initialized
+2025-12-03 23:30:00 | INFO | 🤖 GoalShock Unified Trading Engine Initialized
 2025-12-03 23:30:00 | INFO |    Max Trade Size: $1000.0
 2025-12-03 23:30:00 | INFO |    Take-Profit: 15.0%
 2025-12-03 23:30:01 | INFO | 👁️  Goal detection loop started
@@ -241,7 +241,7 @@ For each open position:
 cd backend
 
 # Run from backend directory
-python engine.py --mode headless
+python engine_unified.py --mode simulation
 ```
 
 ### Issue: "API-Football error: 401"
@@ -283,7 +283,7 @@ After=network.target
 Type=simple
 User=yourusername
 WorkingDirectory=/path/to/goalshock/backend
-ExecStart=/usr/bin/python3 engine.py --mode headless
+ExecStart=/usr/bin/python3 engine_unified.py --mode simulation
 Restart=always
 RestartSec=10
 
@@ -306,7 +306,7 @@ screen -S goalshock
 
 # Run engine
 cd backend
-python engine.py --mode headless
+python engine_unified.py --mode simulation
 
 # Detach: Ctrl+A, then D
 # Reattach: screen -r goalshock
@@ -365,7 +365,7 @@ docker run -d \
 
 ## 📞 Support & Documentation
 
-- **Full Documentation**: See [HEADLESS-ENGINE.md](HEADLESS-ENGINE.md)
+- **Full Documentation**: See [CODEBASE_WALKTHROUGH.md](CODEBASE_WALKTHROUGH.md)
 - **Quick Start**: See [README-HEADLESS.md](README-HEADLESS.md)
 - **This Guide**: Complete setup instructions
 
