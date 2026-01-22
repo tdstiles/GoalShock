@@ -855,7 +855,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </label>
             <input
               id="api-football-key"
-              type="text"
+              type="password"
               value={settings.api_football_key || ''}
               onChange={(e) => updateSetting('api_football_key', e.target.value)}
               style={{
@@ -877,7 +877,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </label>
             <input
               id="polymarket-api-key"
-              type="text"
+              type="password"
               value={settings.polymarket_api_key || ''}
               onChange={(e) => updateSetting('polymarket_api_key', e.target.value)}
               style={{
@@ -899,7 +899,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
             </label>
             <input
               id="kalshi-api-key"
-              type="text"
+              type="password"
               value={settings.kalshi_api_key || ''}
               onChange={(e) => updateSetting('kalshi_api_key', e.target.value)}
               style={{
