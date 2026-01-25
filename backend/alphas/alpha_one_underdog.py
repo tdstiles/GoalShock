@@ -562,9 +562,9 @@ class AlphaOneUnderdog:
         
         # Mean reversion for extreme prices
         if current_p > SIM_DRIFT_THRESHOLD_HIGH:
-            drift = -SIM_DRIFT_FACTOR * elapsed_step
+            drift = -SIM_DRIFT_FACTOR * dt
         elif current_p < SIM_DRIFT_THRESHOLD_LOW:
-            drift = SIM_DRIFT_FACTOR * elapsed_step
+            drift = SIM_DRIFT_FACTOR * dt
 
         # Random walk step: P_t = P_{t-1} + P_{t-1} * shock
         # shock ~ N(drift * dt, vol * sqrt(dt))
