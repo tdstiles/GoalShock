@@ -7,3 +7,8 @@
 **Bug:** `AlphaOneUnderdog` simulation mode caused prices to crash by ~6% in 50 seconds when they exceeded high thresholds.
 **Cause:** The mean reversion drift calculation used `elapsed_step` (seconds) directly as the drift factor, instead of scaling it to the daily drift rate `dt` (fraction of day). This resulted in a drift force ~86,400 times stronger than intended relative to the daily factor.
 **Fix:** Changed `drift` calculation in `_simulate_price_movement` to use `dt` instead of `elapsed_step`, aligning units with the volatility calculation and ensuring stable price simulation.
+
+## 2026-01-27 - Fix Impossible Target Price in AlphaOne
+**Bug:** AlphaOneUnderdog simulation mode created "stuck" positions that could never take profit because the calculated target price exceeded the simulation ceiling (0.99).
+**Cause:** The target price calculation `current_price * (1 + take_profit_pct)` did not account for prices near 1.0, resulting in targets > 1.0 which are impossible to reach in probability markets (and capped by `SIM_PRICE_CEILING` in simulation).
+**Fix:** Clamped `target_price` to `min(SIM_PRICE_CEILING, calculated_target)` in `on_goal_event`, ensuring exit targets are always reachable.

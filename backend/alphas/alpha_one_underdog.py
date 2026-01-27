@@ -256,13 +256,17 @@ class AlphaOneUnderdog:
         adjusted_size = self.max_trade_size * confidence
         
      
+        # Sherlock Fix: Clamp target price to ceiling.
+        # If target price exceeds 1.0 (or simulated ceiling), it is unreachable, causing stuck positions.
+        target_price = min(SIM_PRICE_CEILING, current_price * (1 + self.take_profit_pct / 100))
+
         signal = TradeSignal(
             signal_id=f"alpha1_{fixture_id}_{int(datetime.now().timestamp())}",
             fixture_id=fixture_id,
             team=underdog_team,
             side="YES",
             entry_price=current_price,
-            target_price=current_price * (1 + self.take_profit_pct / 100),
+            target_price=target_price,
             stop_loss_price=current_price * (1 - self.stop_loss_pct / 100),
             size_usd=adjusted_size,
             confidence=confidence,
