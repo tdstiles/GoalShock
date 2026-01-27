@@ -15,10 +15,13 @@ from bot.market_mapper import MarketMapper
 from models.schemas import GoalEvent, MarketPrice, GoalAlert, MarketUpdate
 from config.settings import settings
 from core.security_utils import safe_error_response
+from core.security_middleware import SecurityHeadersMiddleware
 
 load_dotenv()
 
 app = FastAPI(title="GoalShock Real-Time API", version="3.0.0")
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
