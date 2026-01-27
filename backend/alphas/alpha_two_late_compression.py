@@ -51,10 +51,18 @@ TIME_THRESHOLD_VERY_LATE = 300  # 5 minutes
 TIME_THRESHOLD_CRITICAL = 120  # 2 minutes
 
 class MarketStatus(Enum):
+    """
+    Enum representing the lifecycle status of a market.
+    """
     ACTIVE = "active"
     CLOSING_SOON = "closing_soon" 
     FINAL_SECONDS = "final_seconds"  
     RESOLVED = "resolved"
+
+
+class MarketSide(Enum):
+    YES = "YES"
+    NO = "NO"
 
 
 @dataclass
@@ -198,7 +206,7 @@ class AlphaTwoLateCompression:
                 
                 resolved = [
                     mid for mid, m in self.monitored_markets.items()
-                    if m.get("status") == "resolved"
+                    if m.get("status") == MarketStatus.RESOLVED.value
                 ]
 
                 # Check for active trades on these markets
@@ -351,7 +359,7 @@ class AlphaTwoLateCompression:
         if confidence < self.min_confidence:
             return None
         
-        if expected_outcome == "YES":
+        if expected_outcome == MarketSide.YES.value:
             current_price = yes_price
             target_price = 1.0
         else:
@@ -410,14 +418,14 @@ class AlphaTwoLateCompression:
                         time_remaining,
                         market_type
                     )
-                    return {"outcome": "YES", "confidence": confidence}
+                    return {"outcome": MarketSide.YES.value, "confidence": confidence}
                 else:
                     confidence = self._calculate_lead_confidence(
                         home_score - away_score,
                         time_remaining,
                         market_type
                     )
-                    return {"outcome": "NO", "confidence": confidence}
+                    return {"outcome": MarketSide.NO.value, "confidence": confidence}
             
             elif away_score > home_score:
                 
@@ -427,21 +435,21 @@ class AlphaTwoLateCompression:
                         time_remaining,
                         market_type
                     )
-                    return {"outcome": "YES", "confidence": confidence}
+                    return {"outcome": MarketSide.YES.value, "confidence": confidence}
                 else:
                     confidence = self._calculate_lead_confidence(
                         away_score - home_score,
                         time_remaining,
                         market_type
                     )
-                    return {"outcome": "NO", "confidence": confidence}
+                    return {"outcome": MarketSide.NO.value, "confidence": confidence}
 
             else:
                 # DRAW CASE (Scores Equal)
                 # If the market is checking for a "Win", a Draw means NO.
                 # Specifically needed for Trade Resolution when match ends in Draw.
-                if market.get("status") == "resolved" or time_remaining <= 0:
-                    return {"outcome": "NO", "confidence": 1.0}
+                if market.get("status") == MarketStatus.RESOLVED.value or time_remaining <= 0:
+                    return {"outcome": MarketSide.NO.value, "confidence": 1.0}
 
                 # Sherlock Fix: Also evaluate active Draws. If it's a draw late in the game,
                 # the chance of a specific team winning is low -> outcome NO.
@@ -450,7 +458,7 @@ class AlphaTwoLateCompression:
                     time_remaining,
                     market_type
                 )
-                return {"outcome": "NO", "confidence": confidence}
+                return {"outcome": MarketSide.NO.value, "confidence": confidence}
         
         return None
 
@@ -681,7 +689,7 @@ class AlphaTwoLateCompression:
         if status in ["FT", "AET", "PEN"]:
             if market_id in self.monitored_markets:
                 logger.info(f"Market {market_id} ended (Status: {status}). Marking resolved.")
-                self.monitored_markets[market_id]["status"] = "resolved"
+                self.monitored_markets[market_id]["status"] = MarketStatus.RESOLVED.value
                 # Update final score
                 self.monitored_markets[market_id]["current_score"] = {
                     "home": fixture_data.get("home_score", 0),
@@ -746,7 +754,7 @@ class AlphaTwoLateCompression:
             "seconds_to_close": seconds_remaining,
             "yes_price": fixture_data.get("yes_price", 0.5),
             "no_price": fixture_data.get("no_price", 0.5),
-            "status": "active" if seconds_remaining > 0 else "resolved"
+            "status": MarketStatus.ACTIVE.value if seconds_remaining > 0 else MarketStatus.RESOLVED.value
         }
         
         self.monitored_markets[market["market_id"]] = market

@@ -1,7 +1,7 @@
 ## 2024-05-24 - Magic Numbers in Core Strategy Logic
 **Anti-Pattern:** Hardcoded magic numbers (e.g., `5400`, `2.7`, `0.98`) buried deep within conditional logic in strategy classes like `AlphaTwoLateCompression`. This makes the code hard to read, hard to tune, and prone to errors when parameters need to be adjusted.
 **Improvement:** Extracted these numbers into named constants (e.g., `SOCCER_GAME_DURATION_SECONDS`, `CONFIDENCE_VERY_HIGH`) and moved specific logic (soccer confidence calculation) into a dedicated helper method `_calculate_soccer_confidence`.
-**Guideline:** Core strategy parameters must always be defined as named constants at the top of the file or in a configuration object to ensure visibility and maintainability.
+**Guideline:** Core strategy parameters must always be defined as named constants to clarify the mathematical model being used.
 
 ## 2025-02-18 - Magic Numbers in Simulation Logic
 **Anti-Pattern:** Hardcoded numeric literals (e.g., `0.5`, `0.001`, `0.99`) were scattered throughout the price simulation logic in `AlphaOneUnderdog`, making the random walk behavior opaque and difficult to tune.
@@ -12,3 +12,8 @@
 **Anti-Pattern:** Found `import random` inside a method (`_simulate_price_movement`) and simulation logic mixed with state updates. Also found local imports in `OrchestrationEngine` masking dependencies.
 **Improvement:** Moved imports to module level. Extracted clean logic flow.
 **Guideline:** Imports should always be at the top of the file to make dependencies explicit.
+
+## 2026-01-27 - Magic Strings in Market Status and Outcomes
+**Anti-Pattern:** Hardcoded string literals (e.g., `"resolved"`, `"active"`, `"YES"`, `"NO"`) were used throughout `AlphaTwoLateCompression`, increasing the risk of typos and making refactoring difficult.
+**Improvement:** Introduced `MarketSide` Enum and enforced usage of existing `MarketStatus` Enum. Replaced all literals with Enum members.
+**Guideline:** Use Enums for fixed sets of string values (like status or outcome sides) to ensure type safety and centralized definition.
