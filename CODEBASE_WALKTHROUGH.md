@@ -22,7 +22,7 @@ Markets often underreact to an underdog taking the lead. This strategy identifie
 
 **How it works:**
 1.  **Pre-Match Scan:** Loads odds for all daily matches to identify the underdog (higher payout).
-2.  **Goal Detection:** Listens for real-time goal events via WebSocket or polling.
+2.  **Goal Detection:** Listens for real-time goal events via high-frequency polling (WebSockets deprecated).
 3.  **Condition Check:**
     *   Did the underdog score?
     *   Is the underdog now **LEADING**? (Ties do not trigger trades).
@@ -54,7 +54,7 @@ The codebase provides two main ways to run the engine:
 
 ### 1. Unified Engine (`backend/engine_unified.py`) - **RECOMMENDED**
 This is the modern, feature-rich entry point that runs both strategies simultaneously.
-*   **Features:** WebSockets for faster data, dual-strategy support, detailed stats logging.
+*   **Features:** High-frequency polling for near real-time data, dual-strategy support, detailed stats logging.
 *   **Usage:** Best for production and serious simulation.
 
 ### 2. Real-Time Dashboard API (`backend/main_realtime.py`)
@@ -145,4 +145,4 @@ python engine_unified.py --alpha-one --no-websocket
 
 *   **`ModuleNotFoundError`**: Ensure you are running the command from the `backend/` directory, or that your `PYTHONPATH` includes it.
 *   **"No live fixtures currently"**: The bot only runs when real soccer matches are happening. Check the API-Football schedule.
-*   **WebSocket Errors**: If WebSockets fail, the bot automatically falls back to polling (slower but reliable). Use `--no-websocket` to force this.
+*   **Polling/Connectivity Errors**: The bot uses high-frequency polling (~10s). If updates lag, check your API-Football request quota and internet connection.

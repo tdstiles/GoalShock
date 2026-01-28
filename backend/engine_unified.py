@@ -94,11 +94,13 @@ class UnifiedTradingEngine:
     """
     The main trading engine that orchestrates data ingestion, strategy execution, and trade management.
 
-    This unified engine integrates multiple trading strategies (Alpha One, Alpha Two) with real-time
-    data feeds via WebSockets. It supports both simulation and live trading modes.
+    This unified engine integrates multiple trading strategies (Alpha One, Alpha Two) with live
+    data feeds via high-frequency polling. It supports both simulation and live trading modes.
 
     Key Features:
-        - Real-time Goal Detection: Uses WebSocketGoalListener for sub-second event updates.
+        - Real-time Goal Detection: Uses WebSocketGoalListener (currently implementing high-frequency
+          polling, ~10s latency) for event updates. Note: The name "WebSocketGoalListener" is retained
+          for legacy compatibility despite the underlying mechanism being polling.
         - Multi-Strategy Support:
             - Alpha One: Underdog Momentum (betting on underdogs taking the lead).
             - Alpha Two: Late-Stage Compression (betting on high-probability outcomes near match end).
