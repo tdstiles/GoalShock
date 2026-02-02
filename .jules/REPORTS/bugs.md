@@ -10,10 +10,11 @@
 
 ## 2. AlphaTwo Live Execution Missing (Critical)
 *   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 414, `_place_exchange_order`)
+*   **Status:** **FIXED** (Sherlock)
 *   **Impact:** **High** (Live trading impossible for AlphaTwo)
 *   **Likelihood:** **High** (100% failure rate)
 *   **Why this is a bug:** The `_place_exchange_order` method explicitly returns `False` with a placeholder comment (`# Placeholder`), preventing any live trades from being executed even if a valid opportunity is found.
-*   **Suggested Owner:** Sherlock
+*   **Resolution:** Implemented `_place_exchange_order` to fetch market details, resolve token IDs (using explicit `tokens` mapping or `clobTokenIds` fallback), and execute orders via `PolymarketClient.place_order`.
 
 ## 3. Triple API Call Redundancy (High)
 *   **Location:** `backend/engine_unified.py`, `backend/bot/websocket_goal_listener.py`, `backend/main_realtime.py`
