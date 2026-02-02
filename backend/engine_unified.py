@@ -156,6 +156,7 @@ class UnifiedTradingEngine:
         
         self.running = False
         self.start_time: Optional[datetime] = None
+        self._tasks: List[asyncio.Task] = []
         
         self.goals_processed = 0
         self.signals_generated = 0
@@ -183,29 +184,29 @@ class UnifiedTradingEngine:
             if self.alpha_two:
                 self.goal_listener.register_fixture_callback(self._on_fixture_update)
         
-        tasks = []
+        self._tasks = []
         
         if self.goal_listener:
-            tasks.append(asyncio.create_task(self.goal_listener.start()))
+            self._tasks.append(asyncio.create_task(self.goal_listener.start()))
         
         if self.alpha_one:
-            tasks.append(asyncio.create_task(self.alpha_one.monitor_positions()))
+            self._tasks.append(asyncio.create_task(self.alpha_one.monitor_positions()))
         
         if self.alpha_two:
-            tasks.append(asyncio.create_task(self.alpha_two.start()))
+            self._tasks.append(asyncio.create_task(self.alpha_two.start()))
         
        
-        tasks.append(asyncio.create_task(self._pre_match_odds_loop()))
+        self._tasks.append(asyncio.create_task(self._pre_match_odds_loop()))
         
         # Only run fallback loop if listener is not present to avoid double polling
         if not self.goal_listener:
-            tasks.append(asyncio.create_task(self._live_fixture_loop()))
+            self._tasks.append(asyncio.create_task(self._live_fixture_loop()))
         
        
-        tasks.append(asyncio.create_task(self._stats_reporter_loop()))
+        self._tasks.append(asyncio.create_task(self._stats_reporter_loop()))
         
         try:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*self._tasks, return_exceptions=True)
         except KeyboardInterrupt:
             logger.info("Shutdown signal received")
         finally:
@@ -213,6 +214,17 @@ class UnifiedTradingEngine:
 
     async def stop(self):
         self.running = False
+
+        # Cancel background tasks first to avoid accessing closed clients
+        if self._tasks:
+            logger.info(f"Cancelling {len(self._tasks)} background tasks...")
+            for task in self._tasks:
+                if not task.done():
+                    task.cancel()
+
+            # Wait for tasks to exit
+            await asyncio.gather(*self._tasks, return_exceptions=True)
+            self._tasks = []
         
         if self.goal_listener:
             await self.goal_listener.stop()

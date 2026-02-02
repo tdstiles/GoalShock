@@ -45,10 +45,11 @@
 
 ## 6. Shutdown Race Condition (Medium)
 *   **Location:** `backend/engine_unified.py` (Methods `stop` vs `_live_fixture_loop`)
+*   **Status:** **FIXED** (Sherlock)
 *   **Impact:** **Medium** (Error spam during shutdown)
 *   **Likelihood:** **Medium**
 *   **Why this is a bug:** The `stop()` method closes HTTP/WS clients immediately. However, the infinite loops (`while self.running`) might still be executing or waking up from sleep. They will attempt to use the closed clients before checking the `running` flag, causing `RuntimeError` or connection errors to be logged during shutdown.
-*   **Suggested Owner:** Bolt
+*   **Resolution:** Modified `UnifiedTradingEngine` to track background tasks in `self._tasks` and cancel them in `stop()` before closing clients. Added regression test `backend/tests/test_engine_shutdown.py`.
 
 ## 7. AlphaOne Simulation Exit Price (Medium)
 *   **Location:** `backend/alphas/alpha_one_underdog.py` (Line 384, `monitor_positions`)
