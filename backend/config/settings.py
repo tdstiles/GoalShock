@@ -8,6 +8,8 @@ class Settings:
 
     API_FOOTBALL_KEY = os.getenv("API_FOOTBALL_KEY", "")
     POLYMARKET_API_KEY = os.getenv("POLYMARKET_API_KEY", "")
+    POLYMARKET_PRIVATE_KEY = os.getenv("POLYMARKET_PRIVATE_KEY", "")
+    POLYMARKET_CHAIN_ID = int(os.getenv("POLYMARKET_CHAIN_ID", "137"))
     KALSHI_API_KEY = os.getenv("KALSHI_API_KEY", "")
 
     # Updated to V3 Direct API

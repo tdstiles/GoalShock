@@ -5,6 +5,9 @@ import httpx
 import logging
 from typing import Dict, Optional, List
 from datetime import datetime
+from py_clob_client.client import ClobClient
+from py_clob_client.clob_types import OrderArgs
+from backend.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,22 @@ class PolymarketClient:
         self.base_url = "https://clob.polymarket.com"
         self.gamma_url = "https://gamma-api.polymarket.com"
         self.client = httpx.AsyncClient(timeout=10.0)
+
+        # Initialize authenticated ClobClient if private key is present
+        self.clob_client = None
+        self.private_key = settings.POLYMARKET_PRIVATE_KEY
+
+        if self.private_key:
+            try:
+                # ClobClient handles EIP-712 signing
+                self.clob_client = ClobClient(
+                    host=self.base_url,
+                    key=self.private_key,
+                    chain_id=settings.POLYMARKET_CHAIN_ID
+                )
+                logger.info("🔐 ClobClient initialized with private key")
+            except Exception as e:
+                logger.error(f"Failed to initialize ClobClient: {e}")
 
         logger.info("📊 Polymarket client initialized")
 
@@ -142,35 +161,37 @@ class PolymarketClient:
     ) -> Optional[Dict]:
        
         try:
-            # Polymarket requires signed orders
-            # Danie Note In production: Use private key to sign order
-            order_payload = {
-                "token_id": token_id,
-                "side": side.upper(),
-                "price": str(price),
-                "size": str(size),
-                "timestamp": int(datetime.now().timestamp())
-            }
-
-            # Like this we would Sign order with private key
-            # signature = sign_order(order_payload, private_key)
-
-            response = await self.client.post(
-                f"{self.base_url}/order",
-                json=order_payload,
-                headers={"Authorization": f"Bearer {self.api_key}"}
-            )
-
-            if response.status_code == 200:
-                order_id = response.json().get("order_id")
-                logger.info(f"✅ Order placed: {order_id}")
-                return response.json()
-            else:
-                logger.error(f"❌ Order failed: {response.text}")
+            if not self.clob_client:
+                logger.error("❌ Cannot place order: Private Key missing (ClobClient not initialized)")
                 return None
 
+            # Create OrderArgs (py-clob-client handles signing)
+            order_args = OrderArgs(
+                price=price,
+                size=size,
+                side=side.upper(),
+                token_id=token_id
+            )
+
+            # Execute in thread to avoid blocking event loop if client is sync
+            response = await asyncio.to_thread(
+                self.clob_client.create_and_post_order,
+                order_args
+            )
+
+            if response and response.get("orderID"):
+                order_id = response.get("orderID")
+                logger.info(f"✅ Signed Order placed: {order_id}")
+                # Ensure backward compatibility
+                if isinstance(response, dict):
+                    response["order_id"] = order_id
+                return response
+            else:
+                logger.error(f"❌ Order placement returned unexpected response: {response}")
+                return response
+
         except Exception as e:
-            logger.error(f"Error placing order: {e}")
+            logger.error(f"Error placing signed order: {e}")
             return None
 
     async def close(self):
