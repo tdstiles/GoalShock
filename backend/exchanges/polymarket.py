@@ -99,6 +99,21 @@ class PolymarketClient:
 
         return yes_price
 
+    async def get_bid_price(self, token_id: str) -> Optional[float]:
+        """
+        Returns the Best Bid price (Sell Price) for a given token.
+        """
+        orderbook = await self.get_orderbook(token_id)
+
+        if not orderbook:
+            return None
+
+        bid_price = orderbook["best_bid"]
+
+        logger.info(f"BID price for {token_id}: {bid_price:.4f} ({bid_price*100:.1f}%)")
+
+        return bid_price
+
     async def place_order(
         self,
         token_id: str,

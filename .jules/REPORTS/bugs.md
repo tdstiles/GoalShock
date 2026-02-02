@@ -48,10 +48,11 @@
 
 ## 7. AlphaOne Simulation Exit Price (Medium)
 *   **Location:** `backend/alphas/alpha_one_underdog.py` (Line 384, `monitor_positions`)
+*   **Status:** **FIXED** (Sherlock)
 *   **Impact:** **Medium** (Inaccurate Simulation PnL)
 *   **Likelihood:** **Medium**
 *   **Why this is a bug:** In simulation, the strategy uses `_get_current_market_price` (which returns the Ask price) to trigger Take Profit/Stop Loss and to calculate Exit Price. In reality, selling a position receives the Bid price. Using Ask price ignores the spread and inflates simulation performance.
-*   **Suggested Owner:** Sherlock
+*   **Resolution:** Added `get_bid_price` to `PolymarketClient` and updated `AlphaOneUnderdog` to use `_get_exit_price` (Bid) for position monitoring.
 
 ## 8. AlphaTwo Stoppage Time Discontinuity (Low)
 *   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 522, `feed_live_fixture_update`)

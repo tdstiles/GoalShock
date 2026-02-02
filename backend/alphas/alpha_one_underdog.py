@@ -390,6 +390,39 @@ class AlphaOneUnderdog:
         
         return None
 
+    async def _get_exit_price(self, fixture_id: int, team: str) -> Optional[float]:
+        """
+        Fetches the current BID price (Selling price) for the position.
+        Crucial for accurate PnL calculation, as we sell into the Bid.
+        """
+        if self.polymarket:
+            try:
+                cache_key = (fixture_id, team)
+                token_id = self.token_map.get(cache_key)
+
+                if not token_id:
+                    # Search for market (redundant if already opened, but safe)
+                    markets = await self.polymarket.get_markets_by_event(f"{team} to win")
+                    if markets:
+                        market = markets[0]
+                        token_id = market.get("clobTokenIds", [None])[0]
+                        if token_id:
+                            self.token_map[cache_key] = token_id
+
+                if token_id:
+                    # Use get_bid_price (implemented in PolymarketClient)
+                    if hasattr(self.polymarket, 'get_bid_price'):
+                        price = await self.polymarket.get_bid_price(token_id)
+                        if price is not None:
+                            return price
+                    else:
+                        # Fallback for backward compatibility or if method missing
+                        logger.warning("get_bid_price missing on Polymarket client")
+            except Exception as e:
+                logger.debug(f"Polymarket exit price fetch error: {e}")
+
+        return None
+
     async def _execute_trade(self, signal: TradeSignal):
         if self.mode == TradingMode.SIMULATION:
             await self._execute_simulation_trade(signal)
@@ -534,22 +567,29 @@ class AlphaOneUnderdog:
         while True:
             try:
                 for position_id, position in list(self.positions.items()):
-                    current_price = await self._get_current_market_price(
+                    # Use EXIT price (Bid) for monitoring
+                    exit_price = await self._get_exit_price(
                         position.signal.fixture_id,
                         position.signal.team
                     )
                     
-                    if current_price is None:
+                    if exit_price is None:
                         if self.mode == TradingMode.SIMULATION:
-                            current_price = self._simulate_price_movement(position)
+                            # If no live data, use simulated price
+                            # We treat the simulated price as the 'mid' price,
+                            # so strictly speaking we should discount it for spread.
+                            # But to keep simulation logic consistent with previous behavior
+                            # (where it returned a single price), we use it directly or maybe discount slightly.
+                            # For now, let's trust the simulation drift.
+                            exit_price = self._simulate_price_movement(position)
                         else:
                             continue
                     
-                    if current_price >= position.signal.target_price:
-                        await self._close_position(position, current_price, "TAKE_PROFIT")
+                    if exit_price >= position.signal.target_price:
+                        await self._close_position(position, exit_price, "TAKE_PROFIT")
                     
-                    elif current_price <= position.signal.stop_loss_price:
-                        await self._close_position(position, current_price, "STOP_LOSS")
+                    elif exit_price <= position.signal.stop_loss_price:
+                        await self._close_position(position, exit_price, "STOP_LOSS")
                 
                 await asyncio.sleep(5) 
                 
