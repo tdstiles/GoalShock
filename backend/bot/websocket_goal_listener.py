@@ -67,6 +67,7 @@ class WebSocketGoalListener:
         self.client = APIFootballClient()
         
         self.goal_callbacks: List[GoalCallback] = []
+        self.fixture_callbacks: List[Callable[[List[LiveFixture]], Optional[Awaitable[None]]]] = []
         
         self.active_fixtures: Dict[int, LiveFixture] = {}
         
@@ -78,6 +79,10 @@ class WebSocketGoalListener:
     def register_goal_callback(self, callback: GoalCallback) -> None:
         self.goal_callbacks.append(callback)
         logger.info(f"Registered goal callback: {callback.__name__}")
+
+    def register_fixture_callback(self, callback: Callable[[List[LiveFixture]], Optional[Awaitable[None]]]) -> None:
+        self.fixture_callbacks.append(callback)
+        logger.info(f"Registered fixture callback: {callback.__name__}")
 
     async def start(self) -> None:
         """Start the polling loop."""
@@ -118,6 +123,9 @@ class WebSocketGoalListener:
         stale_ids = [fid for fid in self.active_fixtures if fid not in current_fixture_ids]
         for fid in stale_ids:
             del self.active_fixtures[fid]
+
+        # Notify listeners of full fixture update
+        await self._notify_fixture_callbacks(fixtures)
 
     async def _detect_goals_in_fixture(self, fixture: LiveFixture) -> None:
         """Compare current fixture state with previous state to detect goals."""
@@ -166,6 +174,16 @@ class WebSocketGoalListener:
             except Exception as e:
                 logger.error(f"Goal callback error: {e}")
 
+    async def _notify_fixture_callbacks(self, fixtures: List[LiveFixture]) -> None:
+        for callback in self.fixture_callbacks:
+            try:
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(fixtures)
+                else:
+                    callback(fixtures)
+            except Exception as e:
+                logger.error(f"Fixture callback error: {e}")
+
     def get_active_fixtures(self) -> List[Dict]:
         # Return dict representation for compatibility
         return [
@@ -190,6 +208,9 @@ class HybridGoalListener:
         
     def register_goal_callback(self, callback: GoalCallback) -> None:
         self.listener.register_goal_callback(callback)
+
+    def register_fixture_callback(self, callback: Callable[[List[LiveFixture]], Optional[Awaitable[None]]]) -> None:
+        self.listener.register_fixture_callback(callback)
 
     async def start(self) -> None:
         await self.listener.start()
