@@ -27,10 +27,11 @@
 
 ## 4. AlphaTwo Live Resolution Missing (High)
 *   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 432, `_check_market_resolution`)
+*   **Status:** **FIXED** (Sherlock)
 *   **Impact:** **High** (Memory Leak, Incorrect PnL)
 *   **Likelihood:** **High** (Certainty in Live mode)
 *   **Why this is a bug:** The `_check_market_resolution` method is guarded by `if self.simulation_mode:`. In Live mode, it returns `None`, meaning trades are never marked as resolved. This causes the `trades` dictionary to grow indefinitely and PnL is never realized/logged.
-*   **Suggested Owner:** Sherlock
+*   **Resolution:** Added `get_market` to `PolymarketClient` to fetch resolution details from Gamma API and implemented live resolution check in `AlphaTwoLateCompression`.
 
 ## 5. RealtimeIngestor Goal Detail Dependency (Medium)
 *   **Location:** `backend/bot/realtime_ingestor.py` (Line 150, `_create_goal_event`)

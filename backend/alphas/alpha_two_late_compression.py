@@ -627,6 +627,21 @@ class AlphaTwoLateCompression:
                         "resolution_time": datetime.now()
                     }
 
+        elif self.polymarket:
+            # LIVE MODE: Query Polymarket API
+            try:
+                market = await self.polymarket.get_market(market_id)
+                if market and (market.get("closed") or market.get("resolved")):
+                    # We expect the API to return the winning outcome (e.g., "YES" or "NO")
+                    outcome = market.get("outcome")
+                    if outcome:
+                        return {
+                            "outcome": outcome,
+                            "resolution_time": datetime.now()
+                        }
+            except Exception as e:
+                logger.error(f"Error checking resolution for {market_id}: {e}")
+
         return None
 
     async def _process_trade_resolution(self, trade: ClippingTrade, resolution: Dict):
