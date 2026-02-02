@@ -60,10 +60,11 @@
 
 ## 8. AlphaTwo Stoppage Time Discontinuity (Low)
 *   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 522, `feed_live_fixture_update`)
+*   **Status:** **FIXED** (Sherlock)
 *   **Impact:** **Low** (Minor logic error)
 *   **Likelihood:** **Medium**
 *   **Why this is a bug:** The logic assumes a fixed "stoppage buffer" added to the total time. At minute 45 (HT) and 90 (FT), the calculation for `seconds_remaining` can jump discontinuously (e.g., from 1 minute left to 8 minutes left) due to the way the buffer is applied, potentially confusing the volatility model.
-*   **Suggested Owner:** Sherlock
+*   **Resolution:** Standardized `STOPPAGE_BUFFER_MINUTES` constant and updated HT calculation to include the buffer, ensuring `seconds_remaining` is consistent between end of 1H and start of HT.
 
 ## 9. Memory Leak in Event Log (Low)
 *   **Location:** `backend/alphas/alpha_one_underdog.py`, `backend/alphas/alpha_two_late_compression.py`

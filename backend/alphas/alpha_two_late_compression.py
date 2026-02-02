@@ -44,6 +44,7 @@ CONFIDENCE_NEUTRAL = 0.50
 
 # --- STRATEGY CONSTANTS ---
 SWING_BUFFER_MULTIPLIER = 1.5
+STOPPAGE_BUFFER_MINUTES = 8
 
 # --- TIME THRESHOLDS (Seconds) ---
 TIME_THRESHOLD_LATE = 600  # 10 minutes
@@ -768,7 +769,8 @@ class AlphaTwoLateCompression:
        
         total_minutes = 90
         if status == "HT":
-            seconds_remaining = (total_minutes - 45) * 60
+            # At HT, we have 45 minutes of play left + Stoppage Buffer
+            seconds_remaining = (total_minutes - 45 + STOPPAGE_BUFFER_MINUTES) * 60
         elif status == "ET":
             # Extra Time is typically 30 mins (90 -> 120)
             # Use max(0, ...) to avoid negative if it goes beyond 120 in stoppage of ET
@@ -786,9 +788,6 @@ class AlphaTwoLateCompression:
             # If minute >= 90 but status is still active (e.g. "2H"), we are in stoppage time.
             # Since we don't know the exact added time, we assume a conservative buffer (e.g., 8 minutes total).
             # This prevents assuming "1 minute left" and triggering high-risk trades prematurely.
-
-            # NOTE: We considered increasing this to 13m to handle deep stoppage, but decided against it.
-            STOPPAGE_BUFFER_MINUTES = 8
 
             # Use the buffer for both Pre-90 and Post-90 to ensure smooth time continuity.
             # If we didn't add it for < 90, we'd have a jump from 1 min remaining (at min 89)
