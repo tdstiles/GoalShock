@@ -299,6 +299,7 @@ class AlphaOneUnderdog:
     def _map_odds_to_teams(self, odds: Dict[str, float], home_team: str, away_team: str) -> Dict[str, float]:
         """
         Maps team names to odds values using fuzzy matching on the odds keys.
+        Resolves ambiguities by scoring matches (Exact > Partial > Keyword).
         """
         team_odds_map = {}
 
@@ -309,9 +310,28 @@ class AlphaOneUnderdog:
         for key, value in odds.items():
             key_lower = key.lower()
 
-            if "home" in key_lower or home_lower in key_lower:
+            # Calculate match score for home team
+            home_score = 0
+            if key_lower == home_lower:
+                home_score = 100
+            elif home_lower in key_lower:
+                home_score = len(home_lower)
+            elif "home" in key_lower:
+                home_score = 0.5
+
+            # Calculate match score for away team
+            away_score = 0
+            if key_lower == away_lower:
+                away_score = 100
+            elif away_lower in key_lower:
+                away_score = len(away_lower)
+            elif "away" in key_lower:
+                away_score = 0.5
+
+            # Assign to the best match
+            if home_score > 0 and home_score >= away_score:
                 team_odds_map[home_team] = value
-            elif "away" in key_lower or away_lower in key_lower:
+            elif away_score > 0 and away_score > home_score:
                 team_odds_map[away_team] = value
 
         return team_odds_map
