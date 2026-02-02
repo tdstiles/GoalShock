@@ -14,7 +14,7 @@ from alphas.alpha_one_underdog import AlphaOneUnderdog, TradingMode
 from alphas.alpha_two_late_compression import AlphaTwoLateCompression
 from exchanges.polymarket import PolymarketClient
 from exchanges.kalshi import KalshiClient
-from data.api_football import APIFootballClient
+from data.api_football import APIFootballClient, LiveFixture
 
 load_dotenv()
 
@@ -177,8 +177,11 @@ class UnifiedTradingEngine:
         
         logger.info("Starting Unified Trading Engine...")
         
-        if self.goal_listener and self.alpha_one:
-            self.goal_listener.register_goal_callback(self._on_goal_event)
+        if self.goal_listener:
+            if self.alpha_one:
+                self.goal_listener.register_goal_callback(self._on_goal_event)
+            if self.alpha_two:
+                self.goal_listener.register_fixture_callback(self._on_fixture_update)
         
         tasks = []
         
@@ -194,8 +197,9 @@ class UnifiedTradingEngine:
        
         tasks.append(asyncio.create_task(self._pre_match_odds_loop()))
         
-      
-        tasks.append(asyncio.create_task(self._live_fixture_loop()))
+        # Only run fallback loop if listener is not present to avoid double polling
+        if not self.goal_listener:
+            tasks.append(asyncio.create_task(self._live_fixture_loop()))
         
        
         tasks.append(asyncio.create_task(self._stats_reporter_loop()))
@@ -305,35 +309,45 @@ class UnifiedTradingEngine:
         return None
 
     async def _live_fixture_loop(self):
+        """Fallback loop if goal_listener is disabled"""
         while self.running:
             try:
                 if self.alpha_two and self.api_football:
                     fixtures = await self.api_football.get_live_fixtures()
-                    
-                    for fixture in fixtures:
-                        market_prices = await self._get_fixture_market_prices(fixture)
-                        
-                        fixture_data = {
-                            "fixture_id": fixture.fixture_id,
-                            "market_id": f"fixture_{fixture.fixture_id}",
-                            "question": f"Will {fixture.home_team} win?",
-                            "home_team": fixture.home_team,
-                            "away_team": fixture.away_team,
-                            "home_score": fixture.home_score,
-                            "away_score": fixture.away_score,
-                            "minute": fixture.minute,
-                            "status": fixture.status,
-                            "yes_price": market_prices.get(KEY_YES, DEFAULT_MARKET_PRICE),
-                            "no_price": market_prices.get(KEY_NO, DEFAULT_MARKET_PRICE)
-                        }
-                        
-                        await self.alpha_two.feed_live_fixture_update(fixture_data)
+                    await self._on_fixture_update(fixtures)
                 
                 await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
                 
             except Exception as e:
                 logger.error(f"Live fixture loop error: {e}")
                 await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
+
+    async def _on_fixture_update(self, fixtures: List[LiveFixture]):
+        """Unified handler for fixture updates (from Listener or Loop)"""
+        if not self.alpha_two:
+            return
+
+        for fixture in fixtures:
+            try:
+                market_prices = await self._get_fixture_market_prices(fixture)
+
+                fixture_data = {
+                    "fixture_id": fixture.fixture_id,
+                    "market_id": f"fixture_{fixture.fixture_id}",
+                    "question": f"Will {fixture.home_team} win?",
+                    "home_team": fixture.home_team,
+                    "away_team": fixture.away_team,
+                    "home_score": fixture.home_score,
+                    "away_score": fixture.away_score,
+                    "minute": fixture.minute,
+                    "status": fixture.status,
+                    "yes_price": market_prices.get(KEY_YES, DEFAULT_MARKET_PRICE),
+                    "no_price": market_prices.get(KEY_NO, DEFAULT_MARKET_PRICE)
+                }
+
+                await self.alpha_two.feed_live_fixture_update(fixture_data)
+            except Exception as e:
+                logger.error(f"Error processing fixture {fixture.fixture_id}: {e}")
 
     async def _get_fixture_market_prices(self, fixture) -> Dict[str, float]:
         if not self.polymarket:

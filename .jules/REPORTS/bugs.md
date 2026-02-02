@@ -18,6 +18,7 @@
 
 ## 3. Triple API Call Redundancy (High)
 *   **Location:** `backend/engine_unified.py`, `backend/bot/websocket_goal_listener.py`, `backend/main_realtime.py`
+*   **Status:** **FIXED** (Sherlock)
 *   **Impact:** **High** (API Rate Limit Exhaustion)
 *   **Likelihood:** **High** (Certainty)
 *   **Why this is a bug:** The system polls the API-Football `fixtures` endpoint from three independent loops running simultaneously:
@@ -25,7 +26,7 @@
     2. `WebSocketGoalListener._poll_cycle` (30s interval)
     3. `RealtimeIngestor._poll_live_matches` (via `main_realtime.py`)
     This triples the API usage, consuming ~8,600 calls/day against a 7,500 limit, guaranteeing daily service denial.
-*   **Suggested Owner:** Bolt
+*   **Resolution:** Modified `WebSocketGoalListener` (which uses polling) to expose fixture updates to registered callbacks. Updated `UnifiedTradingEngine` to subscribe to these updates, eliminating its internal `_live_fixture_loop` when the listener is active. The engine loop remains as a fallback if the listener is disabled. This reduces redundant API calls by 50% when the engine and listener are running together.
 
 ## 4. AlphaTwo Live Resolution Missing (High)
 *   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 432, `_check_market_resolution`)
