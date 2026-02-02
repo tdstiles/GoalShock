@@ -6,10 +6,16 @@ import httpx
 @pytest.fixture
 def client():
     with patch("httpx.AsyncClient") as mock_http_client:
-        client = PolymarketClient()
-        # Mock the internal httpx client
-        client.client = mock_http_client
-        yield client
+        # Patch settings to avoid side effects or relying on env vars
+        with patch("backend.exchanges.polymarket.settings") as mock_settings:
+            mock_settings.POLYMARKET_PRIVATE_KEY = "test_key"
+            mock_settings.POLYMARKET_CHAIN_ID = 137
+
+            # We also need to patch ClobClient init so it doesn't try to actually connect or validate key
+            with patch("backend.exchanges.polymarket.ClobClient") as MockClob:
+                client = PolymarketClient()
+                client.client = mock_http_client
+                yield client
 
 @pytest.mark.asyncio
 async def test_get_markets_by_event_success(client):
@@ -76,10 +82,6 @@ async def test_get_orderbook_failure(client):
 
 @pytest.mark.asyncio
 async def test_get_yes_price_success(client):
-    # Reuse get_orderbook logic logic by mocking get_orderbook method if we wanted,
-    # but here we test full flow or mock the internal call.
-    # To strictly unit test get_yes_price, we can mock get_orderbook.
-
     with patch.object(client, "get_orderbook", new_callable=AsyncMock) as mock_get_ob:
         mock_get_ob.return_value = {"best_ask": 0.65}
 
@@ -95,27 +97,44 @@ async def test_get_yes_price_none(client):
         assert price is None
 
 @pytest.mark.asyncio
-async def test_place_order_success(client):
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"order_id": "ord123"}
-    client.client.post = AsyncMock(return_value=mock_response)
+async def test_place_order_signed_success(client):
+    # Mock ClobClient
+    mock_clob = MagicMock()
+    client.clob_client = mock_clob
+
+    # Mock return value of create_and_post_order
+    mock_clob.create_and_post_order.return_value = {"orderID": "ord123"}
 
     result = await client.place_order("token123", "BUY", 0.5, 10)
 
+    assert result["orderID"] == "ord123"
     assert result["order_id"] == "ord123"
-    client.client.post.assert_called_once()
-    # Check payload
-    call_kwargs = client.client.post.call_args[1]
-    assert call_kwargs["json"]["token_id"] == "token123"
-    assert call_kwargs["json"]["side"] == "BUY"
+    mock_clob.create_and_post_order.assert_called_once()
+
+    # Verify OrderArgs
+    call_args = mock_clob.create_and_post_order.call_args[0][0]
+    assert call_args.token_id == "token123"
+    assert call_args.side == "BUY"
+    assert call_args.price == 0.5
+    assert call_args.size == 10
 
 @pytest.mark.asyncio
-async def test_place_order_failure(client):
-    mock_response = MagicMock()
-    mock_response.status_code = 400
-    mock_response.text = "Bad Request"
-    client.client.post = AsyncMock(return_value=mock_response)
+async def test_place_order_no_key(client):
+    # Simulate missing private key
+    client.clob_client = None
 
     result = await client.place_order("token123", "BUY", 0.5, 10)
     assert result is None
+
+@pytest.mark.asyncio
+async def test_place_order_failure_response(client):
+    mock_clob = MagicMock()
+    client.clob_client = mock_clob
+
+    # Mock failure (no orderID in response)
+    mock_clob.create_and_post_order.return_value = {"error": "Insufficient balance"}
+
+    result = await client.place_order("token123", "BUY", 0.5, 10)
+    # Our code returns the response even on failure, but logs error.
+    # Logic: if response and response.get("orderID") -> OK, else Log Error and Return Response
+    assert result == {"error": "Insufficient balance"}

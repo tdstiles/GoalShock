@@ -2,10 +2,11 @@
 
 ## 1. Polymarket Live Orders Unsigned (Critical)
 *   **Location:** `backend/exchanges/polymarket.py` (Line 104, `place_order`)
+*   **Status:** **FIXED** (Sherlock)
 *   **Impact:** **High** (Live trading impossible)
 *   **Likelihood:** **High** (100% failure rate in Live mode)
 *   **Why this is a bug:** The `place_order` method sends a plain JSON payload to the Polymarket CLOB API without an EIP-712 signature. The API requires cryptographic signatures for all orders. The code contains comments acknowledging this (`# Daniel Note In production: Use private key to sign order`) but the implementation is missing.
-*   **Suggested Owner:** Sentinel / Sherlock
+*   **Resolution:** Added `py-clob-client` dependency and updated `PolymarketClient` to use `ClobClient.create_and_post_order` for EIP-712 compliant order signing using `POLYMARKET_PRIVATE_KEY`.
 
 ## 2. AlphaTwo Live Execution Missing (Critical)
 *   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 414, `_place_exchange_order`)
