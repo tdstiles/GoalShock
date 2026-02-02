@@ -594,13 +594,64 @@ class AlphaTwoLateCompression:
     async def _place_exchange_order(self, opportunity: ClippingOpportunity) -> bool:
         if self.polymarket:
             try:
-                """
-                # Daniel NOTE: Would need to implement actual order placement
-                # result = await self.polymarket.place_order(...)
-                """
-                return False  #THIS IS THE PLACEHOLDER
+                # Fetch market details to resolve Token ID
+                market = await self.polymarket.get_market(opportunity.market_id)
+                if not market:
+                    logger.error(f"Could not fetch market details for {opportunity.market_id}")
+                    return False
+
+                token_id = None
+                target_outcome = opportunity.recommended_side.upper()  # "YES" or "NO"
+
+                # 1. Try explicit mapping via 'tokens' list
+                tokens = market.get("tokens", [])
+                if tokens and isinstance(tokens, list):
+                    for t in tokens:
+                        if t.get("outcome", "").upper() == target_outcome:
+                            token_id = t.get("token_id")
+                            break
+
+                # 2. Fallback to clobTokenIds indexing
+                if not token_id:
+                    clob_tokens = market.get("clobTokenIds", [])
+                    if clob_tokens and len(clob_tokens) >= 2:
+                        # Assumption: Index 0 = YES, Index 1 = NO
+                        if target_outcome == "YES":
+                            token_id = clob_tokens[0]
+                        elif target_outcome == "NO":
+                            token_id = clob_tokens[1]
+
+                        logger.warning(f"Inferred token_id via index for {opportunity.market_id} ({target_outcome})")
+
+                if not token_id:
+                    logger.error(f"Could not resolve token_id for {opportunity.market_id} outcome {target_outcome}")
+                    return False
+
+                # Convert USD Size to Shares
+                price = opportunity.recommended_price
+                if price <= 0.001:
+                    logger.error(f"Invalid price {price} for order")
+                    return False
+
+                size_shares = opportunity.recommended_size / price
+
+                logger.info(f"Placing Live Order: {target_outcome} @ {price:.2f}, Size: ${opportunity.recommended_size:.2f} (~{size_shares:.2f} shares)")
+
+                result = await self.polymarket.place_order(
+                    token_id=token_id,
+                    side="BUY",
+                    price=price,
+                    size=size_shares
+                )
+
+                if result and (result.get("orderID") or result.get("order_id")):
+                    return True
+
+                return False
+
             except Exception as e:
                 logger.error(f"Polymarket order error: {e}")
+                return False
         
         if self.kalshi:
             try:
