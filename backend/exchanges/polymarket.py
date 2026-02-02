@@ -41,6 +41,25 @@ class PolymarketClient:
             logger.error(f"Error fetching Polymarket markets: {e}")
             return []
 
+    async def get_market(self, market_id: str) -> Optional[Dict]:
+        """
+        Fetches market details from Gamma API by ID.
+        """
+        try:
+            response = await self.client.get(
+                f"{self.gamma_url}/markets/{market_id}"
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Polymarket API error (get_market): {response.status_code}")
+                return None
+
+            return response.json()
+
+        except Exception as e:
+            logger.error(f"Error fetching Polymarket market {market_id}: {e}")
+            return None
+
     async def get_orderbook(self, token_id: str) -> Optional[Dict]:
        
         try:
