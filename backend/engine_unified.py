@@ -36,7 +36,7 @@ INTERVAL_LIVE_FIXTURE = 30      # 30 seconds
 INTERVAL_STATS_REPORT = 300     # 5 minutes
 
 # Default Values
-DEFAULT_MARKET_PRICE = 0.5
+DEFAULT_MARKET_PRICE = -1.0  # Represents invalid/missing price (was 0.5)
 DEFAULT_ENABLE_WEBSOCKET = True
 DEFAULT_ENABLE_ALPHA_ONE = True
 DEFAULT_ENABLE_ALPHA_TWO = True

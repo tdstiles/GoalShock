@@ -343,8 +343,13 @@ class AlphaTwoLateCompression:
         fixture_id = market.get("fixture_id", 0)
         
         # Get current prices
-        yes_price = market.get("yes_price", 0.5)
-        no_price = market.get("no_price", 0.5)
+        yes_price = market.get("yes_price", -1.0)
+        no_price = market.get("no_price", -1.0)
+
+        # Sherlock Fix: Validate prices are legitimate (not default/missing)
+        if yes_price < 0 or no_price < 0:
+            return None
+
         spread = abs(yes_price - no_price)
         
         seconds_to_close = market.get("seconds_to_close", 999999)
@@ -823,8 +828,8 @@ class AlphaTwoLateCompression:
                 "away": fixture_data.get("away_score", 0)
             },
             "seconds_to_close": seconds_remaining,
-            "yes_price": fixture_data.get("yes_price", 0.5),
-            "no_price": fixture_data.get("no_price", 0.5),
+            "yes_price": fixture_data.get("yes_price", -1.0),
+            "no_price": fixture_data.get("no_price", -1.0),
             "status": MarketStatus.ACTIVE.value if seconds_remaining > 0 else MarketStatus.RESOLVED.value
         }
         

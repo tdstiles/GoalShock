@@ -1,6 +1,6 @@
 # 🐕 Hound: Bug Recon <2026-01-20>
 
-## 1. Critical: AlphaTwo Trades on Default Fake Prices
+## 1. Critical: AlphaTwo Trades on Default Fake Prices (FIXED)
 - **Location:** `backend/engine_unified.py` (lines 351, 359) and `backend/alphas/alpha_two_late_compression.py` (line 527)
 - **Impact:** **High** (Guaranteed financial loss or invalid simulation data)
 - **Likelihood:** **High** (Occurs whenever market data fetch fails or market is not found)
@@ -9,6 +9,7 @@
 - **How to reproduce:**
   Run `AlphaTwo` in simulation mode with `polymarket_key` but disconnect internet or ensure API returns error. Observe logs showing trades executing at exactly `0.50` entry price.
 - **Suggested Owner:** Sherlock
+- **Resolution:** Fixed by Sherlock (2026-01-21). Updated DEFAULT_MARKET_PRICE to -1.0 in `engine_unified.py` to signal invalid data. Added guard clauses in `AlphaTwoLateCompression` to strictly reject prices < 0.
 
 ## 2. Critical: Kalshi Price Inversion & Negative Spread (FIXED)
 - **Location:** `backend/exchanges/kalshi.py` (line 114, `get_orderbook`)
