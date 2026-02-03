@@ -10,7 +10,7 @@
   Run `AlphaTwo` in simulation mode with `polymarket_key` but disconnect internet or ensure API returns error. Observe logs showing trades executing at exactly `0.50` entry price.
 - **Suggested Owner:** Sherlock
 
-## 2. Critical: Kalshi Price Inversion & Negative Spread
+## 2. Critical: Kalshi Price Inversion & Negative Spread (FIXED)
 - **Location:** `backend/exchanges/kalshi.py` (line 114, `get_orderbook`)
 - **Impact:** **High** (Trading on inverted prices, immediate loss)
 - **Likelihood:** **High** (Always occurs for Kalshi markets)
@@ -19,6 +19,7 @@
 - **How to reproduce:**
   Run `backend/tests/exchanges/test_kalshi_client.py`. The test `test_get_orderbook_success` passes but asserts a negative spread (`yes_bid` > `yes_ask`), confirming the logic error.
 - **Suggested Owner:** Bolt
+- **Resolution:** Fixed by Sherlock (2026-01-20). Updated calculation to `100 - no_bids[0][0]` and corrected unit tests.
 
 ## 3. High: Ghost Positions in Live Trading
 - **Location:** `backend/alphas/alpha_one_underdog.py` (line 463) and `backend/alphas/alpha_two_late_compression.py` (line 576)
