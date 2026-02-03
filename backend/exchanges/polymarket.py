@@ -194,5 +194,34 @@ class PolymarketClient:
             logger.error(f"Error placing signed order: {e}")
             return None
 
+    async def get_order(self, order_id: str) -> Optional[Dict]:
+        """
+        Fetches order details by ID.
+        """
+        try:
+            if not self.clob_client:
+                return None
+
+            # clob_client.get_order returns the order dict directly
+            return await asyncio.to_thread(self.clob_client.get_order, order_id)
+        except Exception as e:
+            logger.error(f"Error fetching order {order_id}: {e}")
+            return None
+
+    async def cancel_order(self, order_id: str) -> bool:
+        """
+        Cancels an order by ID.
+        """
+        try:
+            if not self.clob_client:
+                return False
+
+            await asyncio.to_thread(self.clob_client.cancel, order_id)
+            logger.info(f"🚫 Order cancelled: {order_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error cancelling order {order_id}: {e}")
+            return False
+
     async def close(self):
         await self.client.aclose()
