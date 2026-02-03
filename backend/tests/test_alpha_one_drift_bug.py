@@ -1,5 +1,6 @@
 
 import pytest
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from backend.alphas.alpha_one_underdog import AlphaOneUnderdog, SimulatedPosition, TradeSignal
 
@@ -37,10 +38,13 @@ async def test_simulate_price_movement_drift_sanity():
     )
 
     # Simulate 50 seconds of movement (10 steps of 5s)
-    for _ in range(10):
-        # Move last_update_time back by 5s to simulate 5s elapsed
-        position.last_update_time = datetime.now() - timedelta(seconds=5)
-        alpha._simulate_price_movement(position)
+    # We mock random.gauss to return the mean (drift) to eliminate volatility noise.
+    # We want to test the *drift* calculation, not the random walk.
+    with patch('backend.alphas.alpha_one_underdog.random.gauss', side_effect=lambda mu, sigma: mu):
+        for _ in range(10):
+            # Move last_update_time back by 5s to simulate 5s elapsed
+            position.last_update_time = datetime.now() - timedelta(seconds=5)
+            alpha._simulate_price_movement(position)
 
     final_price = position.last_price
     drop = 0.95 - final_price
