@@ -1,75 +1,51 @@
-# 🐕 Hound: Bug Recon <2024-05-22>
+# 🐕 Hound: Bug Recon <2026-01-20>
 
-## 1. Polymarket Live Orders Unsigned (Critical)
-*   **Location:** `backend/exchanges/polymarket.py` (Line 104, `place_order`)
-*   **Status:** **FIXED** (Sherlock)
-*   **Impact:** **High** (Live trading impossible)
-*   **Likelihood:** **High** (100% failure rate in Live mode)
-*   **Why this is a bug:** The `place_order` method sends a plain JSON payload to the Polymarket CLOB API without an EIP-712 signature. The API requires cryptographic signatures for all orders. The code contains comments acknowledging this (`# Daniel Note In production: Use private key to sign order`) but the implementation is missing.
-*   **Resolution:** Added `py-clob-client` dependency and updated `PolymarketClient` to use `ClobClient.create_and_post_order` for EIP-712 compliant order signing using `POLYMARKET_PRIVATE_KEY`.
+## 1. Critical: AlphaTwo Trades on Default Fake Prices
+- **Location:** `backend/engine_unified.py` (lines 351, 359) and `backend/alphas/alpha_two_late_compression.py` (line 527)
+- **Impact:** **High** (Guaranteed financial loss or invalid simulation data)
+- **Likelihood:** **High** (Occurs whenever market data fetch fails or market is not found)
+- **Why this is a bug:**
+  The `UnifiedTradingEngine` defaults `yes_price` and `no_price` to `0.5` when it fails to fetch market data (e.g., API error, market not found). `AlphaTwoLateCompression` treats this `0.5` as a valid market price. If the strategy calculates a target price of `1.0` (high confidence), it sees `0.5` as a 100% profit opportunity and attempts to trade. In Live mode, this places limit orders at `0.5` which likely won't fill (if real price > 0.5) or fill immediately at a loss (if real price < 0.5). In Simulation, it records fake trades with 100% PnL.
+- **How to reproduce:**
+  Run `AlphaTwo` in simulation mode with `polymarket_key` but disconnect internet or ensure API returns error. Observe logs showing trades executing at exactly `0.50` entry price.
+- **Suggested Owner:** Sherlock
 
-## 2. AlphaTwo Live Execution Missing (Critical)
-*   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 414, `_place_exchange_order`)
-*   **Status:** **FIXED** (Sherlock)
-*   **Impact:** **High** (Live trading impossible for AlphaTwo)
-*   **Likelihood:** **High** (100% failure rate)
-*   **Why this is a bug:** The `_place_exchange_order` method explicitly returns `False` with a placeholder comment (`# Placeholder`), preventing any live trades from being executed even if a valid opportunity is found.
-*   **Resolution:** Implemented `_place_exchange_order` to fetch market details, resolve token IDs (using explicit `tokens` mapping or `clobTokenIds` fallback), and execute orders via `PolymarketClient.place_order`.
+## 2. Critical: Kalshi Price Inversion & Negative Spread
+- **Location:** `backend/exchanges/kalshi.py` (line 114, `get_orderbook`)
+- **Impact:** **High** (Trading on inverted prices, immediate loss)
+- **Likelihood:** **High** (Always occurs for Kalshi markets)
+- **Why this is a bug:**
+  The `get_orderbook` method calculates `yes_ask` as `no_bids[0][0]`. This assumes `Yes Ask == No Bid`. In binary markets, `Yes + No ≈ 100`. Therefore, `Yes Ask` should be roughly `1 - No Bid` (or `100 - No Bid` in cents). By setting `Yes Ask = No Bid`, the client incorrectly prices the asset. For example, if No Bid is 10 cents (implying Yes is ~90 cents), the client reports Yes Ask as 10 cents. The bot thinks it can buy cheap and executes a Buy order at 10 cents, which will not fill (market is at 90). The unit test `test_get_orderbook_success` incorrectly asserts this negative spread (`0.60` bid vs `0.38` ask) is correct.
+- **How to reproduce:**
+  Run `backend/tests/exchanges/test_kalshi_client.py`. The test `test_get_orderbook_success` passes but asserts a negative spread (`yes_bid` > `yes_ask`), confirming the logic error.
+- **Suggested Owner:** Bolt
 
-## 3. Triple API Call Redundancy (High)
-*   **Location:** `backend/engine_unified.py`, `backend/bot/websocket_goal_listener.py`, `backend/main_realtime.py`
-*   **Status:** **FIXED** (Sherlock)
-*   **Impact:** **High** (API Rate Limit Exhaustion)
-*   **Likelihood:** **High** (Certainty)
-*   **Why this is a bug:** The system polls the API-Football `fixtures` endpoint from three independent loops running simultaneously:
-    1. `UnifiedTradingEngine._live_fixture_loop` (30s interval)
-    2. `WebSocketGoalListener._poll_cycle` (30s interval)
-    3. `RealtimeIngestor._poll_live_matches` (via `main_realtime.py`)
-    This triples the API usage, consuming ~8,600 calls/day against a 7,500 limit, guaranteeing daily service denial.
-*   **Resolution:** Modified `WebSocketGoalListener` (which uses polling) to expose fixture updates to registered callbacks. Updated `UnifiedTradingEngine` to subscribe to these updates, eliminating its internal `_live_fixture_loop` when the listener is active. The engine loop remains as a fallback if the listener is disabled. This reduces redundant API calls by 50% when the engine and listener are running together.
+## 3. High: Ghost Positions in Live Trading
+- **Location:** `backend/alphas/alpha_one_underdog.py` (line 463) and `backend/alphas/alpha_two_late_compression.py` (line 576)
+- **Impact:** **High** (State desynchronization, tracking non-existent trades)
+- **Likelihood:** **High** (Limit orders frequently miss the book in fast-moving markets)
+- **Why this is a bug:**
+  Both strategies assume that `place_order` (which sends a LIMIT order) results in an immediate fill. They create a "Position" object and track PnL based on the limit price immediately after the API acknowledges receipt of the order. If the order sits in the orderbook unfilled (e.g. price moved), the bot tracks a "ghost position". `AlphaOne` verifies fill status on *exit*, but not *entry*. `AlphaTwo` does not appear to verify fill status at all.
+- **How to reproduce:**
+  In Live mode, trigger a trade signal where the limit price is slightly below the market ask. The order will be placed but not filled. The logs will show "Trade executed" and the bot will start reporting PnL updates for a position you don't actually hold.
+- **Suggested Owner:** Sentinel
 
-## 4. AlphaTwo Live Resolution Missing (High)
-*   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 432, `_check_market_resolution`)
-*   **Status:** **FIXED** (Sherlock)
-*   **Impact:** **High** (Memory Leak, Incorrect PnL)
-*   **Likelihood:** **High** (Certainty in Live mode)
-*   **Why this is a bug:** The `_check_market_resolution` method is guarded by `if self.simulation_mode:`. In Live mode, it returns `None`, meaning trades are never marked as resolved. This causes the `trades` dictionary to grow indefinitely and PnL is never realized/logged.
-*   **Resolution:** Added `get_market` to `PolymarketClient` to fetch resolution details from Gamma API and implemented live resolution check in `AlphaTwoLateCompression`.
+## 4. Medium: Sequential Event Loop Blocking
+- **Location:** `backend/engine_unified.py` (line 335, `_on_fixture_update`)
+- **Impact:** **Medium** (System latency, missed opportunities)
+- **Likelihood:** **High** (Always occurs when multiple fixtures are active)
+- **Why this is a bug:**
+  The `_on_fixture_update` method iterates through the list of fixtures and calls `_get_fixture_market_prices` (which performs network I/O) sequentially using `await` inside the loop. If there are 50 active fixtures and each call takes 1s, the loop blocks the entire engine (including the "10s" polling cycle) for 50 seconds. This causes massive latency in goal detection and trade execution.
+- **How to reproduce:**
+  Mock `APIFootballClient` to return 50 fixtures. Measure the time it takes for one poll cycle in `UnifiedTradingEngine`.
+- **Suggested Owner:** Bolt
 
-## 5. RealtimeIngestor Goal Detail Dependency (Medium)
-*   **Location:** `backend/bot/realtime_ingestor.py` (Line 150, `_create_goal_event`)
-*   **Impact:** **Medium** (Missed goal alerts in UI)
-*   **Likelihood:** **Medium** (Depends on API response format)
-*   **Why this is a bug:** The ingestor relies on `fixture_data.get("events", [])` to extract goal details (scorer, assist). However, the standard `/fixtures?live=all` endpoint often returns fixtures *without* the detailed events array unless specifically configured or requested. If events are missing, `_create_goal_event` returns `None`, silencing the goal alert.
-*   **Suggested Owner:** Bolt
-
-## 6. Shutdown Race Condition (Medium)
-*   **Location:** `backend/engine_unified.py` (Methods `stop` vs `_live_fixture_loop`)
-*   **Status:** **FIXED** (Sherlock)
-*   **Impact:** **Medium** (Error spam during shutdown)
-*   **Likelihood:** **Medium**
-*   **Why this is a bug:** The `stop()` method closes HTTP/WS clients immediately. However, the infinite loops (`while self.running`) might still be executing or waking up from sleep. They will attempt to use the closed clients before checking the `running` flag, causing `RuntimeError` or connection errors to be logged during shutdown.
-*   **Resolution:** Modified `UnifiedTradingEngine` to track background tasks in `self._tasks` and cancel them in `stop()` before closing clients. Added regression test `backend/tests/test_engine_shutdown.py`.
-
-## 7. AlphaOne Simulation Exit Price (Medium)
-*   **Location:** `backend/alphas/alpha_one_underdog.py` (Line 384, `monitor_positions`)
-*   **Status:** **FIXED** (Sherlock)
-*   **Impact:** **Medium** (Inaccurate Simulation PnL)
-*   **Likelihood:** **Medium**
-*   **Why this is a bug:** In simulation, the strategy uses `_get_current_market_price` (which returns the Ask price) to trigger Take Profit/Stop Loss and to calculate Exit Price. In reality, selling a position receives the Bid price. Using Ask price ignores the spread and inflates simulation performance.
-*   **Resolution:** Added `get_bid_price` to `PolymarketClient` and updated `AlphaOneUnderdog` to use `_get_exit_price` (Bid) for position monitoring.
-
-## 8. AlphaTwo Stoppage Time Discontinuity (Low)
-*   **Location:** `backend/alphas/alpha_two_late_compression.py` (Line 522, `feed_live_fixture_update`)
-*   **Status:** **FIXED** (Sherlock)
-*   **Impact:** **Low** (Minor logic error)
-*   **Likelihood:** **Medium**
-*   **Why this is a bug:** The logic assumes a fixed "stoppage buffer" added to the total time. At minute 45 (HT) and 90 (FT), the calculation for `seconds_remaining` can jump discontinuously (e.g., from 1 minute left to 8 minutes left) due to the way the buffer is applied, potentially confusing the volatility model.
-*   **Resolution:** Standardized `STOPPAGE_BUFFER_MINUTES` constant and updated HT calculation to include the buffer, ensuring `seconds_remaining` is consistent between end of 1H and start of HT.
-
-## 9. Memory Leak in Event Log (Low)
-*   **Location:** `backend/alphas/alpha_one_underdog.py`, `backend/alphas/alpha_two_late_compression.py`
-*   **Impact:** **Low** (Memory growth over long uptime)
-*   **Likelihood:** **Low**
-*   **Why this is a bug:** The `self.event_log` list is appended to indefinitely and never pruned or flushed to disk automatically. While event objects are small, running the bot for months without restart could lead to significant memory consumption.
-*   **Suggested Owner:** Bolt
+## 5. Low: Polymarket Market Search Fragility
+- **Location:** `backend/engine_unified.py` (line 351) and `backend/exchanges/polymarket.py` (line 42)
+- **Impact:** **Low** (Missed trades)
+- **Likelihood:** **Medium**
+- **Why this is a bug:**
+  The bot constructs a search query string `"{home_team} vs {away_team}"` to find markets. If the exchange uses a different naming convention (e.g. "Away vs Home" or different spelling), the market search fails. While not a logic error, it's a fragile assumption that leads to `DEFAULT_MARKET_PRICE` fallbacks (triggering Bug #1).
+- **How to reproduce:**
+  Find a match where teams are listed differently on API-Football vs Polymarket. The bot will fail to find the market.
+- **Suggested Owner:** Sherlock
