@@ -474,38 +474,44 @@ class AlphaTwoLateCompression:
             return self._calculate_soccer_confidence(lead_margin, seconds_remaining)
         
         elif sport in [SPORT_BASKETBALL, SPORT_BASEBALL]:
-            if sport == SPORT_BASKETBALL:
-                points_per_second = PPS_BASKETBALL
-            else:
-                points_per_second = PPS_BASEBALL
-            
-            expected_swing = points_per_second * seconds_remaining * 2
+            return self._calculate_us_sports_confidence(lead_margin, seconds_remaining, sport)
 
-            # Sherlock Fix: Enforce minimum volatility for Basketball (one possession)
-            # The linear model underestimates risk in final seconds.
-            # A 2-3 point lead is never safe in Basketball until the buzzer.
-            if sport == SPORT_BASKETBALL:
-                if seconds_remaining < 24:
-                    # If under shot clock (24s), risk is lower (fewer possessions possible)
-                    # A 3 point lead (one possession) is still risky, but 4 pts (2 pos) is safer.
-                    # 2.5 * 1.5 = 3.75. Lead > 3.75 (i.e. 4) -> High Confidence.
-                    expected_swing = max(2.5, expected_swing)
-                else:
-                    expected_swing = max(3.5, expected_swing)
-            
-            if lead_margin > expected_swing * SWING_BUFFER_MULTIPLIER:
-                confidence = CONFIDENCE_VERY_HIGH
-            elif lead_margin > expected_swing:
-                confidence = CONFIDENCE_MEDIUM
-            elif lead_margin > 0:
-                confidence = CONFIDENCE_FAVORABLE
-            else:
-                # Tie Game or Negative Margin (should be handled by outcome logic, but safe fallback)
-                confidence = CONFIDENCE_NEUTRAL
-        
         else:
-            confidence = CONFIDENCE_NEUTRAL
+            return CONFIDENCE_NEUTRAL
+
+    def _calculate_us_sports_confidence(self, lead_margin: int, seconds_remaining: int, sport: str) -> float:
+        """
+        Calculates confidence for US sports (Basketball, Baseball) based on lead margin and remaining time.
+        """
+        if sport == SPORT_BASKETBALL:
+            points_per_second = PPS_BASKETBALL
+        else:
+            points_per_second = PPS_BASEBALL
+
+        expected_swing = points_per_second * seconds_remaining * 2
+
+        # Sherlock Fix: Enforce minimum volatility for Basketball (one possession)
+        # The linear model underestimates risk in final seconds.
+        # A 2-3 point lead is never safe in Basketball until the buzzer.
+        if sport == SPORT_BASKETBALL:
+            if seconds_remaining < 24:
+                # If under shot clock (24s), risk is lower (fewer possessions possible)
+                # A 3 point lead (one possession) is still risky, but 4 pts (2 pos) is safer.
+                # 2.5 * 1.5 = 3.75. Lead > 3.75 (i.e. 4) -> High Confidence.
+                expected_swing = max(2.5, expected_swing)
+            else:
+                expected_swing = max(3.5, expected_swing)
         
+        if lead_margin > expected_swing * SWING_BUFFER_MULTIPLIER:
+            confidence = CONFIDENCE_VERY_HIGH
+        elif lead_margin > expected_swing:
+            confidence = CONFIDENCE_MEDIUM
+        elif lead_margin > 0:
+            confidence = CONFIDENCE_FAVORABLE
+        else:
+            # Tie Game or Negative Margin (should be handled by outcome logic, but safe fallback)
+            confidence = CONFIDENCE_NEUTRAL
+
         return min(CONFIDENCE_MAX, confidence)
 
     def _calculate_soccer_confidence(self, lead_margin: int, seconds_remaining: int) -> float:
