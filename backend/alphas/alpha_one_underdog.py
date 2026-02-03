@@ -557,7 +557,40 @@ class AlphaOneUnderdog:
                 size=qty_to_close
             )
 
-            return result is not None
+            # Sherlock Fix v2: Verify trade execution (Prevent Ghost Positions)
+            if result and result.get("order_id"):
+                order_id = result.get("order_id")
+                logger.info(f"Order placed ({order_id}). verifying fill...")
+
+                # Poll for fill (Max 3 seconds)
+                for i in range(3):
+                    await asyncio.sleep(1)
+                    order_status = await self.polymarket.get_order(order_id)
+
+                    if not order_status:
+                         continue
+
+                    status = str(order_status.get("status", "")).upper()
+                    state = str(order_status.get("state", "")).upper() # Some APIs use state
+
+                    current_status = status if status else state
+
+                    logger.debug(f"Order {order_id} status: {current_status}")
+
+                    if current_status in ["MATCHED", "FILLED"]:
+                        logger.info(f"Order {order_id} filled successfully.")
+                        return True
+
+                    if current_status in ["CANCELED", "CANCELLED", "KILLED"]:
+                         logger.warning(f"Order {order_id} was canceled.")
+                         return False
+
+                # If we get here, order is likely OPEN/stuck
+                logger.warning(f"Order {order_id} not filled after timeout. Cancelling...")
+                await self.polymarket.cancel_order(order_id)
+                return False
+
+            return False
 
         except Exception as e:
             logger.error(f"Error closing position {position.position_id}: {e}")

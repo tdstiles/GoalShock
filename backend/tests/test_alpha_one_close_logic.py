@@ -29,6 +29,8 @@ async def test_execute_live_close_with_zero_bid(alpha_one):
     # Mock Polymarket Orderbook returning "0"
     alpha_one.polymarket.get_markets_by_event.return_value = [{"clobTokenIds": ["token123"]}]
     alpha_one.polymarket.get_orderbook.return_value = {"best_bid": "0"}
+    alpha_one.polymarket.place_order.return_value = {"order_id": "123"}
+    alpha_one.polymarket.get_order.return_value = {"status": "FILLED"}
 
     # Execute Close
     await alpha_one._execute_live_close(position, price=0.5)
@@ -65,6 +67,8 @@ async def test_execute_live_close_with_valid_bid(alpha_one):
     # Mock Polymarket Orderbook returning "0.45"
     alpha_one.polymarket.get_markets_by_event.return_value = [{"clobTokenIds": ["token123"]}]
     alpha_one.polymarket.get_orderbook.return_value = {"best_bid": "0.45"}
+    alpha_one.polymarket.place_order.return_value = {"order_id": "123"}
+    alpha_one.polymarket.get_order.return_value = {"status": "FILLED"}
 
     # Execute Close
     await alpha_one._execute_live_close(position, price=0.5)
