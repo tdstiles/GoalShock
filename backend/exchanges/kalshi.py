@@ -96,7 +96,7 @@ class KalshiClient:
 
            
             yes_bid = yes_bids[0][0] if yes_bids else 0  
-            yes_ask = no_bids[0][0] if no_bids else 100  
+            yes_ask = (100 - no_bids[0][0]) if no_bids else 100
 
             yes_bid_decimal = yes_bid / 100
             yes_ask_decimal = yes_ask / 100

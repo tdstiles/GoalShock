@@ -117,14 +117,14 @@ async def test_get_orderbook_success(client):
     ob = await client.get_orderbook("KXTEST")
 
     # yes_bid = 60/100 = 0.60
-    # yes_ask = 38/100 = 0.38 (based on code logic: yes_ask = no_bids[0][0] if no_bids else 100)
+    # yes_ask = (100 - 38)/100 = 0.62
 
     assert ob is not None
     assert ob["ticker"] == "KXTEST"
     assert ob["yes_bid"] == 0.60
-    assert ob["yes_ask"] == 0.38
-    # mid = (0.60 + 0.38) / 2 = 0.49
-    assert ob["mid_price"] == 0.49
+    assert ob["yes_ask"] == 0.62
+    # mid = (0.60 + 0.62) / 2 = 0.61
+    assert ob["mid_price"] == 0.61
 
 @pytest.mark.asyncio
 async def test_get_orderbook_empty(client):
@@ -156,8 +156,8 @@ async def test_get_yes_price(client):
 
     price = await client.get_yes_price("KXTEST")
 
-    # yes_ask = no_bids[0][0] / 100 = 45 / 100 = 0.45
-    assert price == 0.45
+    # yes_ask = (100 - 45) / 100 = 0.55
+    assert price == 0.55
 
 @pytest.mark.asyncio
 async def test_place_order_success(client):
