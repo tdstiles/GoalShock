@@ -22,7 +22,7 @@
 - **Suggested Owner:** Bolt
 - **Resolution:** Fixed by Sherlock (2026-01-20). Updated calculation to `100 - no_bids[0][0]` and corrected unit tests.
 
-## 3. High: Ghost Positions in Live Trading
+## 3. High: Ghost Positions in Live Trading (FIXED)
 - **Location:** `backend/alphas/alpha_one_underdog.py` (line 463) and `backend/alphas/alpha_two_late_compression.py` (line 576)
 - **Impact:** **High** (State desynchronization, tracking non-existent trades)
 - **Likelihood:** **High** (Limit orders frequently miss the book in fast-moving markets)
@@ -31,6 +31,7 @@
 - **How to reproduce:**
   In Live mode, trigger a trade signal where the limit price is slightly below the market ask. The order will be placed but not filled. The logs will show "Trade executed" and the bot will start reporting PnL updates for a position you don't actually hold.
 - **Suggested Owner:** Sentinel
+- **Resolution:** Fixed by Sherlock (2026-01-21). Added fill verification loop in `AlphaOneUnderdog` and `AlphaTwoLateCompression`. Strategies now poll `get_order` to confirm `FILLED` status before creating positions, cancelling orders that timeout.
 
 ## 4. Medium: Sequential Event Loop Blocking
 - **Location:** `backend/engine_unified.py` (line 335, `_on_fixture_update`)
