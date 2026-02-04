@@ -476,41 +476,17 @@ class AlphaOneUnderdog:
                         else:
                             quantity = signal.size_usd # Fallback if price 0, though unsafe
 
-                        result = await self.polymarket.place_order(
+                        # Use helper to place and verify order
+                        order_filled = await self.polymarket.place_order_and_wait_for_fill(
                             token_id=token_id,
                             side="BUY",
                             price=signal.entry_price,
-                            size=quantity
+                            size=quantity,
+                            timeout=5
                         )
                         
-                        # Sherlock Fix: Verify order fill status to avoid "Ghost Positions"
-                        # We must wait for the order to actually MATCH/FILL before tracking it as a position.
-                        if result and (result.get("orderID") or result.get("order_id")):
-                            order_id = result.get("orderID") or result.get("order_id")
-                            logger.info(f"Order placed ({order_id}). Verifying fill...")
-
-                            filled = False
-                            # Poll for fill (Max 5 seconds)
-                            for i in range(5):
-                                await asyncio.sleep(1)
-                                order_status = await self.polymarket.get_order(order_id)
-
-                                if not order_status:
-                                    continue
-
-                                status = str(order_status.get("status") or order_status.get("state") or "").upper()
-
-                                if status in ["MATCHED", "FILLED"]:
-                                    filled = True
-                                    break
-                                elif status in ["CANCELED", "CANCELLED", "KILLED"]:
-                                    logger.warning(f"Order {order_id} was canceled during verification.")
-                                    return
-
-                            if not filled:
-                                logger.warning(f"Order {order_id} not filled after timeout. Cancelling...")
-                                await self.polymarket.cancel_order(order_id)
-                                return
+                        if order_filled:
+                            order_id = order_filled.get("orderID") or order_filled.get("order_id")
 
                             # Order is confirmed filled
                             position = SimulatedPosition(
@@ -578,46 +554,19 @@ class AlphaOneUnderdog:
             except Exception as e:
                 logger.warning(f"Failed to fetch orderbook for execution price, falling back to trigger price: {e}")
 
-            # Execute SELL order
-            result = await self.polymarket.place_order(
+            # Execute SELL order with verification
+            order_filled = await self.polymarket.place_order_and_wait_for_fill(
                 token_id=token_id,
                 side="SELL",
                 price=execution_price,
-                size=qty_to_close
+                size=qty_to_close,
+                timeout=3
             )
 
-            # Sherlock Fix v2: Verify trade execution (Prevent Ghost Positions)
-            if result and result.get("order_id"):
-                order_id = result.get("order_id")
-                logger.info(f"Order placed ({order_id}). verifying fill...")
-
-                # Poll for fill (Max 3 seconds)
-                for i in range(3):
-                    await asyncio.sleep(1)
-                    order_status = await self.polymarket.get_order(order_id)
-
-                    if not order_status:
-                         continue
-
-                    status = str(order_status.get("status", "")).upper()
-                    state = str(order_status.get("state", "")).upper() # Some APIs use state
-
-                    current_status = status if status else state
-
-                    logger.debug(f"Order {order_id} status: {current_status}")
-
-                    if current_status in ["MATCHED", "FILLED"]:
-                        logger.info(f"Order {order_id} filled successfully.")
-                        return True
-
-                    if current_status in ["CANCELED", "CANCELLED", "KILLED"]:
-                         logger.warning(f"Order {order_id} was canceled.")
-                         return False
-
-                # If we get here, order is likely OPEN/stuck
-                logger.warning(f"Order {order_id} not filled after timeout. Cancelling...")
-                await self.polymarket.cancel_order(order_id)
-                return False
+            if order_filled:
+                order_id = order_filled.get("orderID") or order_filled.get("order_id")
+                logger.info(f"Order {order_id} filled successfully (Close).")
+                return True
 
             return False
 

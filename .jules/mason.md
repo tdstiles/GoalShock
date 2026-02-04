@@ -17,3 +17,8 @@
 **Anti-Pattern:** Hardcoded string literals (e.g., `"resolved"`, `"active"`, `"YES"`, `"NO"`) were used throughout `AlphaTwoLateCompression`, increasing the risk of typos and making refactoring difficult.
 **Improvement:** Introduced `MarketSide` Enum and enforced usage of existing `MarketStatus` Enum. Replaced all literals with Enum members.
 **Guideline:** Use Enums for fixed sets of string values (like status or outcome sides) to ensure type safety and centralized definition.
+
+## 2026-05-15 - Duplicated Async Polling Logic
+**Anti-Pattern:** Identical "place order and loop to verify fill" logic was copy-pasted across multiple strategy classes (`AlphaOneUnderdog`, `AlphaTwoLateCompression`), leading to code duplication and potential for divergent behavior.
+**Improvement:** Extracted the logic into a reusable `place_order_and_wait_for_fill` method within the `PolymarketClient` class.
+**Guideline:** Complex async workflows (like order verification) that are shared across consumers should be encapsulated in the client/provider class rather than repeated in every consumer.

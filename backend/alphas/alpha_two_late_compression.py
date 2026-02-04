@@ -649,40 +649,18 @@ class AlphaTwoLateCompression:
 
                 logger.info(f"Placing Live Order: {target_outcome} @ {price:.2f}, Size: ${opportunity.recommended_size:.2f} (~{size_shares:.2f} shares)")
 
-                result = await self.polymarket.place_order(
+                # Use helper to place and verify order
+                order_filled = await self.polymarket.place_order_and_wait_for_fill(
                     token_id=token_id,
                     side="BUY",
                     price=price,
-                    size=size_shares
+                    size=size_shares,
+                    timeout=3
                 )
 
-                # Sherlock Fix: Verify order fill status (Ghost Position Prevention)
-                if result and (result.get("orderID") or result.get("order_id")):
-                    order_id = result.get("orderID") or result.get("order_id")
-                    logger.info(f"Order placed ({order_id}). Verifying fill...")
-
-                    # Poll for fill (Max 3 seconds for Alpha Two - needs speed)
-                    for i in range(3):
-                        await asyncio.sleep(1)
-                        order_status = await self.polymarket.get_order(order_id)
-
-                        if not order_status:
-                             continue
-
-                        status = str(order_status.get("status") or order_status.get("state") or "").upper()
-
-                        if status in ["MATCHED", "FILLED"]:
-                            logger.info(f"Order {order_id} filled.")
-                            return True
-
-                        if status in ["CANCELED", "CANCELLED", "KILLED"]:
-                            logger.warning(f"Order {order_id} canceled.")
-                            return False
-
-                    # Timeout
-                    logger.warning(f"Order {order_id} not filled (timeout). Cancelling...")
-                    await self.polymarket.cancel_order(order_id)
-                    return False
+                if order_filled:
+                     logger.info(f"Order {order_filled.get('orderID')} filled.")
+                     return True
 
                 return False
 

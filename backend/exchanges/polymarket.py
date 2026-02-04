@@ -223,5 +223,59 @@ class PolymarketClient:
             logger.error(f"Error cancelling order {order_id}: {e}")
             return False
 
+    async def place_order_and_wait_for_fill(
+        self,
+        token_id: str,
+        side: str,
+        price: float,
+        size: float,
+        timeout: int = 5,
+        poll_interval: float = 1.0
+    ) -> Optional[Dict]:
+        """
+        Places an order and polls for fill confirmation.
+        Returns the order dict if filled/matched, None otherwise (cancels on timeout).
+        """
+        # Place the order
+        order_res = await self.place_order(token_id, side, price, size)
+
+        # Check if placement failed
+        if not order_res:
+            return None
+
+        order_id = order_res.get("orderID") or order_res.get("order_id")
+        if not order_id:
+             logger.error(f"Order placement returned no ID: {order_res}")
+             return None
+
+        logger.info(f"Order placed ({order_id}). Verifying fill...")
+
+        # Poll loop
+        steps = int(timeout / poll_interval)
+        if steps < 1:
+            steps = 1
+
+        for i in range(steps):
+            await asyncio.sleep(poll_interval)
+            order_status = await self.get_order(order_id)
+
+            if not order_status:
+                continue
+
+            status = str(order_status.get("status") or order_status.get("state") or "").upper()
+
+            if status in ["MATCHED", "FILLED"]:
+                logger.info(f"Order {order_id} filled.")
+                return order_status
+
+            if status in ["CANCELED", "CANCELLED", "KILLED"]:
+                logger.warning(f"Order {order_id} was canceled during verification.")
+                return None
+
+        # Timeout
+        logger.warning(f"Order {order_id} not filled after {timeout}s. Cancelling...")
+        await self.cancel_order(order_id)
+        return None
+
     async def close(self):
         await self.client.aclose()
