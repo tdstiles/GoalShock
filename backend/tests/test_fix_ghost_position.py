@@ -11,14 +11,13 @@ async def test_alpha_one_ghost_position_prevented():
     Verifies that AlphaOne DOES NOT create a position if the order is not filled within timeout.
     """
     mock_poly = MagicMock()
-    mock_poly.place_order = AsyncMock(return_value={"order_id": "0x123", "orderID": "0x123"})
+    # Mock place_order_and_wait_for_fill returning None (simulating failure/timeout)
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value=None)
+
     mock_poly.get_markets_by_event = AsyncMock(return_value=[{
         "clobTokenIds": ["0xYES", "0xNO"],
         "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
     }])
-    # Always OPEN (never fills)
-    mock_poly.get_order = AsyncMock(return_value={"status": "OPEN", "order_id": "0x123"})
-    mock_poly.cancel_order = AsyncMock(return_value=True)
 
     alpha = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
     signal = TradeSignal(
@@ -31,8 +30,8 @@ async def test_alpha_one_ghost_position_prevented():
 
     # Verify NO position created
     assert len(alpha.positions) == 0
-    # Verify cancellation was attempted
-    mock_poly.cancel_order.assert_called_with("0x123")
+    # Verify method was called
+    mock_poly.place_order_and_wait_for_fill.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_alpha_one_position_created_when_filled():
@@ -40,14 +39,13 @@ async def test_alpha_one_position_created_when_filled():
     Verifies that AlphaOne creates a position ONLY when the order is filled.
     """
     mock_poly = MagicMock()
-    mock_poly.place_order = AsyncMock(return_value={"order_id": "0xFILLED", "orderID": "0xFILLED"})
+    # Mock returning FILLED order
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "order_id": "0xFILLED", "orderID": "0xFILLED"})
+
     mock_poly.get_markets_by_event = AsyncMock(return_value=[{
         "clobTokenIds": ["0xYES", "0xNO"],
         "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
     }])
-    # FILLED immediately
-    mock_poly.get_order = AsyncMock(return_value={"status": "FILLED", "order_id": "0xFILLED"})
-    mock_poly.cancel_order = AsyncMock(return_value=True)
 
     alpha = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
     signal = TradeSignal(
@@ -61,8 +59,6 @@ async def test_alpha_one_position_created_when_filled():
     # Verify position CREATED
     assert len(alpha.positions) == 1
     assert alpha.positions["0xFILLED"].position_id == "0xFILLED"
-    # Verify cancellation was NOT called
-    mock_poly.cancel_order.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_alpha_two_ghost_trade_prevented():
@@ -70,14 +66,13 @@ async def test_alpha_two_ghost_trade_prevented():
     Verifies that AlphaTwo returns False and does not track trade if order is not filled.
     """
     mock_poly = MagicMock()
-    mock_poly.place_order = AsyncMock(return_value={"order_id": "0x999", "orderID": "0x999"})
+    # Mock returning None
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value=None)
+
     mock_poly.get_market = AsyncMock(return_value={
         "clobTokenIds": ["0xYES", "0xNO"],
         "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
     })
-    # Always OPEN (never fills)
-    mock_poly.get_order = AsyncMock(return_value={"status": "OPEN", "order_id": "0x999"})
-    mock_poly.cancel_order = AsyncMock(return_value=True)
 
     alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
@@ -92,7 +87,7 @@ async def test_alpha_two_ghost_trade_prevented():
     result = await alpha._place_exchange_order(opportunity)
 
     assert result is False
-    mock_poly.cancel_order.assert_called_with("0x999")
+    mock_poly.place_order_and_wait_for_fill.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_alpha_two_trade_success_when_filled():
@@ -100,14 +95,13 @@ async def test_alpha_two_trade_success_when_filled():
     Verifies that AlphaTwo returns True when filled.
     """
     mock_poly = MagicMock()
-    mock_poly.place_order = AsyncMock(return_value={"order_id": "0xGOOD", "orderID": "0xGOOD"})
+    # Mock returning FILLED
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "order_id": "0xGOOD", "orderID": "0xGOOD"})
+
     mock_poly.get_market = AsyncMock(return_value={
         "clobTokenIds": ["0xYES", "0xNO"],
         "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
     })
-    # FILLED
-    mock_poly.get_order = AsyncMock(return_value={"status": "FILLED", "order_id": "0xGOOD"})
-    mock_poly.cancel_order = AsyncMock(return_value=True)
 
     alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
@@ -121,4 +115,3 @@ async def test_alpha_two_trade_success_when_filled():
     result = await alpha._place_exchange_order(opportunity)
 
     assert result is True
-    mock_poly.cancel_order.assert_not_called()

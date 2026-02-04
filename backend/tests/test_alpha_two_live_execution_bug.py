@@ -19,9 +19,9 @@ async def test_alpha_two_live_execution_explicit_mapping():
             {"outcome": "NO", "token_id": "explicit_no_token"}
         ]
     })
-    mock_poly.place_order = AsyncMock(return_value={"orderID": "order_789"})
-    # Mock get_order returning FILLED status
-    mock_poly.get_order = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
+
+    # Mock place_order_and_wait_for_fill returning success
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
 
     alpha = AlphaTwoLateCompression(
         polymarket_client=mock_poly,
@@ -54,11 +54,12 @@ async def test_alpha_two_live_execution_explicit_mapping():
 
     # Verify mapping to 'explicit_yes_token'
     # Size shares = 50.0 / 0.5 = 100.0
-    mock_poly.place_order.assert_called_with(
+    mock_poly.place_order_and_wait_for_fill.assert_called_with(
         token_id="explicit_yes_token",
         side="BUY",
         price=0.5,
-        size=100.0
+        size=100.0,
+        timeout=3
     )
 
 
@@ -74,9 +75,9 @@ async def test_alpha_two_live_execution_fallback_mapping():
     mock_poly.get_market = AsyncMock(return_value={
         "clobTokenIds": ["fallback_yes_token", "fallback_no_token"]
     })
-    mock_poly.place_order = AsyncMock(return_value={"orderID": "order_789"})
-    # Mock get_order returning FILLED status
-    mock_poly.get_order = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
+
+    # Mock place_order_and_wait_for_fill returning success
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
 
     alpha = AlphaTwoLateCompression(
         polymarket_client=mock_poly,
@@ -108,11 +109,12 @@ async def test_alpha_two_live_execution_fallback_mapping():
 
     # Verify mapping to index 1 (NO)
     # Size shares = 40.0 / 0.4 = 100.0
-    mock_poly.place_order.assert_called_with(
+    mock_poly.place_order_and_wait_for_fill.assert_called_with(
         token_id="fallback_no_token",
         side="BUY",
         price=0.4,
-        size=100.0
+        size=100.0,
+        timeout=3
     )
 
 @pytest.mark.asyncio
