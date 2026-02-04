@@ -20,6 +20,8 @@ async def test_alpha_two_live_execution_explicit_mapping():
         ]
     })
     mock_poly.place_order = AsyncMock(return_value={"orderID": "order_789"})
+    # Mock get_order returning FILLED status
+    mock_poly.get_order = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
 
     alpha = AlphaTwoLateCompression(
         polymarket_client=mock_poly,
@@ -73,6 +75,8 @@ async def test_alpha_two_live_execution_fallback_mapping():
         "clobTokenIds": ["fallback_yes_token", "fallback_no_token"]
     })
     mock_poly.place_order = AsyncMock(return_value={"orderID": "order_789"})
+    # Mock get_order returning FILLED status
+    mock_poly.get_order = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
 
     alpha = AlphaTwoLateCompression(
         polymarket_client=mock_poly,

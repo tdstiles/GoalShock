@@ -483,9 +483,38 @@ class AlphaOneUnderdog:
                             size=quantity
                         )
                         
-                        if result:
+                        # Sherlock Fix: Verify order fill status to avoid "Ghost Positions"
+                        # We must wait for the order to actually MATCH/FILL before tracking it as a position.
+                        if result and (result.get("orderID") or result.get("order_id")):
+                            order_id = result.get("orderID") or result.get("order_id")
+                            logger.info(f"Order placed ({order_id}). Verifying fill...")
+
+                            filled = False
+                            # Poll for fill (Max 5 seconds)
+                            for i in range(5):
+                                await asyncio.sleep(1)
+                                order_status = await self.polymarket.get_order(order_id)
+
+                                if not order_status:
+                                    continue
+
+                                status = str(order_status.get("status") or order_status.get("state") or "").upper()
+
+                                if status in ["MATCHED", "FILLED"]:
+                                    filled = True
+                                    break
+                                elif status in ["CANCELED", "CANCELLED", "KILLED"]:
+                                    logger.warning(f"Order {order_id} was canceled during verification.")
+                                    return
+
+                            if not filled:
+                                logger.warning(f"Order {order_id} not filled after timeout. Cancelling...")
+                                await self.polymarket.cancel_order(order_id)
+                                return
+
+                            # Order is confirmed filled
                             position = SimulatedPosition(
-                                position_id=result.get("order_id", signal.signal_id),
+                                position_id=order_id,
                                 signal=signal,
                                 entry_time=datetime.now(),
                                 token_id=token_id,
@@ -494,7 +523,7 @@ class AlphaOneUnderdog:
                             self.positions[position.position_id] = position
                             self.stats.total_trades += 1
                             
-                            logger.info(f"[LIVE] Trade executed on Polymarket: {position.position_id} (Qty: {quantity:.2f})")
+                            logger.info(f"[LIVE] Trade executed and filled on Polymarket: {position.position_id} (Qty: {quantity:.2f})")
                             return
             except Exception as e:
                 logger.error(f"Polymarket trade error: {e}")
