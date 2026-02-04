@@ -29,18 +29,16 @@ async def test_execute_live_close_with_zero_bid(alpha_one):
     # Mock Polymarket Orderbook returning "0"
     alpha_one.polymarket.get_markets_by_event.return_value = [{"clobTokenIds": ["token123"]}]
     alpha_one.polymarket.get_orderbook.return_value = {"best_bid": "0"}
-    alpha_one.polymarket.place_order.return_value = {"order_id": "123"}
-    alpha_one.polymarket.get_order.return_value = {"status": "FILLED"}
+
+    # Mock place_order_and_wait_for_fill returning success
+    alpha_one.polymarket.place_order_and_wait_for_fill.return_value = {"order_id": "123", "status": "FILLED"}
 
     # Execute Close
     await alpha_one._execute_live_close(position, price=0.5)
 
-    # Verify place_order call
+    # Verify call
     # We expect it to fallback to trigger price (0.5) because "0" should be rejected/ignored?
-    # OR we expect it to fail if the bug exists (selling at 0).
-
-    # Check calls
-    calls = alpha_one.polymarket.place_order.call_args_list
+    calls = alpha_one.polymarket.place_order_and_wait_for_fill.call_args_list
     assert len(calls) == 1
 
     args, kwargs = calls[0]
@@ -67,14 +65,15 @@ async def test_execute_live_close_with_valid_bid(alpha_one):
     # Mock Polymarket Orderbook returning "0.45"
     alpha_one.polymarket.get_markets_by_event.return_value = [{"clobTokenIds": ["token123"]}]
     alpha_one.polymarket.get_orderbook.return_value = {"best_bid": "0.45"}
-    alpha_one.polymarket.place_order.return_value = {"order_id": "123"}
-    alpha_one.polymarket.get_order.return_value = {"status": "FILLED"}
+
+    # Mock place_order_and_wait_for_fill returning success
+    alpha_one.polymarket.place_order_and_wait_for_fill.return_value = {"order_id": "123", "status": "FILLED"}
 
     # Execute Close
     await alpha_one._execute_live_close(position, price=0.5)
 
-    # Verify place_order call
-    calls = alpha_one.polymarket.place_order.call_args_list
+    # Verify call
+    calls = alpha_one.polymarket.place_order_and_wait_for_fill.call_args_list
     assert len(calls) == 1
 
     args, kwargs = calls[0]

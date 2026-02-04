@@ -21,8 +21,8 @@ async def test_ghost_position_prevention(alpha_one):
     """
     Verifies that the new implementation PRESERVES the position if the order is not filled.
     It simulates placing a Limit order that stays OPEN (not matched).
-    The bot should detect this, cancel the order, and keep the position in the 'positions' map
-    (returning False from _execute_live_close).
+    The bot should detect this (via place_order_and_wait_for_fill returning None),
+    cancel the order (handled inside helper), and keep the position in the 'positions' map.
     """
     # Setup a position
     signal = TradeSignal(
@@ -39,22 +39,21 @@ async def test_ghost_position_prevention(alpha_one):
     # Mock Orderbook
     alpha_one.polymarket.get_orderbook.return_value = {"best_bid": 0.85}
 
-    # Mock get_order to return OPEN status (stuck order)
-    # The loop calls it multiple times. We can just return OPEN every time.
-    alpha_one.polymarket.get_order.return_value = {"status": "OPEN", "orderID": "test_order_123"}
-
-    # Mock cancel_order to succeed
-    alpha_one.polymarket.cancel_order.return_value = True
+    # Mock place_order_and_wait_for_fill to return None (Timeout/Failure)
+    alpha_one.polymarket.place_order_and_wait_for_fill.return_value = None
 
     # Execute close logic
-    await alpha_one._close_position(position, exit_price=0.85, reason="TAKE_PROFIT")
+    success = await alpha_one._close_position(position, exit_price=0.85, reason="TAKE_PROFIT")
+
+    # Wait, _close_position doesn't return value, it just executes.
+    # But internally it calls _execute_live_close.
+
+    # If _execute_live_close returns False (which it should if place_order_and_wait_for_fill returns None),
+    # then _close_position should LOG an error and RETURN without removing position.
 
     # ASSERTION: The position MUST remain because the trade didn't happen
     assert "pos1" in alpha_one.positions
     assert position not in alpha_one.closed_positions
 
-    # Verify we checked the order status
-    assert alpha_one.polymarket.get_order.called, "Should have checked order status"
-
-    # Verify we cancelled the stuck order
-    alpha_one.polymarket.cancel_order.assert_called_with("test_order_123")
+    # Verify we attempted to place and verify order
+    assert alpha_one.polymarket.place_order_and_wait_for_fill.called
