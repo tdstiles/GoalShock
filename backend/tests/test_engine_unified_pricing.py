@@ -2,7 +2,6 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from engine_unified import UnifiedTradingEngine, EngineConfig, KEY_YES, KEY_NO, DEFAULT_MARKET_PRICE
-from alphas.alpha_one_underdog import TradingMode
 
 @pytest.fixture
 def mock_dependencies():
@@ -11,6 +10,7 @@ def mock_dependencies():
 
 @pytest.mark.asyncio
 async def test_get_fixture_market_prices(mock_dependencies):
+    """Validate market price resolution and fallback behavior for fixture lookups."""
     config = EngineConfig(polymarket_key="test")
     # Patch the classes inside EngineConfig or UnifiedTradingEngine if needed,
     # but here we rely on mock_dependencies patching PolymarketClient at module level
@@ -51,6 +51,24 @@ async def test_get_fixture_market_prices(mock_dependencies):
     engine.polymarket.get_yes_price = AsyncMock(return_value=None)
     prices = await engine._get_fixture_market_prices(mock_fixture)
     assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
+
+    # Case 4b: Boundary value at zero is accepted
+    engine.polymarket.get_yes_price = AsyncMock(return_value=0.0)
+    prices = await engine._get_fixture_market_prices(mock_fixture)
+    assert prices[KEY_YES] == 0.0
+    assert prices[KEY_NO] == 1.0
+
+    # Case 4c: Boundary value at one is accepted
+    engine.polymarket.get_yes_price = AsyncMock(return_value=1.0)
+    prices = await engine._get_fixture_market_prices(mock_fixture)
+    assert prices[KEY_YES] == 1.0
+    assert prices[KEY_NO] == 0.0
+
+    # Case 4d: Invalid negative values should fallback
+    engine.polymarket.get_yes_price = AsyncMock(return_value=-0.01)
+    prices = await engine._get_fixture_market_prices(mock_fixture)
+    assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
+    assert prices[KEY_NO] == DEFAULT_MARKET_PRICE
 
     # Case 5: Exception handling
     engine.polymarket.get_markets_by_event = AsyncMock(side_effect=Exception("API Error"))

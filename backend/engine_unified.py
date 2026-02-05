@@ -5,11 +5,10 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-from enum import Enum
 from dotenv import load_dotenv
 
 # Import components
-from bot.websocket_goal_listener import WebSocketGoalListener, HybridGoalListener, GoalEventWS
+from bot.websocket_goal_listener import HybridGoalListener, GoalEventWS
 from alphas.alpha_one_underdog import AlphaOneUnderdog, TradingMode
 from alphas.alpha_two_late_compression import AlphaTwoLateCompression
 from exchanges.polymarket import PolymarketClient
@@ -371,6 +370,15 @@ class UnifiedTradingEngine:
             logger.warning(f"Slow fixture update loop: {duration:.2f}s for {len(fixtures)} fixtures")
 
     async def _get_fixture_market_prices(self, fixture) -> Dict[str, float]:
+        """Fetch YES/NO market prices for a fixture with safe fallbacks.
+
+        Args:
+            fixture: Fixture object containing teams and fixture identifier fields.
+
+        Returns:
+            A mapping containing YES and NO prices. Defaults are returned when no
+            valid market or price can be resolved.
+        """
         if not self.polymarket:
             return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
 
@@ -398,10 +406,13 @@ class UnifiedTradingEngine:
 
             yes_price = await self.polymarket.get_yes_price(token_id)
 
-            if yes_price:
+            if yes_price is not None and 0.0 <= yes_price <= 1.0:
                 return {KEY_YES: yes_price, KEY_NO: 1 - yes_price}
 
-            logger.warning(f"Price not found for token {token_id} (Fixture: {fixture.fixture_id})")
+            logger.warning(
+                f"Invalid or missing price for token {token_id}: {yes_price} "
+                f"(Fixture: {fixture.fixture_id})"
+            )
 
         except Exception as e:
             logger.error(f"Error fetching market prices for {event_name}: {e}", exc_info=True)
