@@ -1,10 +1,10 @@
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime
 
 from backend.core.orchestration_engine import OrchestrationEngine
-from backend.core.data_pipeline import GoalEvent
+from backend.core.data_pipeline import GoalEvent, PrimaryProviderUnavailableError
 
 # Define a fixture for the engine with mocked dependencies
 @pytest.fixture
@@ -84,6 +84,31 @@ async def test_get_live_feed_empty_events(orchestration_engine):
     # Assert
     assert result["events"] == []
     assert result["timestamp"] is None
+
+
+
+@pytest.mark.asyncio
+async def test_get_live_feed_handles_primary_provider_failures(orchestration_engine):
+    engine, mock_dal, mock_sp, mock_mm = orchestration_engine
+
+    mock_dal.fetch_live_goals = AsyncMock(
+        side_effect=PrimaryProviderUnavailableError(
+            operation="fetch_live_goals",
+            source="api_football",
+            status_code=503,
+            message="unavailable",
+        )
+    )
+    mock_dal.fetch_market_data = AsyncMock(return_value={"markets": []})
+    mock_sp.enrich_events = AsyncMock(return_value=[])
+    mock_sp.aggregate_statistics = AsyncMock(return_value={"total_goals": 0})
+
+    result = await engine.get_live_feed()
+
+    assert result["events"] == []
+    assert result["markets"] == []
+    assert result["errors"][0]["operation"] == "fetch_live_goals"
+    assert result["errors"][0]["source"] == "api_football"
 
 @pytest.mark.asyncio
 async def test_get_market_details(orchestration_engine):
