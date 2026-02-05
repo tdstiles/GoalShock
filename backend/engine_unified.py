@@ -370,8 +370,14 @@ class UnifiedTradingEngine:
         try:
             markets = await self.polymarket.get_markets_by_event(event_name)
 
+            # Fallback: Try searching with inverted team names
             if not markets:
-                logger.debug(f"No markets found for event: {event_name}")
+                event_name_alt = f"{fixture.away_team} vs {fixture.home_team}"
+                logger.debug(f"Primary search failed. Retrying with inverted names: {event_name_alt}")
+                markets = await self.polymarket.get_markets_by_event(event_name_alt)
+
+            if not markets:
+                logger.debug(f"No markets found for event: {event_name} (or inverted)")
                 return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
 
             market = markets[0]
