@@ -341,7 +341,7 @@ class UnifiedTradingEngine:
 
         start_time = datetime.now()
 
-        for fixture in fixtures:
+        async def process_fixture(fixture):
             try:
                 market_prices = await self._get_fixture_market_prices(fixture)
 
@@ -362,6 +362,9 @@ class UnifiedTradingEngine:
                 await self.alpha_two.feed_live_fixture_update(fixture_data)
             except Exception as e:
                 logger.error(f"Error processing fixture {fixture.fixture_id}: {e}", exc_info=True)
+
+        # Execute all fixture updates concurrently
+        await asyncio.gather(*[process_fixture(f) for f in fixtures])
 
         duration = (datetime.now() - start_time).total_seconds()
         if duration > 1.0:
