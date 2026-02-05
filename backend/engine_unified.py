@@ -290,7 +290,7 @@ class UnifiedTradingEngine:
                 await asyncio.sleep(INTERVAL_PRE_MATCH_ODDS)
                 
             except Exception as e:
-                logger.error(f"Pre-match odds loop error: {e}")
+                logger.error(f"Pre-match odds loop error: {e}", exc_info=True)
                 await asyncio.sleep(INTERVAL_ERROR_RETRY)
 
     async def _fetch_todays_fixtures(self) -> List[Dict]:
@@ -331,13 +331,15 @@ class UnifiedTradingEngine:
                 await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
                 
             except Exception as e:
-                logger.error(f"Live fixture loop error: {e}")
+                logger.error(f"Live fixture loop error: {e}", exc_info=True)
                 await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
 
     async def _on_fixture_update(self, fixtures: List[LiveFixture]):
         """Unified handler for fixture updates (from Listener or Loop)"""
         if not self.alpha_two:
             return
+
+        start_time = datetime.now()
 
         for fixture in fixtures:
             try:
@@ -359,7 +361,11 @@ class UnifiedTradingEngine:
 
                 await self.alpha_two.feed_live_fixture_update(fixture_data)
             except Exception as e:
-                logger.error(f"Error processing fixture {fixture.fixture_id}: {e}")
+                logger.error(f"Error processing fixture {fixture.fixture_id}: {e}", exc_info=True)
+
+        duration = (datetime.now() - start_time).total_seconds()
+        if duration > 1.0:
+            logger.warning(f"Slow fixture update loop: {duration:.2f}s for {len(fixtures)} fixtures")
 
     async def _get_fixture_market_prices(self, fixture) -> Dict[str, float]:
         if not self.polymarket:
