@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from backend.exchanges.kalshi import KalshiClient
-import httpx
 
 @pytest.fixture
 def client():
@@ -13,8 +12,10 @@ def client():
         # Patch os.getenv to return dummy keys
         with patch("os.getenv") as mock_getenv:
             def getenv_side_effect(key, default=None):
-                if key == "KALSHI_API_KEY": return "test_email"
-                if key == "KALSHI_API_SECRET": return "test_pass"
+                if key == "KALSHI_API_KEY":
+                    return "test_email"
+                if key == "KALSHI_API_SECRET":
+                    return "test_pass"
                 return default
             mock_getenv.side_effect = getenv_side_effect
 
@@ -191,3 +192,45 @@ async def test_place_order_success(client):
     assert payload["count"] == 10
     assert payload["yes_price"] == 50
     assert payload["no_price"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_markets_auth_failure_skips_request(client):
+    client.auth_token = None
+    client.login = AsyncMock(return_value=False)
+
+    result = await client.get_markets()
+
+    assert result == []
+    client.login.assert_awaited_once()
+    client.client.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_orderbook_auth_failure_skips_request(client):
+    client.auth_token = None
+    client.login = AsyncMock(return_value=False)
+
+    result = await client.get_orderbook("KXTEST")
+
+    assert result is None
+    client.login.assert_awaited_once()
+    client.client.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_place_order_auth_failure_skips_request(client):
+    client.auth_token = None
+    client.login = AsyncMock(return_value=False)
+
+    result = await client.place_order(
+        ticker="KXTEST",
+        side="yes",
+        action="buy",
+        count=1,
+        price=40,
+    )
+
+    assert result is None
+    client.login.assert_awaited_once()
+    client.client.post.assert_not_called()
