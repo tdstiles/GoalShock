@@ -9,6 +9,7 @@ from engine_unified import (
     build_engine_config_from_cli_args,
 )
 from bot.websocket_goal_listener import GoalEventWS
+from data.api_football import LiveFixture
 from alphas.alpha_one_underdog import TradingMode
 
 
@@ -245,3 +246,66 @@ async def test_engine_start_stop(mock_dependencies):
             pytest.fail("Engine start task failed to return after stop()")
 
         assert engine.running is False
+
+
+@pytest.mark.asyncio
+async def test_goal_event_and_fixture_update_share_market_entry() -> None:
+    """Ensure goal and fixture updates map to one market entry.
+
+    Returns:
+        None: This test does not return a value.
+    """
+    fixture_id: int = 77
+    home_team: str = "Home FC"
+    away_team: str = "Away United"
+    event_time: datetime = datetime.now()
+
+    config = EngineConfig(
+        mode=TradingMode.SIMULATION,
+        enable_alpha_one=False,
+        enable_alpha_two=True,
+        enable_websocket=False,
+    )
+    engine = UnifiedTradingEngine(config)
+
+    goal_event = GoalEventWS(
+        fixture_id=fixture_id,
+        league_id=1,
+        league_name="Test League",
+        home_team=home_team,
+        away_team=away_team,
+        team=home_team,
+        player="Test Player",
+        minute=30,
+        home_score=1,
+        away_score=0,
+        goal_type="Normal",
+        timestamp=event_time,
+    )
+
+    fixture_update = LiveFixture(
+        fixture_id=fixture_id,
+        league_id=1,
+        league_name="Test League",
+        home_team=home_team,
+        away_team=away_team,
+        home_score=1,
+        away_score=0,
+        minute=30,
+        status="1H",
+        timestamp=event_time,
+    )
+
+    await engine._on_goal_event(goal_event)
+    await engine._on_fixture_update([fixture_update])
+
+    assert engine.alpha_two is not None
+    monitored_markets = engine.alpha_two.monitored_markets
+    expected_market_id = f"fixture_{fixture_id}"
+
+    assert len(monitored_markets) == 1
+    assert expected_market_id in monitored_markets
+    assert (
+        monitored_markets[expected_market_id]["question"]
+        == f"Will {home_team} win?"
+    )

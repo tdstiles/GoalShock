@@ -257,6 +257,11 @@ class UnifiedTradingEngine:
         self._export_session_logs()
 
     async def _on_goal_event(self, goal: GoalEventWS):
+        """Handle a goal event and forward normalized data to strategies.
+
+        Args:
+            goal: The goal event received from the goal listener.
+        """
 
         self.goals_processed += 1
 
@@ -272,8 +277,8 @@ class UnifiedTradingEngine:
         if self.alpha_two:
             fixture_data = {
                 "fixture_id": goal.fixture_id,
-                "market_id": f"fixture_{goal.fixture_id}_{goal.team}",
-                "question": f"Will {goal.team} win?",
+                "market_id": f"fixture_{goal.fixture_id}",
+                "question": f"Will {goal.home_team} win?",
                 "home_team": goal.home_team,
                 "away_team": goal.away_team,
                 "home_score": goal.home_score,
