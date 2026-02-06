@@ -3,7 +3,7 @@ import asyncio
 import logging
 import argparse
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 from dotenv import load_dotenv
@@ -67,6 +67,8 @@ STATUS_ACTIVE = "active"
 
 @dataclass
 class EngineConfig:
+    """Configuration for the unified trading engine."""
+
     mode: TradingMode = TradingMode.SIMULATION
     enable_alpha_one: bool = DEFAULT_ENABLE_ALPHA_ONE
     enable_alpha_two: bool = DEFAULT_ENABLE_ALPHA_TWO
@@ -79,6 +81,11 @@ class EngineConfig:
 
     @classmethod
     def from_env(cls) -> "EngineConfig":
+        """Create an engine configuration from environment variables.
+
+        Returns:
+            ``EngineConfig`` populated from environment variables.
+        """
         mode_str = os.getenv(ENV_TRADING_MODE, MODE_SIMULATION).lower()
         mode = TradingMode.LIVE if mode_str == MODE_LIVE else TradingMode.SIMULATION
 
@@ -125,6 +132,11 @@ class UnifiedTradingEngine:
     """
 
     def __init__(self, config: Optional[EngineConfig] = None):
+        """Initialize the unified trading engine and its dependencies.
+
+        Args:
+            config: Optional configuration for the engine. Defaults to environment-based config.
+        """
         self.config = config or EngineConfig.from_env()
 
         self.polymarket: Optional[PolymarketClient] = None
@@ -188,6 +200,7 @@ class UnifiedTradingEngine:
         logger.info("=" * 60)
 
     async def start(self):
+        """Start the unified trading engine and all background tasks."""
         self.running = True
         self.start_time = datetime.now()
 
@@ -226,6 +239,7 @@ class UnifiedTradingEngine:
             await self.stop()
 
     async def stop(self):
+        """Stop the unified trading engine and clean up resources."""
         self.running = False
 
         # Cancel background tasks first to avoid accessing closed clients
@@ -257,7 +271,11 @@ class UnifiedTradingEngine:
         self._export_session_logs()
 
     async def _on_goal_event(self, goal: GoalEventWS):
+        """Handle a goal event and dispatch it to active strategies.
 
+        Args:
+            goal: Goal event received from the listener.
+        """
         self.goals_processed += 1
 
         logger.info(f"Processing goal event: {goal.player} ({goal.team})")
@@ -270,22 +288,11 @@ class UnifiedTradingEngine:
                 logger.info(f"Alpha One signal generated: {signal.signal_id}")
 
         if self.alpha_two:
-            fixture_data = {
-                "fixture_id": goal.fixture_id,
-                "market_id": f"fixture_{goal.fixture_id}_{goal.team}",
-                "question": f"Will {goal.team} win?",
-                "home_team": goal.home_team,
-                "away_team": goal.away_team,
-                "home_score": goal.home_score,
-                "away_score": goal.away_score,
-                "minute": goal.minute,
-                "status": "2H" if goal.minute > 45 else "1H",
-                "yes_price": DEFAULT_MARKET_PRICE,  # Would get from market
-                "no_price": DEFAULT_MARKET_PRICE,
-            }
+            fixture_data = self._build_alpha_two_fixture_payload_from_goal(goal)
             await self.alpha_two.feed_live_fixture_update(fixture_data)
 
     async def _pre_match_odds_loop(self):
+        """Poll and cache pre-match odds on a fixed interval."""
         while self.running:
             try:
                 if self.api_football and self.alpha_one:
@@ -306,6 +313,11 @@ class UnifiedTradingEngine:
                 await asyncio.sleep(INTERVAL_ERROR_RETRY)
 
     async def _fetch_todays_fixtures(self) -> List[Dict]:
+        """Fetch a simplified list of live fixture IDs.
+
+        Returns:
+            A list of dictionaries containing fixture identifiers.
+        """
         if not self.api_football:
             return []
 
@@ -319,6 +331,14 @@ class UnifiedTradingEngine:
     async def _fetch_pre_match_odds(
         self, fixture_id: int
     ) -> Optional[Dict[str, float]]:
+        """Fetch pre-match odds for a fixture from available sources.
+
+        Args:
+            fixture_id: The fixture identifier to query.
+
+        Returns:
+            Mapping of odds data if available, otherwise ``None``.
+        """
         if self.polymarket:
             try:
 
@@ -339,7 +359,7 @@ class UnifiedTradingEngine:
         return None
 
     async def _live_fixture_loop(self):
-        """Fallback loop if goal_listener is disabled"""
+        """Fallback polling loop for live fixtures when the listener is disabled."""
         while self.running:
             try:
                 if self.alpha_two and self.api_football:
@@ -353,13 +373,18 @@ class UnifiedTradingEngine:
                 await asyncio.sleep(INTERVAL_LIVE_FIXTURE)
 
     async def _on_fixture_update(self, fixtures: List[LiveFixture]):
-        """Unified handler for fixture updates (from Listener or Loop)"""
+        """Handle fixture updates from the listener or polling loop.
+
+        Args:
+            fixtures: Live fixture updates to process.
+        """
         if not self.alpha_two:
             return
 
         start_time = datetime.now()
 
-        async def process_fixture(fixture):
+        async def process_fixture(fixture: LiveFixture) -> None:
+            """Process a single fixture update for Alpha Two."""
             try:
                 market_prices = await self._get_fixture_market_prices(fixture)
 
@@ -392,7 +417,17 @@ class UnifiedTradingEngine:
                 f"Slow fixture update loop: {duration:.2f}s for {len(fixtures)} fixtures"
             )
 
-    async def _get_fixture_market_prices(self, fixture) -> Dict[str, float]:
+    async def _get_fixture_market_prices(
+        self, fixture: LiveFixture
+    ) -> Dict[str, float]:
+        """Fetch market prices for the given fixture.
+
+        Args:
+            fixture: Live fixture object with team metadata.
+
+        Returns:
+            Mapping containing ``yes`` and ``no`` prices.
+        """
         if not self.polymarket:
             return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
 
@@ -439,7 +474,7 @@ class UnifiedTradingEngine:
         return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
 
     async def _stats_reporter_loop(self):
-        """Periodically report engine statistics"""
+        """Periodically report engine statistics while running."""
         while self.running:
             try:
                 await asyncio.sleep(INTERVAL_STATS_REPORT)
@@ -473,6 +508,7 @@ class UnifiedTradingEngine:
                 logger.error(f"Stats reporter error: {e}")
 
     def _export_session_logs(self):
+        """Export session logs for active strategies."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         if self.alpha_one:
@@ -482,6 +518,31 @@ class UnifiedTradingEngine:
             self.alpha_two.export_event_log(f"logs/alpha_two_{timestamp}.json")
 
         logger.info(f"Session logs exported with timestamp: {timestamp}")
+
+    def _build_alpha_two_fixture_payload_from_goal(
+        self, goal: GoalEventWS
+    ) -> Dict[str, Any]:
+        """Build a fixture update payload aligned with live fixture updates.
+
+        Args:
+            goal: Goal event used to construct the payload.
+
+        Returns:
+            Payload formatted for ``AlphaTwoLateCompression.feed_live_fixture_update``.
+        """
+        return {
+            "fixture_id": goal.fixture_id,
+            "market_id": f"fixture_{goal.fixture_id}",
+            "question": f"Will {goal.home_team} win?",
+            "home_team": goal.home_team,
+            "away_team": goal.away_team,
+            "home_score": goal.home_score,
+            "away_score": goal.away_score,
+            "minute": goal.minute,
+            "status": "2H" if goal.minute > 45 else "1H",
+            "yes_price": DEFAULT_MARKET_PRICE,  # Would get from market
+            "no_price": DEFAULT_MARKET_PRICE,
+        }
 
 
 def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:

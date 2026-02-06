@@ -190,6 +190,8 @@ async def test_on_goal_event_propagation(mock_dependencies, mock_goal_event):
     fixture_data = call_args[0][0]
 
     assert fixture_data["fixture_id"] == 123
+    assert fixture_data["market_id"] == "fixture_123"
+    assert fixture_data["question"] == "Will Home Team win?"
     assert fixture_data["home_team"] == "Home Team"
     assert fixture_data["home_score"] == 1
     assert fixture_data["status"] == "1H"  # Minute 30 is 1H
