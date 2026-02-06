@@ -315,7 +315,7 @@ class AlphaTwoLateCompression:
     async def _fetch_polymarket_closing_markets(self) -> List[Dict]:
         
         #  Daniel NOTE: This would query Polymarket API for markets with close_time approaching
-        # For now this return empty we would implement with actual API
+        # For now this returns empty we would implement with actual API
         return []
 
     async def _fetch_kalshi_closing_markets(self) -> List[Dict]:
