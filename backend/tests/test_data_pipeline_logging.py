@@ -1,8 +1,6 @@
 import pytest
-from backend.core.data_pipeline import DataAcquisitionLayer, GoalEvent
+from backend.core.data_pipeline import DataAcquisitionLayer, PrimaryProviderUnavailableError
 from unittest.mock import MagicMock, patch
-import httpx
-import time
 import logging
 
 @pytest.mark.asyncio
@@ -40,7 +38,8 @@ async def test_fetch_verified_goals_slow_warning(caplog):
             assert "Slow API response from API-Football" in caplog.text
 
 @pytest.mark.asyncio
-async def test_fetch_market_data_fallback_on_error():
+async def test_fetch_market_data_primary_error_does_not_fallback(caplog):
+    caplog.set_level(logging.INFO)
     dal = DataAcquisitionLayer()
     dal._api_football_key = "valid_key"
     dal._polymarket_key = "valid_key"
@@ -49,13 +48,11 @@ async def test_fetch_market_data_fallback_on_error():
     # Mock primary source failing
     with patch.object(dal, "_fetch_polymarket_data", side_effect=Exception("API Error")):
         with patch.object(dal, "_generate_market_data") as mock_generate:
-            mock_generate.return_value = {"markets": []}
+            with pytest.raises(PrimaryProviderUnavailableError):
+                await dal.fetch_market_data()
 
-            result = await dal.fetch_market_data()
-
-            # Should fall back to generator
-            mock_generate.assert_called_once()
-            assert result == {"markets": []}
+            mock_generate.assert_not_called()
+            assert "synthetic fallback blocked in primary mode" in caplog.text
 
 @pytest.mark.asyncio
 async def test_error_logging_includes_context(caplog):
@@ -76,3 +73,14 @@ async def test_error_logging_includes_context(caplog):
         # Check logs
         assert "API-Football error 500" in caplog.text
         assert "Internal Server Error" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_auxiliary_mode_logs_synthetic_by_design(caplog):
+    caplog.set_level(logging.INFO)
+    dal = DataAcquisitionLayer()
+    dal._srvc_mode = "auxiliary"
+
+    await dal.fetch_market_data()
+
+    assert "Using synthetic market data by design" in caplog.text

@@ -1,11 +1,9 @@
 import pytest
-import asyncio
 from unittest.mock import MagicMock, patch, AsyncMock
-from datetime import datetime, timedelta
 import os
 
 # Import relative to PYTHONPATH=backend
-from core.data_pipeline import DataAcquisitionLayer, GoalEvent
+from core.data_pipeline import DataAcquisitionLayer, PrimaryProviderUnavailableError
 
 @pytest.fixture
 def mock_env_primary():
@@ -79,8 +77,8 @@ async def test_fetch_live_goals_primary_success(mock_env_primary):
             assert "v3.football.api-sports.io" in args[0]
 
 @pytest.mark.asyncio
-async def test_fetch_live_goals_primary_fallback_on_failure(mock_env_primary):
-    """Test fallback to simulated stream when API fails."""
+async def test_fetch_live_goals_primary_raises_on_failure(mock_env_primary):
+    """Test primary mode raises explicit failure instead of synthetic fallback."""
     with patch.dict(os.environ, mock_env_primary):
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
@@ -89,17 +87,18 @@ async def test_fetch_live_goals_primary_fallback_on_failure(mock_env_primary):
             # Setup mock response to fail
             mock_response = MagicMock()
             mock_response.status_code = 500
+            mock_response.text = "Internal Error"
             mock_client.get.return_value = mock_response
 
             dal = DataAcquisitionLayer()
 
-            # It should silently catch exception and call _generate_event_stream
-            goals = await dal.fetch_live_goals()
+            with patch.object(dal, "_generate_event_stream", wraps=dal._generate_event_stream) as mock_synth:
+                with pytest.raises(PrimaryProviderUnavailableError) as exc_info:
+                    await dal.fetch_live_goals()
 
-            # Assert we got simulated goals
-            assert len(goals) > 0
-            # Synthetic match IDs start with "synth_"
-            assert goals[0].match_id.startswith("synth_")
+            assert exc_info.value.operation == "fetch_live_goals"
+            assert exc_info.value.source == "api_football"
+            mock_synth.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_fetch_market_data_polymarket(mock_env_primary):
@@ -153,13 +152,27 @@ async def test_fetch_market_data_kalshi_fallback(mock_env_primary):
             assert "api.kalshi.com/v1/login" in mock_client.post.call_args[0][0]
 
 @pytest.mark.asyncio
-async def test_fetch_market_data_fallback_simulation():
-    """Test fallback to simulation if APIs fail or keys missing."""
+async def test_fetch_market_data_auxiliary_uses_simulation():
+    """Test auxiliary mode uses synthetic market data by design."""
     with patch.dict(os.environ, {}): # No keys
-        # We allow it to use the real MarketSynthesizer since it has no external deps
         dal = DataAcquisitionLayer()
         data = await dal.fetch_market_data()
 
         assert "markets" in data
         assert data["count"] > 0
         assert data["markets"][0]["yes_price"] > 0
+
+
+@pytest.mark.asyncio
+async def test_fetch_market_data_primary_raises_on_failure(mock_env_primary):
+    """Test primary mode market failure raises explicit provider unavailable exception."""
+    with patch.dict(os.environ, mock_env_primary):
+        dal = DataAcquisitionLayer()
+        with patch.object(dal, "_fetch_polymarket_data", side_effect=Exception("provider down")):
+            with patch.object(dal, "_generate_market_data", wraps=dal._generate_market_data) as mock_synth:
+                with pytest.raises(PrimaryProviderUnavailableError) as exc_info:
+                    await dal.fetch_market_data()
+
+            assert exc_info.value.operation == "fetch_market_data"
+            assert exc_info.value.source == "polymarket"
+            mock_synth.assert_not_called()

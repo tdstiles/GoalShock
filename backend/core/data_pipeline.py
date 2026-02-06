@@ -36,15 +36,51 @@ SYNTH_TIME_OFFSET_MAX = 45
 
 
 class GoalEvent:
+    """Represents a single goal event emitted by a live or synthetic feed."""
+
     def __init__(self, match_id: str, team: str, player: str, minute: int, timestamp: datetime):
+        """Initialize a goal event.
+
+        Args:
+            match_id: Provider fixture ID or synthetic fixture identifier.
+            team: Team name credited with the goal.
+            player: Player name credited with the goal.
+            minute: Match minute when the goal occurred.
+            timestamp: Event timestamp in UTC/local runtime clock.
+        """
         self.match_id = match_id
         self.team = team
         self.player = player
         self.minute = minute
         self.timestamp = timestamp
 
+
+class PrimaryProviderUnavailableError(RuntimeError):
+    """Raised when a primary-mode provider call fails and synthetic fallback is disallowed."""
+
+    def __init__(self, operation: str, source: str, status_code: Optional[int], message: str):
+        """Initialize primary provider failure metadata.
+
+        Args:
+            operation: Logical operation that failed (for example, ``fetch_live_goals``).
+            source: Upstream provider/source name.
+            status_code: HTTP status code when available.
+            message: Human-readable error message.
+        """
+        self.operation = operation
+        self.source = source
+        self.status_code = status_code
+        self.message = message
+        super().__init__(
+            f"Primary provider unavailable during {operation} via {source}"
+            f" (status={status_code}): {message}"
+        )
+
 class DataAcquisitionLayer:
+    """Acquires live goal and market data from providers or synthetic generators."""
+
     def __init__(self):
+        """Create a data acquisition layer and initialize provider credentials."""
         self._api_football_key = os.getenv("API_FOOTBALL_KEY", "")
         self._polymarket_key = os.getenv("POLYMARKET_API_KEY", "")
         self._kalshi_key = os.getenv("KALSHI_API_KEY", "")
@@ -54,18 +90,41 @@ class DataAcquisitionLayer:
         self._client = httpx.AsyncClient(timeout=10.0)
 
     def _determine_operational_mode(self) -> str:
+        """Determine whether runtime should use primary or auxiliary mode.
+
+        Returns:
+            ``"primary"`` when required credentials are configured; otherwise ``"auxiliary"``.
+        """
         if self._api_football_key and len(self._api_football_key) > API_KEY_MIN_LENGTH:
             if self._polymarket_key or (self._kalshi_key and self._kalshi_secret):
                 return "primary"
         return "auxiliary"
 
     async def fetch_live_goals(self) -> List[GoalEvent]:
+        """Fetch live goals with explicit primary-mode failure semantics.
+
+        Returns:
+            Goal events from provider in primary mode, or synthetic events in auxiliary mode.
+
+        Raises:
+            PrimaryProviderUnavailableError: If the primary provider fails in primary mode.
+        """
         if self._srvc_mode == "primary":
             try:
                 return await self._fetch_verified_goals()
             except Exception as e:
-                logger.error(f"Failed to fetch verified goals from primary source: {e}", exc_info=True)
-                pass
+                logger.error(
+                    "Primary provider unavailable for live goals; synthetic fallback blocked in primary mode.",
+                    extra={"source": "api_football", "mode": self._srvc_mode},
+                    exc_info=True,
+                )
+                raise PrimaryProviderUnavailableError(
+                    operation="fetch_live_goals",
+                    source="api_football",
+                    status_code=getattr(getattr(e, "response", None), "status_code", None),
+                    message=str(e),
+                ) from e
+        logger.info("Using synthetic goal stream by design (auxiliary mode).")
         return await self._generate_event_stream()
 
     async def _fetch_verified_goals(self) -> List[GoalEvent]:
@@ -113,6 +172,7 @@ class DataAcquisitionLayer:
         return goals
 
     async def _generate_event_stream(self) -> List[GoalEvent]:
+        """Generate synthetic goal events for auxiliary/demo operation."""
         goals = []
         num_matches = random.randint(SYNTH_MATCHES_MIN, SYNTH_MATCHES_MAX)
 
@@ -136,6 +196,17 @@ class DataAcquisitionLayer:
         return sorted(goals, key=lambda x: x.timestamp, reverse=True)
 
     async def fetch_market_data(self, market_type: str = "football") -> Dict:
+        """Fetch market data with explicit primary-mode failure semantics.
+
+        Args:
+            market_type: Market domain label for synthetic generation.
+
+        Returns:
+            Provider market payload in primary mode or synthetic market payload in auxiliary mode.
+
+        Raises:
+            PrimaryProviderUnavailableError: If the configured primary provider fails.
+        """
         if self._srvc_mode == "primary":
             try:
                 if self._polymarket_key:
@@ -143,8 +214,19 @@ class DataAcquisitionLayer:
                 elif self._kalshi_key:
                     return await self._fetch_kalshi_data()
             except Exception as e:
-                logger.error(f"Failed to fetch market data from primary source ({market_type}): {e}", exc_info=True)
-                pass
+                source = "polymarket" if self._polymarket_key else "kalshi"
+                logger.error(
+                    "Primary provider unavailable for market data; synthetic fallback blocked in primary mode.",
+                    extra={"source": source, "mode": self._srvc_mode, "market_type": market_type},
+                    exc_info=True,
+                )
+                raise PrimaryProviderUnavailableError(
+                    operation="fetch_market_data",
+                    source=source,
+                    status_code=getattr(getattr(e, "response", None), "status_code", None),
+                    message=str(e),
+                ) from e
+        logger.info("Using synthetic market data by design (auxiliary mode).", extra={"market_type": market_type})
         return await self._generate_market_data(market_type)
 
     async def _fetch_polymarket_data(self) -> Dict:
@@ -204,6 +286,14 @@ class DataAcquisitionLayer:
             raise
 
     async def _generate_market_data(self, market_type: str) -> Dict:
+        """Generate synthetic market data for auxiliary/demo operation.
+
+        Args:
+            market_type: Market domain label.
+
+        Returns:
+            Synthetic market payload compatible with stream processing.
+        """
         from .market_synthesizer import MarketMicrostructure
         from .synthetic_data import SYNTHETIC_MARKET_SCENARIOS
 
@@ -228,4 +318,5 @@ class DataAcquisitionLayer:
         return {"markets": markets, "count": len(markets)}
 
     async def close(self):
+        """Close underlying HTTP client resources."""
         await self._client.aclose()
