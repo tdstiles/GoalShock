@@ -459,7 +459,7 @@ class UnifiedTradingEngine:
 
             yes_price = await self.polymarket.get_yes_price(token_id)
 
-            if yes_price:
+            if yes_price is not None:
                 return {KEY_YES: yes_price, KEY_NO: 1 - yes_price}
 
             logger.warning(
