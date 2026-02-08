@@ -20,7 +20,7 @@
   Set invalid `KALSHI_API_KEY` / `KALSHI_API_SECRET` and call `get_orderbook()`. `login()` returns `False`, but request is still sent with a null token header.
 - **Suggested owner:** Bolt
 
-## 3. Medium: Valid `yes_price=0.0` is treated as missing market data
+## 3. Medium: Valid `yes_price=0.0` is treated as missing market data (FIXED)
 - **Location:** `backend/engine_unified.py` (`_get_fixture_market_prices`, `if yes_price:`)
 - **Impact:** **Medium**
 - **Likelihood:** **Low**
