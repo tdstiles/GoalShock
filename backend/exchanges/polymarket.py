@@ -274,7 +274,18 @@ class PolymarketClient:
 
         # Timeout
         logger.warning(f"Order {order_id} not filled after {timeout}s. Cancelling...")
-        await self.cancel_order(order_id)
+        cancelled = await self.cancel_order(order_id)
+
+        # If cancel failed, check if it was filled during the timeout
+        if not cancelled:
+            logger.warning(f"Failed to cancel order {order_id}. Checking if filled...")
+            final_status = await self.get_order(order_id)
+            if final_status:
+                status = str(final_status.get("status") or final_status.get("state") or "").upper()
+                if status in ["MATCHED", "FILLED"]:
+                    logger.info(f"Order {order_id} was filled during cancellation attempt.")
+                    return final_status
+
         return None
 
     async def close(self):
