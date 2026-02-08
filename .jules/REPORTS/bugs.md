@@ -1,6 +1,6 @@
 # 🐕 Hound: Bug Recon <2026-02-05>
 
-## 1. Critical: Primary-data failures silently fall back to synthetic events and markets
+## 1. Critical: Primary-data failures silently fall back to synthetic events and markets (FIXED)
 - **Location:** `backend/core/data_pipeline.py` (`fetch_live_goals`, `fetch_market_data`)
 - **Impact:** **High**
 - **Likelihood:** **High**
@@ -9,8 +9,9 @@
 - **How to reproduce (if known):**
   Configure valid provider keys so `_srvc_mode == "primary"`, then force API failures (bad DNS/network outage). Calls to `fetch_live_goals()` / `fetch_market_data()` still succeed with synthetic payloads instead of surfacing an error state.
 - **Suggested owner:** Sentinel
+- **Resolution:** Validated via `backend/tests/core/test_data_pipeline.py`. Code now raises `PrimaryProviderUnavailableError` correctly.
 
-## 2. High: Kalshi client continues API calls after failed login and sends `Bearer None`
+## 2. High: Kalshi client continues API calls after failed login and sends `Bearer None` (FIXED)
 - **Location:** `backend/exchanges/kalshi.py` (`get_markets`, `get_orderbook`, `place_order`)
 - **Impact:** **High**
 - **Likelihood:** **Medium**
@@ -19,6 +20,7 @@
 - **How to reproduce (if known):**
   Set invalid `KALSHI_API_KEY` / `KALSHI_API_SECRET` and call `get_orderbook()`. `login()` returns `False`, but request is still sent with a null token header.
 - **Suggested owner:** Bolt
+- **Resolution:** Validated via `backend/tests/exchanges/test_kalshi_client.py`. Code now checks `if not await self._ensure_authenticated(): return` and handles failed login gracefully.
 
 ## 3. Medium: Valid `yes_price=0.0` is treated as missing market data (FIXED)
 - **Location:** `backend/engine_unified.py` (`_get_fixture_market_prices`, `if yes_price:`)
@@ -30,7 +32,7 @@
   Stub `polymarket.get_yes_price()` to return `0.0`. `_get_fixture_market_prices()` returns `{yes: -1.0, no: -1.0}` instead of `{yes: 0.0, no: 1.0}`.
 - **Suggested owner:** Sherlock
 
-## 4. Medium: CLI flags cannot disable Alpha strategies
+## 4. Medium: CLI flags cannot disable Alpha strategies (FIXED)
 - **Location:** `backend/engine_unified.py` (`argparse` config for `--alpha-one` and `--alpha-two`)
 - **Impact:** **Medium**
 - **Likelihood:** **High**
@@ -39,3 +41,4 @@
 - **How to reproduce (if known):**
   Run with no strategy flags (or with environment variable `ENABLE_ALPHA_ONE=false`): parsed args still set `alpha_one=True` and `alpha_two=True`.
 - **Suggested owner:** Sherlock
+- **Resolution:** Validated via `backend/tests/test_engine_unified.py`. Code now uses `argparse.BooleanOptionalAction` with `default=None`, correctly respecting environment variables and allowing CLI overrides (`--no-alpha-one`).

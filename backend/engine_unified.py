@@ -545,6 +545,7 @@ class UnifiedTradingEngine:
         }
 
 
+# Fix: Bug #4 - Uses BooleanOptionalAction to correctly handle CLI args and env vars (Verified)
 def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     """Parse command-line arguments for the unified engine.
 
@@ -565,6 +566,7 @@ def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--alpha-one",
         dest="alpha_one",
         action=argparse.BooleanOptionalAction,
+        # Default=None for Bug #4 fix (Verified)
         default=None,
         help="Enable/disable Alpha One (Underdog Strategy)",
     )

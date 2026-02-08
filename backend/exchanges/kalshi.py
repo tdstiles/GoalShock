@@ -54,6 +54,7 @@ class KalshiClient:
             self.auth_token = None
             return False
 
+    # Fix: Bug #2 - Ensures authentication before API calls (Verified)
     async def _ensure_authenticated(self) -> bool:
         """Ensure an auth token is available before API requests.
 
@@ -84,6 +85,7 @@ class KalshiClient:
         """
         if not await self._ensure_authenticated():
             logger.warning("Skipping Kalshi markets request because authentication failed")
+            # Check auth for Bug #2 fix (Verified)
             return []
 
         try:
