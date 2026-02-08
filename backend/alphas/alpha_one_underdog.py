@@ -506,7 +506,7 @@ class AlphaOneUnderdog:
         
         logger.error("Failed to execute live trade")
 
-    async def _execute_live_close(self, position: SimulatedPosition, price: float) -> bool:
+    async def _execute_live_close(self, position: SimulatedPosition, price: float, reason: str = "") -> bool:
         if not self.polymarket:
             return False
 
@@ -534,25 +534,12 @@ class AlphaOneUnderdog:
                 else:
                     qty_to_close = position.signal.size_usd
 
-            # Sherlock Fix: Fetch execution price from Orderbook (Bid) instead of using passed price (Ask/Last).
-            # We want to sell INTO the Bid (taker) to ensure immediate exit, especially for Stop Loss.
-            execution_price = price  # Default fallback
+            # Sherlock Fix: Use aggressive pricing (Market Order simulation) to ensure immediate fill.
+            # Stop Loss (and Take Profit) must exit regardless of spread.
+            # Using a very low Limit Price guarantees we cross the spread and take the best Bids.
+            execution_price = 0.001
 
-            try:
-                # Only try to fetch orderbook if the client supports it
-                if hasattr(self.polymarket, 'get_orderbook'):
-                    orderbook = await self.polymarket.get_orderbook(token_id)
-
-                    # Sherlock Fix: Validate Bid Price > 0 to prevent selling for free
-                    if orderbook and orderbook.get("best_bid"):
-                        bid_price = float(orderbook["best_bid"])
-                        if bid_price > 0:
-                            execution_price = bid_price
-                            logger.info(f"Using Best Bid {execution_price} for closing trade (Trigger Price: {price})")
-                        else:
-                            logger.warning(f"Best Bid is {bid_price}, ignoring. Using trigger price {price}.")
-            except Exception as e:
-                logger.warning(f"Failed to fetch orderbook for execution price, falling back to trigger price: {e}")
+            logger.info(f"Closing trade ({reason}) with aggressive Limit Sell at {execution_price} (Trigger Price: {price})")
 
             # Execute SELL order with verification
             order_filled = await self.polymarket.place_order_and_wait_for_fill(
@@ -657,7 +644,7 @@ class AlphaOneUnderdog:
     async def _close_position(self, position: SimulatedPosition, exit_price: float, reason: str):
         # Sherlock Fix: Execute SELL on exchange if in LIVE mode
         if self.mode == TradingMode.LIVE:
-            success = await self._execute_live_close(position, exit_price)
+            success = await self._execute_live_close(position, exit_price, reason)
             if not success:
                 logger.error(f"CRITICAL: Failed to close position {position.position_id} on exchange!")
                 # We DO NOT proceed to update stats or remove position,

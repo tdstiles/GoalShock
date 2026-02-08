@@ -46,8 +46,8 @@ async def test_execute_live_close_with_zero_bid(alpha_one):
 
     print(f"Executed Price: {price_arg}")
 
-    # Sherlock Fix: Expect fallback price (0.5), not 0.0
-    assert price_arg == 0.5, f"Fix Failed: Price {price_arg} should be 0.5"
+    # Sherlock Fix: Expect aggressive price (0.001) for market sell behavior
+    assert price_arg == 0.001, f"Fix Failed: Price {price_arg} should be 0.001"
 
 @pytest.mark.asyncio
 async def test_execute_live_close_with_valid_bid(alpha_one):
@@ -81,4 +81,4 @@ async def test_execute_live_close_with_valid_bid(alpha_one):
 
     print(f"Executed Price: {price_arg}")
 
-    assert price_arg == 0.45
+    assert price_arg == 0.001

@@ -138,3 +138,52 @@ async def test_alpha_one_exit_price_triggers_on_bid_hit():
     assert len(strategy.closed_positions) == 1
     assert strategy.closed_positions[0].position_id == "pos_2"
     assert strategy.closed_positions[0].status == "closed_take_profit"
+
+
+@pytest.mark.asyncio
+async def test_alpha_one_exit_uses_aggressive_pricing():
+    """Verify that Stop Loss / Take Profit orders use aggressive pricing (0.001) to guarantee fill."""
+    mock_poly = MagicMock()
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"orderID": "123", "status": "FILLED"})
+
+    strategy = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
+    strategy.token_map = {(123, "Team Underdog"): "token_123"}
+
+    signal = TradeSignal(
+        signal_id="sig_3",
+        fixture_id=123,
+        team="Team Underdog",
+        side="YES",
+        entry_price=0.40,
+        target_price=0.55,
+        stop_loss_price=0.30,
+        size_usd=100,
+        confidence=0.8,
+        reason="Test"
+    )
+    position = SimulatedPosition(
+        position_id="pos_3",
+        signal=signal,
+        entry_time=datetime.now(),
+        last_price=0.40,
+        token_id="token_123",
+        quantity=250
+    )
+    strategy.positions["pos_3"] = position
+
+    # Trigger Stop Loss
+    mock_poly.get_bid_price = AsyncMock(return_value=0.20) # Below 0.30
+
+    with patch("asyncio.sleep", side_effect=InterruptedError):
+        try:
+            await strategy.monitor_positions()
+        except InterruptedError:
+            pass
+
+    # Verify order call
+    assert mock_poly.place_order_and_wait_for_fill.called
+    call_args = mock_poly.place_order_and_wait_for_fill.call_args[1]
+
+    assert call_args["price"] == 0.001, "Should use aggressive pricing (0.001) for market exit"
+    assert call_args["side"] == "SELL"
+    assert call_args["token_id"] == "token_123"
