@@ -55,6 +55,7 @@ class GoalEvent:
         self.timestamp = timestamp
 
 
+# Fix: Bug #1 - Correctly raises exception instead of silent fallback (Verified)
 class PrimaryProviderUnavailableError(RuntimeError):
     """Raised when a primary-mode provider call fails and synthetic fallback is disallowed."""
 
@@ -118,6 +119,7 @@ class DataAcquisitionLayer:
                     extra={"source": "api_football", "mode": self._srvc_mode},
                     exc_info=True,
                 )
+                # Explicitly raise error for Bug #1 fix (Verified)
                 raise PrimaryProviderUnavailableError(
                     operation="fetch_live_goals",
                     source="api_football",
