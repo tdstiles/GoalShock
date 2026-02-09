@@ -31,6 +31,7 @@
 - **How to reproduce (if known):**
   Stub `polymarket.get_yes_price()` to return `0.0`. `_get_fixture_market_prices()` returns `{yes: -1.0, no: -1.0}` instead of `{yes: 0.0, no: 1.0}`.
 - **Suggested owner:** Sherlock
+- **Resolution:** Validated via `backend/tests/test_bug_verification.py`. Code uses `if yes_price is not None` to correctly handle `0.0` as a valid price.
 
 ## 4. Medium: CLI flags cannot disable Alpha strategies (FIXED)
 - **Location:** `backend/engine_unified.py` (`argparse` config for `--alpha-one` and `--alpha-two`)
