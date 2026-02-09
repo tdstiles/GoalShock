@@ -152,6 +152,18 @@ async def get_live_matches():
     except Exception as e:
         safe_error_response(e, context="Failed to fetch live matches")
 
+@app.get("/api/markets/all")
+async def get_all_markets():
+    markets = realtime_system.market_fetcher.get_all_markets()
+
+    fresh_markets = [m for m in markets if not m.is_stale]
+
+    return {
+        "markets": [m.dict() for m in fresh_markets],
+        "total": len(fresh_markets),
+        "timestamp": datetime.now().isoformat()
+    }
+
 @app.get("/api/markets/{fixture_id}")
 async def get_markets_for_fixture(fixture_id: int):
     try:
@@ -174,18 +186,6 @@ async def get_markets_for_fixture(fixture_id: int):
         raise
     except Exception as e:
         safe_error_response(e, context=f"Failed to fetch markets for fixture {fixture_id}")
-
-@app.get("/api/markets/all")
-async def get_all_markets():
-    markets = realtime_system.market_fetcher.get_all_markets()
-
-    fresh_markets = [m for m in markets if not m.is_stale]
-
-    return {
-        "markets": [m.dict() for m in fresh_markets],
-        "total": len(fresh_markets),
-        "timestamp": datetime.now().isoformat()
-    }
 
 @app.get("/api/settings/load")
 async def load_settings():
