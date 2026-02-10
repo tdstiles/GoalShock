@@ -37,9 +37,15 @@ class Goal:
 
 
 class APIFootballClient:
+    """Client for interacting with the API-Football service."""
 
-    def __init__(self):
-        self.api_key = settings.API_FOOTBALL_KEY
+    def __init__(self, api_key: str | None = None) -> None:
+        """Initialize the client with an optional API key override.
+
+        Args:
+            api_key: Optional API key to use instead of the configured default.
+        """
+        self.api_key = settings.API_FOOTBALL_KEY if api_key is None else api_key
         self.base_url = settings.API_FOOTBALL_BASE
         self.client = httpx.AsyncClient(timeout=10.0)
 
