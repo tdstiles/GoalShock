@@ -60,11 +60,16 @@ class WebSocketGoalListener:
     SUPPORTED_LEAGUES = set(settings.SUPPORTED_LEAGUES)
     
     def __init__(self, api_key: str = "") -> None:
+        """Initialize the listener with an optional API key override.
+
+        Args:
+            api_key: Optional API key to pass to the API-Football client.
+        """
         self.api_key = api_key
         self.running = False
 
         # Use the shared client which is now updated for v3.football.api-sports.io
-        self.client = APIFootballClient()
+        self.client = APIFootballClient(api_key=self.api_key)
         
         self.goal_callbacks: List[GoalCallback] = []
         self.fixture_callbacks: List[Callable[[List[LiveFixture]], Optional[Awaitable[None]]]] = []
