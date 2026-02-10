@@ -1,7 +1,8 @@
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from alphas.alpha_two_late_compression import AlphaTwoLateCompression, ClippingOpportunity
 
 @pytest.fixture
@@ -200,3 +201,40 @@ async def test_alpha_two_simulation_resolution(alpha_two):
     assert trade.resolved
     assert trade.pnl > 0
     assert alpha_two.stats.trades_won == 1
+
+
+@pytest.mark.asyncio
+async def test_execution_retries_on_failed_order(mock_clients):
+    """Ensure failed executions remain queued with retry state for backoff."""
+    alpha = AlphaTwoLateCompression(
+        polymarket_client=mock_clients["poly"],
+        kalshi_client=mock_clients["kalshi"],
+        simulation_mode=False,
+    )
+    alpha._place_exchange_order = AsyncMock(return_value=False)
+
+    opp = ClippingOpportunity(
+        opportunity_id="opp_retry_1",
+        market_id="market_retry_1",
+        market_question="Will Home win?",
+        fixture_id=1010,
+        yes_price=0.85,
+        no_price=0.15,
+        spread=0.7,
+        expected_outcome="YES",
+        confidence=0.99,
+        expected_profit_pct=10.0,
+        seconds_to_resolution=180,
+        recommended_side="YES",
+        recommended_price=0.85,
+        recommended_size=10,
+    )
+
+    alpha.active_opportunities[opp.opportunity_id] = opp
+
+    await alpha._execute_opportunity_cycle()
+
+    assert opp.opportunity_id in alpha.active_opportunities
+    assert not alpha.trades
+    retry_state = alpha.execution_retry_state[opp.opportunity_id]
+    assert retry_state.attempts == 1
