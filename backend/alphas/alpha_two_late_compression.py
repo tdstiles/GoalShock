@@ -122,6 +122,15 @@ class ClippingTrade:
 
 
 @dataclass
+class ExecutionRetryState:
+    """Tracks retry metadata for a clipping opportunity execution attempt."""
+
+    attempts: int = 0
+    first_seen: datetime = field(default_factory=datetime.now)
+    next_attempt_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
 class AlphaTwoStats:
     opportunities_detected: int = 0
     trades_executed: int = 0
@@ -164,11 +173,16 @@ class AlphaTwoLateCompression:
         self.active_trade_market_ids: Set[str] = set()
         self.pending_orders: Set[str] = set()
         self.closed_trades: List[ClippingTrade] = []
+        self.execution_retry_state: Dict[str, ExecutionRetryState] = {}
         self.stats = AlphaTwoStats()
         
         self.event_log: List[Dict] = []
         
         self.running = False
+
+        self.max_execution_retries = int(os.getenv("CLIP_MAX_EXECUTION_RETRIES", "3"))
+        self.retry_backoff_seconds = int(os.getenv("CLIP_RETRY_BACKOFF_SECONDS", "2"))
+        self.retry_ttl_seconds = int(os.getenv("CLIP_RETRY_TTL_SECONDS", "120"))
         
         logger.info(f"Alpha Two initialized (simulation={simulation_mode})")
         logger.info(f"  Min confidence: {self.min_confidence}")
@@ -249,28 +263,103 @@ class AlphaTwoLateCompression:
                 await asyncio.sleep(2)
 
     async def _execution_loop(self):
+        """Continuously attempt to execute queued opportunities.
+
+        Returns:
+            None.
+        """
         while self.running:
             try:
-                for opp_id, opportunity in list(self.active_opportunities.items()):
-                    if opportunity.confidence < self.min_confidence:
-                        continue
-                    
-                    if opportunity.expected_profit_pct < self.min_profit_threshold:
-                        continue
-                    
-                    if opp_id in self.trades:
-                        continue
-                    
-                    await self._execute_clipping_trade(opportunity)
-                    
-                    
-                    del self.active_opportunities[opp_id]
+                await self._execute_opportunity_cycle()
                 
                 await asyncio.sleep(0.5)  
                 
             except Exception as e:
                 logger.error(f"Execution loop error: {e}")
                 await asyncio.sleep(1)
+
+    async def _execute_opportunity_cycle(self) -> None:
+        """Attempt a single execution cycle with retry/backoff handling.
+
+        Returns:
+            None.
+        """
+        now = datetime.now()
+        for opp_id, opportunity in list(self.active_opportunities.items()):
+            if opportunity.confidence < self.min_confidence:
+                continue
+
+            if opportunity.expected_profit_pct < self.min_profit_threshold:
+                continue
+
+            if opp_id in self.trades:
+                continue
+
+            if opportunity.market_id in self.active_trade_market_ids:
+                continue
+
+            if opportunity.market_id in self.pending_orders:
+                continue
+
+            retry_state = self.execution_retry_state.get(opp_id)
+            if retry_state:
+                if self._is_retry_state_expired(retry_state, now):
+                    self._expire_opportunity(opp_id, "retry limit exceeded")
+                    continue
+
+                if retry_state.next_attempt_at > now:
+                    continue
+
+            success = await self._execute_clipping_trade(opportunity)
+
+            if success:
+                self.execution_retry_state.pop(opp_id, None)
+                del self.active_opportunities[opp_id]
+            else:
+                self._record_execution_retry(opp_id, now)
+
+    def _is_retry_state_expired(self, retry_state: ExecutionRetryState, now: datetime) -> bool:
+        """Determine whether a retry state has exceeded configured limits.
+
+        Args:
+            retry_state: Current retry state for an opportunity.
+            now: Timestamp used to evaluate TTL expiration.
+
+        Returns:
+            True if the retry limits have been exceeded.
+        """
+        attempts_exceeded = retry_state.attempts >= self.max_execution_retries
+        ttl_exceeded = (now - retry_state.first_seen).total_seconds() >= self.retry_ttl_seconds
+        return attempts_exceeded or ttl_exceeded
+
+    def _expire_opportunity(self, opportunity_id: str, reason: str) -> None:
+        """Remove an opportunity after exceeding retry limits.
+
+        Args:
+            opportunity_id: Identifier for the opportunity to remove.
+            reason: Human-readable reason for expiration.
+        """
+        self.execution_retry_state.pop(opportunity_id, None)
+        if opportunity_id in self.active_opportunities:
+            del self.active_opportunities[opportunity_id]
+        self.stats.false_positives += 1
+        logger.warning(f"Expiring opportunity {opportunity_id}: {reason}")
+
+    def _record_execution_retry(self, opportunity_id: str, now: datetime) -> None:
+        """Record a failed execution attempt and schedule a backoff retry.
+
+        Args:
+            opportunity_id: Identifier for the opportunity being retried.
+            now: Timestamp used for computing the next attempt time.
+        """
+        retry_state = self.execution_retry_state.get(opportunity_id)
+        if not retry_state:
+            retry_state = ExecutionRetryState()
+            self.execution_retry_state[opportunity_id] = retry_state
+
+        retry_state.attempts += 1
+        backoff_seconds = self.retry_backoff_seconds * (2 ** (retry_state.attempts - 1))
+        retry_state.next_attempt_at = now + timedelta(seconds=backoff_seconds)
 
     async def _resolution_monitor_loop(self):
         while self.running:
@@ -550,15 +639,23 @@ class AlphaTwoLateCompression:
         else:
             return CONFIDENCE_NEUTRAL
 
-    async def _execute_clipping_trade(self, opportunity: ClippingOpportunity):
+    async def _execute_clipping_trade(self, opportunity: ClippingOpportunity) -> bool:
+        """Execute a clipping trade and return whether it succeeded.
+
+        Args:
+            opportunity: Opportunity to execute.
+
+        Returns:
+            True if the trade execution succeeded.
+        """
         # Sherlock Fix: Guard against double execution
         if opportunity.market_id in self.active_trade_market_ids:
             logger.warning(f"Skipping duplicate trade execution for {opportunity.market_id}")
-            return
+            return False
 
         if opportunity.market_id in self.pending_orders:
             logger.warning(f"Skipping execution: Order pending for {opportunity.market_id}")
-            return
+            return False
 
         trade = ClippingTrade(
             trade_id=opportunity.opportunity_id,
@@ -585,6 +682,7 @@ class AlphaTwoLateCompression:
             logger.info(f"  Entry: {trade.entry_price:.4f}")
             logger.info(f"  Size: ${trade.size_usd:.2f}")
             logger.info(f"  Expected profit: {opportunity.expected_profit_pct:.1f}%")
+            return True
         
         else:
             # Mark as pending to prevent duplicate signals during async execution
@@ -599,9 +697,11 @@ class AlphaTwoLateCompression:
                     logger.info(f"[LIVE] Clipping trade executed: {trade.trade_id}")
                 else:
                     logger.error(f"Failed to execute clipping trade: {trade.trade_id}")
+                return success
             finally:
                 if opportunity.market_id in self.pending_orders:
                     self.pending_orders.remove(opportunity.market_id)
+        return False
 
     async def _place_exchange_order(self, opportunity: ClippingOpportunity) -> bool:
         if self.polymarket:
