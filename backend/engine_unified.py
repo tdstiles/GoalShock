@@ -300,11 +300,14 @@ class UnifiedTradingEngine:
 
                     for fixture in fixtures:
                         fixture_id = fixture.get("fixture_id")
+                        kickoff_time = fixture.get("kickoff_time")
 
                         odds = await self._fetch_pre_match_odds(fixture_id)
 
                         if odds:
-                            await self.alpha_one.cache_pre_match_odds(fixture_id, odds)
+                            await self.alpha_one.cache_pre_match_odds(
+                                fixture_id, odds, kickoff_time=kickoff_time
+                            )
 
                 await asyncio.sleep(INTERVAL_PRE_MATCH_ODDS)
 
@@ -313,17 +316,20 @@ class UnifiedTradingEngine:
                 await asyncio.sleep(INTERVAL_ERROR_RETRY)
 
     async def _fetch_todays_fixtures(self) -> List[Dict]:
-        """Fetch a simplified list of live fixture IDs.
+        """Fetch a simplified list of scheduled fixture IDs for today.
 
         Returns:
-            A list of dictionaries containing fixture identifiers.
+            A list of dictionaries containing fixture identifiers and kickoff time.
         """
         if not self.api_football:
             return []
 
         try:
-            fixtures = await self.api_football.get_live_fixtures()
-            return [{"fixture_id": f.fixture_id} for f in fixtures]
+            fixtures = await self.api_football.get_todays_scheduled_fixtures()
+            return [
+                {"fixture_id": f.fixture_id, "kickoff_time": f.kickoff_time}
+                for f in fixtures
+            ]
         except Exception as e:
             logger.error(f"Error fetching fixtures: {e}")
             return []

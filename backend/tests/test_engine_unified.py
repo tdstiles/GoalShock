@@ -10,6 +10,7 @@ from engine_unified import (
 )
 from bot.websocket_goal_listener import GoalEventWS
 from alphas.alpha_one_underdog import TradingMode
+from data.api_football import ScheduledFixture
 
 
 @pytest.fixture
@@ -247,3 +248,31 @@ async def test_engine_start_stop(mock_dependencies):
             pytest.fail("Engine start task failed to return after stop()")
 
         assert engine.running is False
+
+
+@pytest.mark.asyncio
+async def test_fetch_todays_fixtures_uses_scheduled_fixtures(mock_dependencies):
+    """Ensure scheduled fixtures are used for pre-match odds caching."""
+    config = EngineConfig(enable_websocket=False, api_football_key="key")
+    engine = UnifiedTradingEngine(config)
+
+    scheduled_fixture = ScheduledFixture(
+        fixture_id=101,
+        league_id=39,
+        league_name="Premier League",
+        home_team="Home",
+        away_team="Away",
+        status="NS",
+        kickoff_time=datetime(2024, 1, 1, 12, 0),
+    )
+
+    engine.api_football.get_todays_scheduled_fixtures = AsyncMock(
+        return_value=[scheduled_fixture]
+    )
+
+    result = await engine._fetch_todays_fixtures()
+
+    assert result == [
+        {"fixture_id": 101, "kickoff_time": scheduled_fixture.kickoff_time}
+    ]
+    engine.api_football.get_todays_scheduled_fixtures.assert_awaited_once()
