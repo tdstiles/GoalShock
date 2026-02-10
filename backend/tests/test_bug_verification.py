@@ -4,7 +4,7 @@ import argparse
 from unittest.mock import MagicMock, AsyncMock, patch
 from backend.core.data_pipeline import DataAcquisitionLayer, PrimaryProviderUnavailableError
 from backend.exchanges.kalshi import KalshiClient
-from backend.engine_unified import parse_cli_args, build_engine_config_from_cli_args, EngineConfig
+from backend.engine_unified import parse_cli_args, build_engine_config_from_cli_args, EngineConfig, UnifiedTradingEngine, TradingMode, KEY_YES, KEY_NO
 
 # --- BUG #1: Data Pipeline Failure Fallback ---
 
@@ -56,6 +56,49 @@ async def test_bug_2_kalshi_auth_failure_does_not_send_request():
             # Should return empty list and NOT call API
             assert result == []
             mock_instance.get.assert_not_called()
+
+# --- BUG #3: Zero Price Treated as Invalid ---
+
+@pytest.mark.asyncio
+async def test_bug_3_zero_price_is_treated_as_valid():
+    """
+    Verify that a market price of 0.0 is treated as a valid price and not ignored.
+    Bug caused 0.0 to be treated as falsy and replaced with default (-1.0).
+    """
+    config = EngineConfig(
+        mode=TradingMode.SIMULATION,
+        enable_alpha_one=False,
+        enable_alpha_two=False,
+        enable_websocket=False,
+        polymarket_key="test_key"
+    )
+    engine = UnifiedTradingEngine(config)
+
+    # Mock PolymarketClient
+    mock_poly = AsyncMock()
+    engine.polymarket = mock_poly
+
+    # Mock fixture
+    mock_fixture = MagicMock()
+    mock_fixture.home_team = "Home"
+    mock_fixture.away_team = "Away"
+    mock_fixture.fixture_id = 123
+
+    # Mock get_markets_by_event
+    mock_market = {
+        "clobTokenIds": ["token123"]
+    }
+    mock_poly.get_markets_by_event.return_value = [mock_market]
+
+    # Mock get_yes_price returning 0.0
+    mock_poly.get_yes_price.return_value = 0.0
+
+    # Act
+    prices = await engine._get_fixture_market_prices(mock_fixture)
+
+    # Assert
+    assert prices[KEY_YES] == 0.0
+    assert prices[KEY_NO] == 1.0
 
 # --- BUG #4: CLI Flags ---
 
