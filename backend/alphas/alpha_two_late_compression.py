@@ -50,6 +50,23 @@ SWING_BUFFER_MULTIPLIER = 1.5
 STOPPAGE_BUFFER_MINUTES = 8
 MIN_PRICE_THRESHOLD = 0.001
 SECONDS_PER_MINUTE = 60
+DEFAULT_SECONDS_TO_CLOSE = 999999
+DEFAULT_ORDER_TIMEOUT_SECONDS = 3
+
+# --- BASKETBALL CONSTANTS ---
+BASKETBALL_SHOT_CLOCK_SECONDS = 24
+BASKETBALL_LOW_POSSESSION_SWING = 2.5
+BASKETBALL_HIGH_POSSESSION_SWING = 3.5
+
+# --- LOOP INTERVALS ---
+LOOP_INTERVAL_MARKET_SCANNER_SECONDS = 10
+ERROR_RETRY_SECONDS_MARKET_SCANNER = 10
+LOOP_INTERVAL_OPPORTUNITY_SECONDS = 2
+ERROR_RETRY_SECONDS_OPPORTUNITY = 2
+LOOP_INTERVAL_EXECUTION_SECONDS = 0.5
+ERROR_RETRY_SECONDS_EXECUTION = 1
+LOOP_INTERVAL_RESOLUTION_SECONDS = 5
+ERROR_RETRY_SECONDS_RESOLUTION = 5
 
 # --- TIME THRESHOLDS (Seconds) ---
 TIME_THRESHOLD_LATE = 600  # 10 minutes
@@ -218,7 +235,7 @@ class AlphaTwoLateCompression:
                 
                 for market in closing_markets:
                     market_id = market.get("market_id")
-                    seconds_to_close = market.get("seconds_to_close", 999999)
+                    seconds_to_close = market.get("seconds_to_close", DEFAULT_SECONDS_TO_CLOSE)
                     
                     if seconds_to_close <= self.max_seconds_to_close:
                         self.monitored_markets[market_id] = market
@@ -234,11 +251,11 @@ class AlphaTwoLateCompression:
                     if mid not in self.active_trade_market_ids:
                         del self.monitored_markets[mid]
                 
-                await asyncio.sleep(10)  
+                await asyncio.sleep(LOOP_INTERVAL_MARKET_SCANNER_SECONDS)
                 
             except Exception as e:
                 logger.error(f"Market scanner error: {e}")
-                await asyncio.sleep(10)
+                await asyncio.sleep(ERROR_RETRY_SECONDS_MARKET_SCANNER)
 
     async def _opportunity_detector_loop(self):
         
@@ -261,11 +278,11 @@ class AlphaTwoLateCompression:
                         logger.info(f"  Expected profit: {opportunity.expected_profit_pct:.1f}%")
                         logger.info(f"  Seconds to resolution: {opportunity.seconds_to_resolution}")
                 
-                await asyncio.sleep(2)  
+                await asyncio.sleep(LOOP_INTERVAL_OPPORTUNITY_SECONDS)
                 
             except Exception as e:
                 logger.error(f"Opportunity detector error: {e}")
-                await asyncio.sleep(2)
+                await asyncio.sleep(ERROR_RETRY_SECONDS_OPPORTUNITY)
 
     async def _execution_loop(self):
         """Continuously attempt to execute queued opportunities.
@@ -277,11 +294,11 @@ class AlphaTwoLateCompression:
             try:
                 await self._execute_opportunity_cycle()
                 
-                await asyncio.sleep(0.5)  
+                await asyncio.sleep(LOOP_INTERVAL_EXECUTION_SECONDS)
                 
             except Exception as e:
                 logger.error(f"Execution loop error: {e}")
-                await asyncio.sleep(1)
+                await asyncio.sleep(ERROR_RETRY_SECONDS_EXECUTION)
 
     async def _execute_opportunity_cycle(self) -> None:
         """Attempt a single execution cycle with retry/backoff handling.
@@ -380,11 +397,11 @@ class AlphaTwoLateCompression:
                     if resolution:
                         await self._process_trade_resolution(trade, resolution)
                 
-                await asyncio.sleep(5)  
+                await asyncio.sleep(LOOP_INTERVAL_RESOLUTION_SECONDS)
                 
             except Exception as e:
                 logger.error(f"Resolution monitor error: {e}")
-                await asyncio.sleep(5)
+                await asyncio.sleep(ERROR_RETRY_SECONDS_RESOLUTION)
 
     async def _fetch_closing_markets(self) -> List[Dict]:
         """Fetch markets that are closing soon"""
@@ -446,7 +463,7 @@ class AlphaTwoLateCompression:
 
         spread = abs(yes_price - no_price)
         
-        seconds_to_close = market.get("seconds_to_close", 999999)
+        seconds_to_close = market.get("seconds_to_close", DEFAULT_SECONDS_TO_CLOSE)
         
         outcome_analysis = await self._predict_outcome(market)
         
@@ -503,7 +520,7 @@ class AlphaTwoLateCompression:
             return None
         
         current_score = market.get("current_score", {})
-        time_remaining = market.get("seconds_to_close", 999999)
+        time_remaining = market.get("seconds_to_close", DEFAULT_SECONDS_TO_CLOSE)
         
         home_score = current_score.get("home", 0)
         away_score = current_score.get("away", 0)
@@ -593,13 +610,13 @@ class AlphaTwoLateCompression:
         # The linear model underestimates risk in final seconds.
         # A 2-3 point lead is never safe in Basketball until the buzzer.
         if sport == SPORT_BASKETBALL:
-            if seconds_remaining < 24:
+            if seconds_remaining < BASKETBALL_SHOT_CLOCK_SECONDS:
                 # If under shot clock (24s), risk is lower (fewer possessions possible)
                 # A 3 point lead (one possession) is still risky, but 4 pts (2 pos) is safer.
                 # 2.5 * 1.5 = 3.75. Lead > 3.75 (i.e. 4) -> High Confidence.
-                expected_swing = max(2.5, expected_swing)
+                expected_swing = max(BASKETBALL_LOW_POSSESSION_SWING, expected_swing)
             else:
-                expected_swing = max(3.5, expected_swing)
+                expected_swing = max(BASKETBALL_HIGH_POSSESSION_SWING, expected_swing)
         
         if lead_margin > expected_swing * SWING_BUFFER_MULTIPLIER:
             confidence = CONFIDENCE_VERY_HIGH
@@ -760,7 +777,7 @@ class AlphaTwoLateCompression:
                     side="BUY",
                     price=price,
                     size=size_shares,
-                    timeout=3
+                    timeout=DEFAULT_ORDER_TIMEOUT_SECONDS
                 )
 
                 if order_filled:
