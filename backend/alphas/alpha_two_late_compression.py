@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 # --- SOCCER CONSTANTS ---
 SOCCER_EXPECTED_GOALS_FACTOR = 2.7
 SOCCER_GAME_DURATION_SECONDS = 5400  # 90 minutes
+SOCCER_REGULAR_TIME_MINUTES = 90
+SOCCER_HALF_TIME_MINUTES = 45
+SOCCER_EXTRA_TIME_MINUTES = 120
 
 # --- SPORT CONSTANTS ---
 SPORT_SOCCER = "soccer"
@@ -45,6 +48,8 @@ CONFIDENCE_NEUTRAL = 0.50
 # --- STRATEGY CONSTANTS ---
 SWING_BUFFER_MULTIPLIER = 1.5
 STOPPAGE_BUFFER_MINUTES = 8
+MIN_PRICE_THRESHOLD = 0.001
+SECONDS_PER_MINUTE = 60
 
 # --- TIME THRESHOLDS (Seconds) ---
 TIME_THRESHOLD_LATE = 600  # 10 minutes
@@ -462,7 +467,7 @@ class AlphaTwoLateCompression:
             target_price = 1.0
         
         # Sherlock: Fix Division by Zero risk
-        if current_price <= 0.001:
+        if current_price <= MIN_PRICE_THRESHOLD:
             return None
 
         expected_profit_pct = ((target_price - current_price) / current_price) * 100
@@ -741,7 +746,7 @@ class AlphaTwoLateCompression:
 
                 # Convert USD Size to Shares
                 price = opportunity.recommended_price
-                if price <= 0.001:
+                if price <= MIN_PRICE_THRESHOLD:
                     logger.error(f"Invalid price {price} for order")
                     return False
 
@@ -817,7 +822,7 @@ class AlphaTwoLateCompression:
         
         if trade.actual_outcome == trade.opportunity.expected_outcome:
             # Sherlock: Fix Division by Zero risk
-            if trade.entry_price > 0.001:
+            if trade.entry_price > MIN_PRICE_THRESHOLD:
                 trade.pnl = (1.0 - trade.entry_price) * trade.size_usd / trade.entry_price
             else:
                 # If we somehow entered at 0, treat it as pure profit on the size?
@@ -881,21 +886,21 @@ class AlphaTwoLateCompression:
             return
         
        
-        total_minutes = 90
+        total_minutes = SOCCER_REGULAR_TIME_MINUTES
         if status == "HT":
             # At HT, we have 45 minutes of play left + Stoppage Buffer
-            seconds_remaining = (total_minutes - 45 + STOPPAGE_BUFFER_MINUTES) * 60
+            seconds_remaining = (total_minutes - SOCCER_HALF_TIME_MINUTES + STOPPAGE_BUFFER_MINUTES) * SECONDS_PER_MINUTE
         elif status == "ET":
             # Extra Time is typically 30 mins (90 -> 120)
             # Use max(0, ...) to avoid negative if it goes beyond 120 in stoppage of ET
-            et_total_minutes = 120
+            et_total_minutes = SOCCER_EXTRA_TIME_MINUTES
             # If minute < 90, something is weird, but we assume it's at least 90
-            current_minute = max(90, minute)
-            seconds_remaining = (et_total_minutes - current_minute) * 60
+            current_minute = max(SOCCER_REGULAR_TIME_MINUTES, minute)
+            seconds_remaining = (et_total_minutes - current_minute) * SECONDS_PER_MINUTE
 
             # Handle ET Stoppage Time: If minute >= 120 but status is still ET
             if seconds_remaining <= 0:
-                 seconds_remaining = 60
+                 seconds_remaining = SECONDS_PER_MINUTE
         else:
             # Regular Time (90 minutes) logic
             # Sherlock Fix: Handle Stoppage Time conservatively.
@@ -906,16 +911,16 @@ class AlphaTwoLateCompression:
             # Use the buffer for both Pre-90 and Post-90 to ensure smooth time continuity.
             # If we didn't add it for < 90, we'd have a jump from 1 min remaining (at min 89)
             # to 8 mins remaining (at min 90), causing false confidence spikes.
-            stoppage_end_minute = 90 + STOPPAGE_BUFFER_MINUTES
+            stoppage_end_minute = SOCCER_REGULAR_TIME_MINUTES + STOPPAGE_BUFFER_MINUTES
 
-            if minute >= 90 and status not in ["FT", "AET", "PEN"]:
+            if minute >= SOCCER_REGULAR_TIME_MINUTES and status not in ["FT", "AET", "PEN"]:
                 # Calculate remaining based on a theoretical 98th minute end
                 # Ensure it decays as minute increases (91, 92...)
                 # Clamp at 60s minimum to keep market "alive" until FT signal
-                seconds_remaining = (stoppage_end_minute - minute) * 60
-                seconds_remaining = max(60, seconds_remaining)
+                seconds_remaining = (stoppage_end_minute - minute) * SECONDS_PER_MINUTE
+                seconds_remaining = max(SECONDS_PER_MINUTE, seconds_remaining)
             else:
-                seconds_remaining = (stoppage_end_minute - minute) * 60
+                seconds_remaining = (stoppage_end_minute - minute) * SECONDS_PER_MINUTE
                 seconds_remaining = max(0, seconds_remaining)
         
     

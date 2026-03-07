@@ -18,6 +18,7 @@ DEFAULT_MAX_POSITIONS = 5
 DEFAULT_TAKE_PROFIT_PCT = 15.0
 DEFAULT_STOP_LOSS_PCT = 10.0
 DEFAULT_MAX_DAILY_LOSS = 2000.0
+AGGRESSIVE_MARKET_PRICE = 0.001
 
 # --- CONFIDENCE CALCULATION CONSTANTS ---
 MIN_CONFIDENCE = 0.3
@@ -537,7 +538,7 @@ class AlphaOneUnderdog:
             # Sherlock Fix: Use aggressive pricing (Market Order simulation) to ensure immediate fill.
             # Stop Loss (and Take Profit) must exit regardless of spread.
             # Using a very low Limit Price guarantees we cross the spread and take the best Bids.
-            execution_price = 0.001
+            execution_price = AGGRESSIVE_MARKET_PRICE
 
             logger.info(f"Closing trade ({reason}) with aggressive Limit Sell at {execution_price} (Trigger Price: {price})")
 
