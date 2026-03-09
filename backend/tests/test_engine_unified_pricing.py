@@ -26,8 +26,7 @@ async def test_get_fixture_market_prices(mock_dependencies):
     mock_fixture.fixture_id = 100
 
     # Case 1: Success path
-    mock_market = {"clobTokenIds": ["token123"], "id": "mkt1"}
-    engine.polymarket.get_markets_by_event = AsyncMock(return_value=[mock_market])
+    engine.polymarket.get_market_token_id = AsyncMock(return_value="token123")
     engine.polymarket.get_yes_price = AsyncMock(return_value=0.6)
 
     prices = await engine._get_fixture_market_prices(mock_fixture)
@@ -35,25 +34,22 @@ async def test_get_fixture_market_prices(mock_dependencies):
     assert prices[KEY_NO] == pytest.approx(0.4)
 
     # Case 2: No markets found
-    engine.polymarket.get_markets_by_event = AsyncMock(return_value=[])
+    engine.polymarket.get_market_token_id = AsyncMock(return_value=None)
     prices = await engine._get_fixture_market_prices(mock_fixture)
     assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
     assert prices[KEY_NO] == DEFAULT_MARKET_PRICE
 
     # Case 3: Market found but no token ID
-    mock_market_no_token = {"clobTokenIds": [None], "id": "mkt2"}
-    engine.polymarket.get_markets_by_event = AsyncMock(return_value=[mock_market_no_token])
-    prices = await engine._get_fixture_market_prices(mock_fixture)
-    assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
+    # Since we refactored get_market_token_id to return None in this case, it's covered by Case 2
 
     # Case 4: Token ID found but no price
-    engine.polymarket.get_markets_by_event = AsyncMock(return_value=[mock_market])
+    engine.polymarket.get_market_token_id = AsyncMock(return_value="token123")
     engine.polymarket.get_yes_price = AsyncMock(return_value=None)
     prices = await engine._get_fixture_market_prices(mock_fixture)
     assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
 
     # Case 5: Exception handling
-    engine.polymarket.get_markets_by_event = AsyncMock(side_effect=Exception("API Error"))
+    engine.polymarket.get_market_token_id = AsyncMock(side_effect=Exception("API Error"))
     prices = await engine._get_fixture_market_prices(mock_fixture)
     assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
 

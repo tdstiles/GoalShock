@@ -39,6 +39,16 @@ class PolymarketClient:
 
         logger.info("📊 Polymarket client initialized")
 
+    async def get_market_token_id(self, event_name: str) -> Optional[str]:
+        """
+        Helper utility to fetch the primary token ID for an event name.
+        """
+        markets = await self.get_markets_by_event(event_name)
+        if markets:
+            market = markets[0]
+            return market.get("clobTokenIds", [None])[0]
+        return None
+
     async def get_markets_by_event(self, event_name: str) -> List[Dict]:
         
         try:
