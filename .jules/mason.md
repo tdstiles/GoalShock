@@ -22,3 +22,8 @@
 **Anti-Pattern:** Identical "place order and loop to verify fill" logic was copy-pasted across multiple strategy classes (`AlphaOneUnderdog`, `AlphaTwoLateCompression`), leading to code duplication and potential for divergent behavior.
 **Improvement:** Extracted the logic into a reusable `place_order_and_wait_for_fill` method within the `PolymarketClient` class.
 **Guideline:** Complex async workflows (like order verification) that are shared across consumers should be encapsulated in the client/provider class rather than repeated in every consumer.
+
+## 2026-05-16 - Duplicated Event Logging
+**Anti-Pattern:** Repeated identical event logging logic (`event_log` list, `_log_event`, `export_event_log`) duplicated across multiple alpha strategy classes (`AlphaOneUnderdog`, `AlphaTwoLateCompression`).
+**Improvement:** Abstracted the shared logging logic into a `BaseAlpha` utility class which the strategies now inherit from, reducing code duplication.
+**Guideline:** Repeated operational logic across similar classes should be extracted into shared base classes or utility mixins to improve maintainability and ensure consistency.
