@@ -14,10 +14,7 @@ async def test_alpha_one_ghost_position_prevented():
     # Mock place_order_and_wait_for_fill returning None (simulating failure/timeout)
     mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value=None)
 
-    mock_poly.get_markets_by_event = AsyncMock(return_value=[{
-        "clobTokenIds": ["0xYES", "0xNO"],
-        "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
-    }])
+    mock_poly.get_market_token_id = AsyncMock(return_value="0xYES")
 
     alpha = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
     signal = TradeSignal(
@@ -42,10 +39,7 @@ async def test_alpha_one_position_created_when_filled():
     # Mock returning FILLED order
     mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "order_id": "0xFILLED", "orderID": "0xFILLED"})
 
-    mock_poly.get_markets_by_event = AsyncMock(return_value=[{
-        "clobTokenIds": ["0xYES", "0xNO"],
-        "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
-    }])
+    mock_poly.get_market_token_id = AsyncMock(return_value="0xYES")
 
     alpha = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
     signal = TradeSignal(

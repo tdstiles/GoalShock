@@ -367,12 +367,9 @@ class AlphaOneUnderdog:
 
                 if not token_id:
                     # Search for market
-                    markets = await self.polymarket.get_markets_by_event(f"{team} to win")
-                    if markets:
-                        market = markets[0]
-                        token_id = market.get("clobTokenIds", [None])[0]
-                        if token_id:
-                            self.token_map[cache_key] = token_id
+                    token_id = await self.polymarket.get_market_token_id(f"{team} to win")
+                    if token_id:
+                        self.token_map[cache_key] = token_id
 
                 if token_id:
                     price = await self.polymarket.get_yes_price(token_id)
@@ -403,12 +400,9 @@ class AlphaOneUnderdog:
 
                 if not token_id:
                     # Search for market (redundant if already opened, but safe)
-                    markets = await self.polymarket.get_markets_by_event(f"{team} to win")
-                    if markets:
-                        market = markets[0]
-                        token_id = market.get("clobTokenIds", [None])[0]
-                        if token_id:
-                            self.token_map[cache_key] = token_id
+                    token_id = await self.polymarket.get_market_token_id(f"{team} to win")
+                    if token_id:
+                        self.token_map[cache_key] = token_id
 
                 if token_id:
                     # Use get_bid_price (implemented in PolymarketClient)
@@ -463,45 +457,41 @@ class AlphaOneUnderdog:
         
         if self.polymarket:
             try:
-                markets = await self.polymarket.get_markets_by_event(f"{signal.team} to win")
-                if markets:
-                    market = markets[0]
-                    token_id = market.get("clobTokenIds", [None])[0]
+                token_id = await self.polymarket.get_market_token_id(f"{signal.team} to win")
+                if token_id:
+                    # Sherlock Fix: Convert USD Size to Share Count
+                    # size_usd is the amount to invest.
+                    # shares = size_usd / price
+                    if signal.entry_price > 0:
+                        quantity = signal.size_usd / signal.entry_price
+                    else:
+                        quantity = signal.size_usd # Fallback if price 0, though unsafe
+
+                    # Use helper to place and verify order
+                    order_filled = await self.polymarket.place_order_and_wait_for_fill(
+                        token_id=token_id,
+                        side="BUY",
+                        price=signal.entry_price,
+                        size=quantity,
+                        timeout=5
+                    )
                     
-                    if token_id:
-                        # Sherlock Fix: Convert USD Size to Share Count
-                        # size_usd is the amount to invest.
-                        # shares = size_usd / price
-                        if signal.entry_price > 0:
-                            quantity = signal.size_usd / signal.entry_price
-                        else:
-                            quantity = signal.size_usd # Fallback if price 0, though unsafe
+                    if order_filled:
+                        order_id = order_filled.get("orderID") or order_filled.get("order_id")
 
-                        # Use helper to place and verify order
-                        order_filled = await self.polymarket.place_order_and_wait_for_fill(
+                        # Order is confirmed filled
+                        position = SimulatedPosition(
+                            position_id=order_id,
+                            signal=signal,
+                            entry_time=datetime.now(),
                             token_id=token_id,
-                            side="BUY",
-                            price=signal.entry_price,
-                            size=quantity,
-                            timeout=5
+                            quantity=quantity
                         )
+                        self.positions[position.position_id] = position
+                        self.stats.total_trades += 1
                         
-                        if order_filled:
-                            order_id = order_filled.get("orderID") or order_filled.get("order_id")
-
-                            # Order is confirmed filled
-                            position = SimulatedPosition(
-                                position_id=order_id,
-                                signal=signal,
-                                entry_time=datetime.now(),
-                                token_id=token_id,
-                                quantity=quantity
-                            )
-                            self.positions[position.position_id] = position
-                            self.stats.total_trades += 1
-                            
-                            logger.info(f"[LIVE] Trade executed and filled on Polymarket: {position.position_id} (Qty: {quantity:.2f})")
-                            return
+                        logger.info(f"[LIVE] Trade executed and filled on Polymarket: {position.position_id} (Qty: {quantity:.2f})")
+                        return
             except Exception as e:
                 logger.error(f"Polymarket trade error: {e}")
         
@@ -516,10 +506,7 @@ class AlphaOneUnderdog:
             token_id = position.token_id
 
             if not token_id:
-                markets = await self.polymarket.get_markets_by_event(f"{position.signal.team} to win")
-                if markets:
-                    market = markets[0]
-                    token_id = market.get("clobTokenIds", [None])[0]
+                token_id = await self.polymarket.get_market_token_id(f"{position.signal.team} to win")
 
             if not token_id:
                 logger.error(f"Could not find token_id for position {position.position_id}")

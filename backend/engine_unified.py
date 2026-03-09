@@ -434,27 +434,18 @@ class UnifiedTradingEngine:
         event_name = f"{fixture.home_team} vs {fixture.away_team}"
 
         try:
-            markets = await self.polymarket.get_markets_by_event(event_name)
+            token_id = await self.polymarket.get_market_token_id(event_name)
 
             # Fallback: Try searching with inverted team names
-            if not markets:
+            if not token_id:
                 event_name_alt = f"{fixture.away_team} vs {fixture.home_team}"
                 logger.debug(
                     f"Primary search failed. Retrying with inverted names: {event_name_alt}"
                 )
-                markets = await self.polymarket.get_markets_by_event(event_name_alt)
-
-            if not markets:
-                logger.debug(f"No markets found for event: {event_name} (or inverted)")
-                return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
-
-            market = markets[0]
-            token_id = market.get("clobTokenIds", [None])[0]
+                token_id = await self.polymarket.get_market_token_id(event_name_alt)
 
             if not token_id:
-                logger.warning(
-                    f"No CLOB token ID found for market {market.get('id')} (Fixture: {fixture.fixture_id})"
-                )
+                logger.debug(f"No token ID found for event: {event_name} (or inverted)")
                 return {KEY_YES: DEFAULT_MARKET_PRICE, KEY_NO: DEFAULT_MARKET_PRICE}
 
             yes_price = await self.polymarket.get_yes_price(token_id)
