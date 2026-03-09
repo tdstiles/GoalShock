@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass, field
 from enum import Enum
 import json
+from .base import BaseAlpha
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class AlphaTwoStats:
     false_positives: int = 0  
 
 
-class AlphaTwoLateCompression:
+class AlphaTwoLateCompression(BaseAlpha):
   
     
     # Markets to avoid (high dispute risk)
@@ -181,6 +182,7 @@ class AlphaTwoLateCompression:
         kalshi_client=None,
         simulation_mode: bool = True
     ):
+        super().__init__()
         self.polymarket = polymarket_client
         self.kalshi = kalshi_client
         self.simulation_mode = simulation_mode
@@ -197,8 +199,6 @@ class AlphaTwoLateCompression:
         self.closed_trades: List[ClippingTrade] = []
         self.execution_retry_state: Dict[str, ExecutionRetryState] = {}
         self.stats = AlphaTwoStats()
-        
-        self.event_log: List[Dict] = []
         
         self.running = False
 
@@ -968,17 +968,5 @@ class AlphaTwoLateCompression:
                 self.active_opportunities[opportunity.opportunity_id] = opportunity
                 self.stats.opportunities_detected += 1
 
-    def _log_event(self, event_type: str, data: Dict):
-        self.event_log.append({
-            "timestamp": datetime.now().isoformat(),
-            "event_type": event_type,
-            "data": data
-        })
-
     def get_stats(self) -> AlphaTwoStats:
         return self.stats
-
-    def export_event_log(self, filepath: str):
-        with open(filepath, 'w') as f:
-            json.dump(self.event_log, f, indent=2, default=str)
-        logger.info(f"Event log exported to {filepath}")

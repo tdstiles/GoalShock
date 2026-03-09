@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 import json
+from .base import BaseAlpha
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ class AlphaOneStats:
     sharpe_ratio: float = 0.0
 
 
-class AlphaOneUnderdog:
+class AlphaOneUnderdog(BaseAlpha):
    
     
     def __init__(
@@ -109,6 +110,7 @@ class AlphaOneUnderdog:
         polymarket_client=None,
         kalshi_client=None
     ):
+        super().__init__()
         self.mode = mode
         self.polymarket = polymarket_client
         self.kalshi = kalshi_client
@@ -129,8 +131,6 @@ class AlphaOneUnderdog:
         # Cache for token IDs to avoid expensive search calls
         # Key: (fixture_id, team_name) -> Value: token_id
         self.token_map: Dict[tuple, str] = {}
-        
-        self.event_log: List[Dict] = []
         
         logger.info(f"Alpha One initialized in {mode.value} mode")
         logger.info(f"  Underdog threshold: {self.underdog_threshold}")
@@ -675,17 +675,5 @@ class AlphaOneUnderdog:
         logger.info(f"  P&L: ${position.pnl:.2f}")
         logger.info(f"  Reason: {reason}")
 
-    def _log_event(self, event_type: str, data: Dict):
-        self.event_log.append({
-            "timestamp": datetime.now().isoformat(),
-            "event_type": event_type,
-            "data": data
-        })
-
     def get_stats(self) -> AlphaOneStats:
         return self.stats
-
-    def export_event_log(self, filepath: str):
-        with open(filepath, 'w') as f:
-            json.dump(self.event_log, f, indent=2, default=str)
-        logger.info(f"Event log exported to {filepath}")
