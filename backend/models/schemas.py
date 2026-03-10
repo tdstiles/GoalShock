@@ -1,7 +1,7 @@
-
 from datetime import datetime
-from typing import Optional, List, Dict
+from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
+
 
 class GoalEvent(BaseModel):
     id: str = Field(..., description="Unique event ID")
@@ -20,7 +20,7 @@ class GoalEvent(BaseModel):
     assist: Optional[str] = None
     minute: int = Field(..., description="Minute of goal")
     extra_time: Optional[int] = None
-    goal_type: str = Field(default="Normal Goal")  
+    goal_type: str = Field(default="Normal Goal")
 
     # Current score
     home_score: int
@@ -42,10 +42,11 @@ class GoalEvent(BaseModel):
                 "player": "Salah",
                 "minute": 67,
                 "home_score": 1,
-                "away_score": 2
+                "away_score": 2,
             }
         }
     )
+
 
 class MarketPrice(BaseModel):
     market_id: str
@@ -69,8 +70,10 @@ class MarketPrice(BaseModel):
     @property
     def is_stale(self) -> bool:
         from ..config.settings import settings
+
         age = (datetime.now() - self.last_updated).total_seconds()
         return age > settings.STALE_DATA_THRESHOLD
+
 
 class LiveMatch(BaseModel):
     fixture_id: int
@@ -83,12 +86,13 @@ class LiveMatch(BaseModel):
     away_score: int
 
     minute: int
-    status: str  
+    status: str
 
     timestamp: datetime = Field(default_factory=datetime.now)
 
     # Associated markets
     markets: List[MarketPrice] = Field(default_factory=list)
+
 
 class MarketUpdate(BaseModel):
     type: str = "market_update"
@@ -97,7 +101,27 @@ class MarketUpdate(BaseModel):
     no_price: float
     timestamp: datetime = Field(default_factory=datetime.now)
 
+
 class GoalAlert(BaseModel):
     type: str = "goal"
     goal: GoalEvent
     markets: List[MarketPrice] = Field(default_factory=list)
+
+
+class BotStatus(BaseModel):
+    running: bool
+    uptime: float
+    total_trades: int
+    win_rate: float
+    total_pnl: float
+
+
+class SettingsUpdate(BaseModel):
+    api_football_key: Optional[str] = None
+    kalshi_api_key: Optional[str] = None
+    kalshi_api_secret: Optional[str] = None
+    polymarket_api_key: Optional[str] = None
+    max_trade_size: Optional[str] = None
+    max_daily_loss: Optional[str] = None
+    underdog_threshold: Optional[str] = None
+    max_positions: Optional[str] = None
