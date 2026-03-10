@@ -1,4 +1,3 @@
-
 import os
 import asyncio
 import httpx
@@ -49,7 +48,7 @@ class APIFootballClient:
         self.base_url = settings.API_FOOTBALL_BASE
         self.client = httpx.AsyncClient(timeout=10.0)
 
-        self.previous_scores: Dict[int, tuple] = {} 
+        self.previous_scores: Dict[int, tuple] = {}
 
         self.supported_leagues = settings.SUPPORTED_LEAGUES
 
@@ -57,15 +56,13 @@ class APIFootballClient:
         logger.info(f"   Monitoring {len(self.supported_leagues)} leagues")
 
     async def get_live_fixtures(self) -> List[LiveFixture]:
-       
+
         try:
             # Using the new header for v3.football.api-sports.io
             response = await self.client.get(
                 f"{self.base_url}/fixtures",
                 params={"live": "all"},
-                headers={
-                    "x-apisports-key": self.api_key
-                }
+                headers={"x-apisports-key": self.api_key},
             )
 
             if response.status_code != 200:
@@ -92,7 +89,7 @@ class APIFootballClient:
                     away_score=f["goals"]["away"] or 0,
                     minute=f["fixture"]["status"]["elapsed"] or 0,
                     status=f["fixture"]["status"]["short"],
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 )
 
                 fixtures.append(fixture)
@@ -103,11 +100,11 @@ class APIFootballClient:
             return fixtures
 
         except Exception as e:
-            logger.error(f"Error fetching live fixtures: {e}")
+            logger.error(f"Error fetching live fixtures: {e}", exc_info=True)
             return []
 
     async def detect_goals(self, fixtures: List[LiveFixture]) -> List[Goal]:
-      
+
         new_goals = []
 
         for fixture in fixtures:
@@ -124,14 +121,16 @@ class APIFootballClient:
                 goal = Goal(
                     fixture_id=fixture_id,
                     team=fixture.home_team,
-                    player="Unknown",  
+                    player="Unknown",
                     minute=fixture.minute,
                     home_score=current_score[0],
-                    away_score=current_score[1]
+                    away_score=current_score[1],
                 )
                 new_goals.append(goal)
 
-                logger.info(f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')")
+                logger.info(
+                    f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')"
+                )
 
             if current_score[1] > previous_score[1]:
                 goal = Goal(
@@ -140,25 +139,25 @@ class APIFootballClient:
                     player="Unknown",
                     minute=fixture.minute,
                     home_score=current_score[0],
-                    away_score=current_score[1]
+                    away_score=current_score[1],
                 )
                 new_goals.append(goal)
 
-                logger.info(f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')")
+                logger.info(
+                    f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')"
+                )
 
             self.previous_scores[fixture_id] = current_score
 
         return new_goals
 
     async def get_pre_match_odds(self, fixture_id: int) -> Optional[Dict[str, float]]:
-        
+
         try:
             response = await self.client.get(
                 f"{self.base_url}/odds",
-                params={"fixture": fixture_id, "bookmaker": 1}, 
-                headers={
-                    "x-apisports-key": self.api_key
-                }
+                params={"fixture": fixture_id, "bookmaker": 1},
+                headers={"x-apisports-key": self.api_key},
             )
 
             if response.status_code != 200:
@@ -180,7 +179,7 @@ class APIFootballClient:
 
                     odds_dict = {}
                     for v in values:
-                     
+
                         decimal_odds = float(v["odd"])
                         probability = 1 / decimal_odds
 
@@ -191,7 +190,7 @@ class APIFootballClient:
             return None
 
         except Exception as e:
-            logger.error(f"Error fetching odds: {e}")
+            logger.error(f"Error fetching odds: {e}", exc_info=True)
             return None
 
     async def get_fixture_details(self, fixture_id: int) -> Optional[Dict]:
@@ -200,9 +199,7 @@ class APIFootballClient:
             response = await self.client.get(
                 f"{self.base_url}/fixtures",
                 params={"id": fixture_id},
-                headers={
-                    "x-apisports-key": self.api_key
-                }
+                headers={"x-apisports-key": self.api_key},
             )
 
             if response.status_code != 200:
@@ -214,7 +211,7 @@ class APIFootballClient:
             return fixtures[0] if fixtures else None
 
         except Exception as e:
-            logger.error(f"Error fetching fixture details: {e}")
+            logger.error(f"Error fetching fixture details: {e}", exc_info=True)
             return None
 
     async def close(self):

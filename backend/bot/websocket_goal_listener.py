@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 from dataclasses import dataclass
@@ -30,7 +29,7 @@ class GoalEventWS:
     away_score: int
     goal_type: str
     timestamp: datetime
-    
+
     def to_dict(self) -> Dict:
         return {
             "fixture_id": self.fixture_id,
@@ -44,7 +43,7 @@ class GoalEventWS:
             "home_score": self.home_score,
             "away_score": self.away_score,
             "goal_type": self.goal_type,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -56,9 +55,9 @@ class WebSocketGoalListener:
     Refactored to use POLLING instead of WebSockets, adhering to the new API requirements.
     The class name is retained to minimize refactoring impact on dependent modules.
     """
-  
+
     SUPPORTED_LEAGUES = set(settings.SUPPORTED_LEAGUES)
-    
+
     def __init__(self, api_key: str = "") -> None:
         """Initialize the listener with an optional API key override.
 
@@ -70,22 +69,26 @@ class WebSocketGoalListener:
 
         # Use the shared client which is now updated for v3.football.api-sports.io
         self.client = APIFootballClient(api_key=self.api_key)
-        
+
         self.goal_callbacks: List[GoalCallback] = []
-        self.fixture_callbacks: List[Callable[[List[LiveFixture]], Optional[Awaitable[None]]]] = []
-        
+        self.fixture_callbacks: List[
+            Callable[[List[LiveFixture]], Optional[Awaitable[None]]]
+        ] = []
+
         self.active_fixtures: Dict[int, LiveFixture] = {}
-        
+
         # Polling interval from settings
         self.poll_interval = settings.POLL_INTERVAL_SECONDS
-        
+
         logger.info("Goal Listener (Polling Mode) initialized")
 
     def register_goal_callback(self, callback: GoalCallback) -> None:
         self.goal_callbacks.append(callback)
         logger.info(f"Registered goal callback: {callback.__name__}")
 
-    def register_fixture_callback(self, callback: Callable[[List[LiveFixture]], Optional[Awaitable[None]]]) -> None:
+    def register_fixture_callback(
+        self, callback: Callable[[List[LiveFixture]], Optional[Awaitable[None]]]
+    ) -> None:
         self.fixture_callbacks.append(callback)
         logger.info(f"Registered fixture callback: {callback.__name__}")
 
@@ -93,17 +96,17 @@ class WebSocketGoalListener:
         """Start the polling loop."""
         self.running = True
         logger.info(f"Starting Goal Listener Loop (Interval: {self.poll_interval}s)...")
-        
+
         while self.running:
             try:
                 await self._poll_cycle()
             except Exception as e:
-                logger.error(f"Error in polling cycle: {e}")
+                logger.error(f"Error in polling cycle: {e}", exc_info=True)
 
             # Wait for next cycle or until stopped
             if self.running:
                 await asyncio.sleep(self.poll_interval)
-    
+
     async def stop(self) -> None:
         self.running = False
         await self.client.close()
@@ -119,13 +122,15 @@ class WebSocketGoalListener:
             current_fixture_ids.add(fixture.fixture_id)
             # Update active fixture cache
             self.active_fixtures[fixture.fixture_id] = fixture
-            
+
             # Check for goals
             await self._detect_goals_in_fixture(fixture)
 
         # Sherlock Fix: Remove stale fixtures that are no longer live
         # to prevent infinite memory growth of 'active_fixtures'
-        stale_ids = [fid for fid in self.active_fixtures if fid not in current_fixture_ids]
+        stale_ids = [
+            fid for fid in self.active_fixtures if fid not in current_fixture_ids
+        ]
         for fid in stale_ids:
             del self.active_fixtures[fid]
 
@@ -150,7 +155,7 @@ class WebSocketGoalListener:
         for goal in goals:
             # Create a unique ID for deduplication (handled by client too, but good to double check)
             # The client detects changes, so 'goals' are strictly NEW changes.
-            
+
             # Construct the event object expected by consumers
             goal_event = GoalEventWS(
                 fixture_id=fixture.fixture_id,
@@ -163,10 +168,10 @@ class WebSocketGoalListener:
                 minute=goal.minute,
                 home_score=goal.home_score,
                 away_score=goal.away_score,
-                goal_type="Normal", # Polling usually doesn't give detailed type unless we parse events deeper
-                timestamp=datetime.now()
+                goal_type="Normal",  # Polling usually doesn't give detailed type unless we parse events deeper
+                timestamp=datetime.now(),
             )
-            
+
             await self._notify_goal_callbacks(goal_event)
 
     async def _notify_goal_callbacks(self, goal: GoalEventWS) -> None:
@@ -177,7 +182,7 @@ class WebSocketGoalListener:
                 else:
                     callback(goal)
             except Exception as e:
-                logger.error(f"Goal callback error: {e}")
+                logger.error(f"Goal callback error: {e}", exc_info=True)
 
     async def _notify_fixture_callbacks(self, fixtures: List[LiveFixture]) -> None:
         for callback in self.fixture_callbacks:
@@ -187,16 +192,19 @@ class WebSocketGoalListener:
                 else:
                     callback(fixtures)
             except Exception as e:
-                logger.error(f"Fixture callback error: {e}")
+                logger.error(f"Fixture callback error: {e}", exc_info=True)
 
     def get_active_fixtures(self) -> List[Dict]:
         # Return dict representation for compatibility
         return [
             {
-                "fixture": {"id": f.fixture_id, "status": {"short": f.status, "elapsed": f.minute}},
+                "fixture": {
+                    "id": f.fixture_id,
+                    "status": {"short": f.status, "elapsed": f.minute},
+                },
                 "league": {"id": f.league_id, "name": f.league_name},
                 "goals": {"home": f.home_score, "away": f.away_score},
-                "teams": {"home": {"name": f.home_team}, "away": {"name": f.away_team}}
+                "teams": {"home": {"name": f.home_team}, "away": {"name": f.away_team}},
             }
             for f in self.active_fixtures.values()
         ]
@@ -207,14 +215,16 @@ class HybridGoalListener:
     Wrapper for WebSocketGoalListener (now Polling).
     Kept for backward compatibility with Engine Unified.
     """
-    
+
     def __init__(self, api_key: str = "") -> None:
         self.listener = WebSocketGoalListener(api_key)
-        
+
     def register_goal_callback(self, callback: GoalCallback) -> None:
         self.listener.register_goal_callback(callback)
 
-    def register_fixture_callback(self, callback: Callable[[List[LiveFixture]], Optional[Awaitable[None]]]) -> None:
+    def register_fixture_callback(
+        self, callback: Callable[[List[LiveFixture]], Optional[Awaitable[None]]]
+    ) -> None:
         self.listener.register_fixture_callback(callback)
 
     async def start(self) -> None:
