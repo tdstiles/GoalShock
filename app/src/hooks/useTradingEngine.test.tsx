@@ -1,10 +1,10 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useTradingEngine } from './useTradingEngine';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, Mock, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Types for our mocks
-type MockWebSocketCallback = (event: any) => void;
+type MockWebSocketCallback = (event: Event | MessageEvent | CloseEvent) => void;
 
 class MockWebSocket {
   url: string;
@@ -13,8 +13,8 @@ class MockWebSocket {
   onmessage: MockWebSocketCallback | null = null;
   onerror: MockWebSocketCallback | null = null;
   onclose: MockWebSocketCallback | null = null;
-  send: any = vi.fn();
-  close: any = vi.fn();
+  send: (data: string | ArrayBufferLike | Blob | ArrayBufferView) => void = vi.fn();
+  close: (code?: number, reason?: string) => void = vi.fn();
 
   static OPEN = 1;
   static CLOSED = 3;
@@ -24,21 +24,21 @@ class MockWebSocket {
     this.readyState = MockWebSocket.OPEN;
     // Simulate async connection
     setTimeout(() => {
-        if (this.onopen) this.onopen({});
+        if (this.onopen) this.onopen(new Event("open"));
     }, 0);
   }
 
   // Helper to simulate incoming messages
-  simulateMessage(data: any) {
+  simulateMessage(data: unknown) {
     if (this.onmessage) {
-      this.onmessage({ data: JSON.stringify(data) } as MessageEvent);
+      this.onmessage(new MessageEvent("message", { data: JSON.stringify(data) }));
     }
   }
 
   // Helper to simulate error
-  simulateError(error: any) {
+  simulateError() {
     if (this.onerror) {
-      this.onerror(error);
+      this.onerror(new Event("error"));
     }
   }
 
@@ -52,7 +52,7 @@ class MockWebSocket {
 }
 
 describe('useTradingEngine', () => {
-  let originalNotification: any;
+  let originalNotification: typeof Notification;
   let mockWSInstance: MockWebSocket | null = null;
 
   beforeEach(() => {
@@ -62,17 +62,17 @@ describe('useTradingEngine', () => {
     const MockSocket = vi.fn((url) => {
       mockWSInstance = new MockWebSocket(url);
       return mockWSInstance;
-    }) as any;
-    MockSocket.OPEN = 1;
+    }) as unknown as typeof WebSocket;
+    Object.defineProperty(MockSocket, "OPEN", { value: 1, writable: true });
     vi.stubGlobal('WebSocket', MockSocket);
 
     // Mock Notification
     originalNotification = global.Notification;
     global.Notification = vi.fn().mockImplementation(() => ({
       close: vi.fn()
-    })) as any;
-    (global.Notification as any).requestPermission = vi.fn();
-    (global.Notification as any).permission = 'granted';
+    })) as unknown as typeof Notification;
+    (global.Notification as unknown as { requestPermission: Mock; permission: string }).requestPermission = vi.fn();
+    (global.Notification as unknown as { requestPermission: Mock; permission: string }).permission = "granted";
   });
 
   afterEach(() => {

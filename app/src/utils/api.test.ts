@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as api from './api';
 
 // Helper to mock fetch responses
-function mockFetch(status: number, data: any) {
+function mockFetch(status: number, data: unknown) {
   global.fetch = vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
