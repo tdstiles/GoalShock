@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 from datetime import datetime
@@ -9,8 +8,9 @@ from backend.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+
 class RealtimeIngestor:
-    
+
     def __init__(self):
         self.client = httpx.AsyncClient(timeout=settings.WS_TIMEOUT)
         self.active_fixtures: Dict[int, LiveMatch] = {}
@@ -30,7 +30,6 @@ class RealtimeIngestor:
         self.running = True
         logger.info("Starting real-time soccer data ingestion")
 
-        
         asyncio.create_task(self._poll_live_matches())
 
     async def stop(self):
@@ -55,7 +54,7 @@ class RealtimeIngestor:
                 await asyncio.sleep(settings.POLL_INTERVAL_SECONDS)
 
             except Exception as e:
-                logger.error(f"Error polling live matches: {e}")
+                logger.error(f"Error polling live matches: {e}", exc_info=True)
                 await asyncio.sleep(settings.WS_RECONNECT_DELAY)
 
     async def _rate_limit(self):
@@ -66,14 +65,12 @@ class RealtimeIngestor:
 
     async def _fetch_live_fixtures(self) -> List[Dict]:
         try:
-            headers = {
-                "x-apisports-key": settings.API_FOOTBALL_KEY
-            }
+            headers = {"x-apisports-key": settings.API_FOOTBALL_KEY}
 
             response = await self.client.get(
                 f"{settings.API_FOOTBALL_BASE}/fixtures",
                 headers=headers,
-                params={"live": "all"}
+                params={"live": "all"},
             )
 
             if response.status_code != 200:
@@ -84,15 +81,18 @@ class RealtimeIngestor:
             fixtures = data.get("response", [])
 
             filtered = [
-                f for f in fixtures
+                f
+                for f in fixtures
                 if f.get("league", {}).get("id") in settings.SUPPORTED_LEAGUES
             ]
 
-            logger.info(f"Fetched {len(filtered)} live fixtures from {len(fixtures)} total")
+            logger.info(
+                f"Fetched {len(filtered)} live fixtures from {len(fixtures)} total"
+            )
             return filtered
 
         except Exception as e:
-            logger.error(f"Failed to fetch live fixtures: {e}")
+            logger.error(f"Failed to fetch live fixtures: {e}", exc_info=True)
             return []
 
     async def _process_fixtures(self, fixtures: List[Dict]):
@@ -126,10 +126,12 @@ class RealtimeIngestor:
             home_score=goals["home"] or 0,
             away_score=goals["away"] or 0,
             minute=status.get("elapsed", 0),
-            status=status.get("short", "1H")
+            status=status.get("short", "1H"),
         )
 
-    def _detect_new_goals(self, old: LiveMatch, new: LiveMatch, fixture_data: Dict) -> List[GoalEvent]:
+    def _detect_new_goals(
+        self, old: LiveMatch, new: LiveMatch, fixture_data: Dict
+    ) -> List[GoalEvent]:
         goals = []
 
         if new.home_score > old.home_score:
@@ -144,16 +146,22 @@ class RealtimeIngestor:
 
         return goals
 
-    def _create_goal_event(self, fixture_data: Dict, team: str, side: str) -> Optional[GoalEvent]:
+    def _create_goal_event(
+        self, fixture_data: Dict, team: str, side: str
+    ) -> Optional[GoalEvent]:
         try:
             events = fixture_data.get("events", [])
-            goal_events = [e for e in events if e.get("type") == "Goal" and e["team"]["name"] == team]
+            goal_events = [
+                e
+                for e in events
+                if e.get("type") == "Goal" and e["team"]["name"] == team
+            ]
 
             if not goal_events:
                 logger.warning(f"No goal event found for {team}")
                 return None
 
-            latest_goal = goal_events[-1]  
+            latest_goal = goal_events[-1]
 
             fixture = fixture_data["fixture"]
             league = fixture_data["league"]
@@ -175,15 +183,17 @@ class RealtimeIngestor:
                 goal_type=latest_goal["detail"],
                 home_score=goals["home"] or 0,
                 away_score=goals["away"] or 0,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
         except Exception as e:
-            logger.error(f"Failed to create goal event: {e}")
+            logger.error(f"Failed to create goal event: {e}", exc_info=True)
             return None
 
     async def _notify_goal(self, goal: GoalEvent):
-        logger.info(f"⚽ GOAL! {goal.player} ({goal.team}) - {goal.minute}' - {goal.home_team} {goal.home_score}-{goal.away_score} {goal.away_team}")
+        logger.info(
+            f"⚽ GOAL! {goal.player} ({goal.team}) - {goal.minute}' - {goal.home_team} {goal.home_score}-{goal.away_score} {goal.away_team}"
+        )
 
         for callback in self.goal_callbacks:
             try:
@@ -192,7 +202,7 @@ class RealtimeIngestor:
                 else:
                     callback(goal)
             except Exception as e:
-                logger.error(f"Goal callback error: {e}")
+                logger.error(f"Goal callback error: {e}", exc_info=True)
 
     def get_active_matches(self) -> List[LiveMatch]:
         return list(self.active_fixtures.values())

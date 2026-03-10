@@ -241,7 +241,7 @@ class MarketFetcher:
                 else:
                     callback(update)
             except Exception as e:
-                logger.error(f"Market callback error: {e}")
+                logger.error(f"Market callback error: {e}", exc_info=True)
 
     async def fetch_markets_for_fixture(
         self,

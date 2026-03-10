@@ -106,10 +106,7 @@ class MarketMapper:
             if _is_win_market(question):
                 if goal_team_lower in question:
                     relevant.append(market)
-                elif (
-                    home_team_lower in question
-                    or away_team_lower in question
-                ):
+                elif home_team_lower in question or away_team_lower in question:
                     relevant.append(market)
 
             elif _is_total_goals_market(question):
