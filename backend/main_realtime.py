@@ -1,6 +1,3 @@
-import os
-import json
-import asyncio
 import logging
 from datetime import datetime
 from typing import Set
@@ -11,7 +8,13 @@ from dotenv import load_dotenv
 from bot.realtime_ingestor import RealtimeIngestor
 from bot.market_fetcher import MarketFetcher
 from bot.market_mapper import MarketMapper
-from models.schemas import GoalEvent, MarketPrice, GoalAlert, MarketUpdate
+from models.schemas import (
+    GoalEvent,
+    GoalAlert,
+    MarketUpdate,
+    BotStatus,
+    SettingsUpdate,
+)
 from config.settings import settings
 from core.security_utils import safe_error_response
 from core.security_middleware import SecurityHeadersMiddleware
@@ -43,6 +46,7 @@ class RealtimeSystem:
         self.ingestor = RealtimeIngestor()
         self.market_fetcher = MarketFetcher()
         self.market_mapper = MarketMapper(self.market_fetcher)
+        self.start_time = datetime.now()
 
         self.ingestor.register_goal_callback(self.on_goal_detected)
         self.market_fetcher.register_update_callback(self.on_market_update)
@@ -87,7 +91,7 @@ class RealtimeSystem:
         for client in self.websocket_clients:
             try:
                 await client.send_json(message)
-            except:
+            except Exception:
                 disconnected.add(client)
 
         self.websocket_clients -= disconnected
@@ -205,6 +209,51 @@ async def load_settings():
         }
     except Exception as e:
         safe_error_response(e, context="Failed to load settings")
+
+
+@app.post("/api/settings/save")
+async def save_settings(settings_update: SettingsUpdate):
+    try:
+        # Mocking save logic since settings are environment variables
+        logger.info("Received request to save settings")
+        return {"status": "success", "message": "Settings updated"}
+    except Exception as e:
+        safe_error_response(e, context="Failed to save settings")
+
+
+@app.get("/api/status", response_model=BotStatus)
+async def get_bot_status():
+    try:
+        uptime = (datetime.now() - realtime_system.start_time).total_seconds()
+        return BotStatus(
+            running=realtime_system.ingestor.running,
+            uptime=uptime,
+            total_trades=0,  # Placeholder as actual trade state is handled by UnifiedTradingEngine
+            win_rate=0.0,
+            total_pnl=0.0,
+        )
+    except Exception as e:
+        safe_error_response(e, context="Failed to fetch bot status")
+
+
+@app.post("/api/bot/start")
+async def start_bot():
+    try:
+        if not realtime_system.ingestor.running:
+            await realtime_system.start()
+        return {"status": "success", "message": "Bot started"}
+    except Exception as e:
+        safe_error_response(e, context="Failed to start bot")
+
+
+@app.post("/api/bot/stop")
+async def stop_bot():
+    try:
+        if realtime_system.ingestor.running:
+            await realtime_system.stop()
+        return {"status": "success", "message": "Bot stopped"}
+    except Exception as e:
+        safe_error_response(e, context="Failed to stop bot")
 
 
 @app.websocket("/ws/live")

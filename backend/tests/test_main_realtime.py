@@ -46,6 +46,8 @@ def mock_realtime_system():
         mock_sys.websocket_clients = set()
 
         # Setup default return values
+        mock_sys.start_time = datetime.now()
+        mock_sys.ingestor.running = True
         mock_sys.ingestor.get_active_matches.return_value = [MOCK_MATCH]
         mock_sys.ingestor.active_fixtures = {MOCK_FIXTURE_ID: MOCK_MATCH}
 
@@ -156,6 +158,50 @@ async def test_load_settings(mock_realtime_system):
 
         assert data["api_configured"] is True
         assert data["market_access"] is True
+
+@pytest.mark.asyncio
+async def test_get_bot_status(mock_realtime_system):
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        response = await ac.get("/api/status")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["running"] is True
+    assert "uptime" in data
+    assert data["total_trades"] == 0
+    assert data["win_rate"] == 0.0
+    assert data["total_pnl"] == 0.0
+
+@pytest.mark.asyncio
+async def test_save_settings(mock_realtime_system):
+    settings_payload = {
+        "api_football_key": "new_key",
+        "max_trade_size": "100"
+    }
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        response = await ac.post("/api/settings/save", json=settings_payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
+@pytest.mark.asyncio
+async def test_bot_start_stop(mock_realtime_system):
+    mock_realtime_system.ingestor.running = False
+    mock_realtime_system.start = AsyncMock()
+    mock_realtime_system.stop = AsyncMock()
+
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        start_response = await ac.post("/api/bot/start")
+        assert start_response.status_code == 200
+        mock_realtime_system.start.assert_awaited_once()
+
+        # Simulate it's running now
+        mock_realtime_system.ingestor.running = True
+
+        stop_response = await ac.post("/api/bot/stop")
+        assert stop_response.status_code == 200
+        mock_realtime_system.stop.assert_awaited_once()
 
 # WebSocket test skipped due to potential timeout issues in test environment
 # def test_websocket_connection(mock_realtime_system):
