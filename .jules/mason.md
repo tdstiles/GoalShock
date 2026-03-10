@@ -27,3 +27,8 @@
 **Anti-Pattern:** Repeated identical event logging logic (`event_log` list, `_log_event`, `export_event_log`) duplicated across multiple alpha strategy classes (`AlphaOneUnderdog`, `AlphaTwoLateCompression`).
 **Improvement:** Abstracted the shared logging logic into a `BaseAlpha` utility class which the strategies now inherit from, reducing code duplication.
 **Guideline:** Repeated operational logic across similar classes should be extracted into shared base classes or utility mixins to improve maintainability and ensure consistency.
+
+## 2026-06-12 - Pydantic V2 Deprecated `.dict()`
+**Anti-Pattern:** Use of Pydantic's deprecated `.dict()` method on models throughout endpoints (e.g., `match.dict()`). This raises noisy deprecation warnings (`PydanticDeprecatedSince20`) and creates technical debt for future version upgrades.
+**Improvement:** Replaced all instances of `.dict()` with the modern `.model_dump()` method.
+**Guideline:** Always use `.model_dump()` instead of `.dict()` for Pydantic V2+ models to ensure compatibility and maintain warning-free logs.

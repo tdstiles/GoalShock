@@ -1,4 +1,3 @@
-
 import os
 import json
 import asyncio
@@ -32,10 +31,10 @@ app.add_middleware(
 )
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 class RealtimeSystem:
     def __init__(self):
@@ -51,7 +50,6 @@ class RealtimeSystem:
     async def start(self):
         logger.info(" Starting GoalShock real-time system")
 
-        
         await self.ingestor.start()
         await self.market_fetcher.start()
 
@@ -63,27 +61,23 @@ class RealtimeSystem:
         await self.market_fetcher.stop()
 
     async def on_goal_detected(self, goal: GoalEvent):
-       
-        #THis is Called when a goal is detected in a live match
-        #And it This immediately triggers frontend updates
-        
+
+        # THis is Called when a goal is detected in a live match
+        # And it This immediately triggers frontend updates
+
         logger.info(f"⚽ GOAL DETECTED: {goal.player} ({goal.team}) - {goal.minute}'")
 
         markets = await self.market_mapper.map_goal_to_markets(goal)
 
-        alert = GoalAlert(
-            type="goal",
-            goal=goal,
-            markets=markets
-        )
+        alert = GoalAlert(type="goal", goal=goal, markets=markets)
 
-        await self.broadcast(alert.dict())
+        await self.broadcast(alert.model_dump())
 
         logger.info(f"📡 Broadcast goal alert to {len(self.websocket_clients)} clients")
 
     async def on_market_update(self, update: MarketUpdate):
-       
-        await self.broadcast(update.dict())
+
+        await self.broadcast(update.model_dump())
 
     async def broadcast(self, message: dict):
         if not self.websocket_clients:
@@ -98,17 +92,22 @@ class RealtimeSystem:
 
         self.websocket_clients -= disconnected
 
+
 realtime_system = RealtimeSystem()
+
 
 @app.on_event("startup")
 async def startup():
     await realtime_system.start()
 
+
 @app.on_event("shutdown")
 async def shutdown():
     await realtime_system.stop()
 
+
 # thE API Endpoints
+
 
 @app.get("/")
 async def root():
@@ -117,8 +116,9 @@ async def root():
         "service": "goalshock-realtime",
         "version": "3.0.0",
         "api_configured": settings.is_configured(),
-        "market_access": settings.has_market_access()
+        "market_access": settings.has_market_access(),
     }
+
 
 @app.get("/api/health")
 async def health_check():
@@ -128,8 +128,9 @@ async def health_check():
         "market_apis_configured": settings.has_market_access(),
         "active_matches": len(realtime_system.ingestor.active_fixtures),
         "cached_markets": len(realtime_system.market_fetcher.market_cache),
-        "connected_clients": len(realtime_system.websocket_clients)
+        "connected_clients": len(realtime_system.websocket_clients),
     }
+
 
 @app.get("/api/matches/live")
 async def get_live_matches():
@@ -139,18 +140,19 @@ async def get_live_matches():
         enriched = []
         for match in matches:
             markets = await realtime_system.market_mapper.get_markets_for_match(match)
-            match_dict = match.dict()
-            match_dict["markets"] = [m.dict() for m in markets]
+            match_dict = match.model_dump()
+            match_dict["markets"] = [m.model_dump() for m in markets]
             enriched.append(match_dict)
 
         return {
             "matches": enriched,
             "total": len(enriched),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
         safe_error_response(e, context="Failed to fetch live matches")
+
 
 @app.get("/api/markets/all")
 async def get_all_markets():
@@ -159,10 +161,11 @@ async def get_all_markets():
     fresh_markets = [m for m in markets if not m.is_stale]
 
     return {
-        "markets": [m.dict() for m in fresh_markets],
+        "markets": [m.model_dump() for m in fresh_markets],
         "total": len(fresh_markets),
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
+
 
 @app.get("/api/markets/{fixture_id}")
 async def get_markets_for_fixture(fixture_id: int):
@@ -177,15 +180,18 @@ async def get_markets_for_fixture(fixture_id: int):
 
         return {
             "fixture_id": fixture_id,
-            "match": match.dict(),
-            "markets": [m.dict() for m in markets],
-            "total_markets": len(markets)
+            "match": match.model_dump(),
+            "markets": [m.model_dump() for m in markets],
+            "total_markets": len(markets),
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        safe_error_response(e, context=f"Failed to fetch markets for fixture {fixture_id}")
+        safe_error_response(
+            e, context=f"Failed to fetch markets for fixture {fixture_id}"
+        )
+
 
 @app.get("/api/settings/load")
 async def load_settings():
@@ -195,32 +201,36 @@ async def load_settings():
             "polymarket_api_key": "********" if settings.POLYMARKET_API_KEY else "",
             "kalshi_api_key": "********" if settings.KALSHI_API_KEY else "",
             "api_configured": settings.is_configured(),
-            "market_access": settings.has_market_access()
+            "market_access": settings.has_market_access(),
         }
     except Exception as e:
         safe_error_response(e, context="Failed to load settings")
+
 
 @app.websocket("/ws/live")
 async def websocket_live_feed(websocket: WebSocket):
 
     await websocket.accept()
     realtime_system.websocket_clients.add(websocket)
-    logger.info(f"✅ WebSocket client connected ({len(realtime_system.websocket_clients)} total)")
+    logger.info(
+        f"✅ WebSocket client connected ({len(realtime_system.websocket_clients)} total)"
+    )
 
     try:
-        await websocket.send_json({
-            "type": "connected",
-            "timestamp": datetime.now().isoformat(),
-            "active_matches": len(realtime_system.ingestor.active_fixtures),
-            "message": "Connected to GoalShock real-time feed"
-        })
+        await websocket.send_json(
+            {
+                "type": "connected",
+                "timestamp": datetime.now().isoformat(),
+                "active_matches": len(realtime_system.ingestor.active_fixtures),
+                "message": "Connected to GoalShock real-time feed",
+            }
+        )
 
         matches = realtime_system.ingestor.get_active_matches()
         if matches:
-            await websocket.send_json({
-                "type": "matches",
-                "matches": [m.dict() for m in matches]
-            })
+            await websocket.send_json(
+                {"type": "matches", "matches": [m.model_dump() for m in matches]}
+            )
 
         while True:
             try:
@@ -237,8 +247,12 @@ async def websocket_live_feed(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}")
     finally:
         realtime_system.websocket_clients.discard(websocket)
-        logger.info(f"WebSocket client disconnected ({len(realtime_system.websocket_clients)} remaining)")
+        logger.info(
+            f"WebSocket client disconnected ({len(realtime_system.websocket_clients)} remaining)"
+        )
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
