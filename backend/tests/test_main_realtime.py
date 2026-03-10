@@ -131,6 +131,32 @@ async def test_get_all_markets(mock_realtime_system):
         assert data["total"] == 1
         assert data["markets"][0]["market_id"] == "mkt_1"
 
+@pytest.mark.asyncio
+async def test_load_settings(mock_realtime_system):
+    with patch("main_realtime.settings") as mock_settings:
+        mock_settings.API_FOOTBALL_KEY = "dummy_football_key"
+        mock_settings.POLYMARKET_API_KEY = "dummy_poly_key"
+        mock_settings.KALSHI_API_KEY = ""
+        mock_settings.is_configured.return_value = True
+        mock_settings.has_market_access.return_value = True
+
+        async with AsyncClient(app=app, base_url="http://test") as ac:
+            response = await ac.get("/api/settings/load")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify no keys are leaked
+        assert "dummy" not in str(data)
+
+        # Verify static obfuscated strings are returned for configured keys
+        assert data["api_football_key"] == "********"
+        assert data["polymarket_api_key"] == "********"
+        assert data["kalshi_api_key"] == ""
+
+        assert data["api_configured"] is True
+        assert data["market_access"] is True
+
 # WebSocket test skipped due to potential timeout issues in test environment
 # def test_websocket_connection(mock_realtime_system):
 #     client = TestClient(app)
