@@ -191,9 +191,9 @@ async def get_markets_for_fixture(fixture_id: int):
 async def load_settings():
     try:
         return {
-            "api_football_key": "***" + settings.API_FOOTBALL_KEY[-4:] if settings.API_FOOTBALL_KEY else "",
-            "polymarket_api_key": "***" + settings.POLYMARKET_API_KEY[-4:] if settings.POLYMARKET_API_KEY else "",
-            "kalshi_api_key": "***" + settings.KALSHI_API_KEY[-4:] if settings.KALSHI_API_KEY else "",
+            "api_football_key": "********" if settings.API_FOOTBALL_KEY else "",
+            "polymarket_api_key": "********" if settings.POLYMARKET_API_KEY else "",
+            "kalshi_api_key": "********" if settings.KALSHI_API_KEY else "",
             "api_configured": settings.is_configured(),
             "market_access": settings.has_market_access()
         }
