@@ -349,7 +349,7 @@ function LiveMarketsSection() {
                   </div>
                   <div style={{ padding: '8px', background: 'rgba(132, 204, 22, 0.2)', borderRadius: '6px', textAlign: 'center' }}>
                     <p style={{ color: '#84cc16', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                      ⏱ {match.minute}' - {match.league_name}
+                      ⏱ {match.minute}&apos; - {match.league_name}
                     </p>
                   </div>
                 </motion.div>
@@ -777,7 +777,7 @@ function MarketsView({ onBack }: { onBack: () => void }) {
                     <p style={{ color: '#10b981', fontWeight: 'bold', fontSize: '1.1rem' }}>{match.away_score || 0}</p>
                   </div>
                   <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                    {match.minute}' - {match.league_name}
+                    {match.minute}&apos; - {match.league_name}
                   </p>
                 </motion.div>
               ))}
