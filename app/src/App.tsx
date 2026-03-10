@@ -803,6 +803,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
   });
 
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -813,7 +814,10 @@ function SettingsView({ onBack }: { onBack: () => void }) {
   }, []);
 
   const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     const success = await saveSettings(settings);
+    setIsSaving(false);
     if (success) {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -1027,11 +1031,17 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           </div>
 
           <div style={{ marginTop: '30px', display: 'flex', gap: '15px' }}>
-            <button className="btn-success" onClick={handleSave}>
-              <ButtonText>Save Settings</ButtonText>
+            <button
+              className="btn-success"
+              onClick={handleSave}
+              disabled={isSaving}
+              aria-busy={isSaving}
+              style={{ opacity: isSaving ? 0.7 : 1, pointerEvents: isSaving ? 'none' : 'auto' }}
+            >
+              <ButtonText>{isSaving ? 'Saving...' : 'Save Settings'}</ButtonText>
             </button>
             {saved && (
-              <p style={{ color: '#10b981', alignSelf: 'center' }}>
+              <p role="status" aria-live="polite" style={{ color: '#10b981', alignSelf: 'center' }}>
                 Settings saved successfully!
               </p>
             )}
