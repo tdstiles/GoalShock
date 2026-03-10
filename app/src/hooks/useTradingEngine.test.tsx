@@ -1,7 +1,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useTradingEngine } from './useTradingEngine';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, Mock, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Types for our mocks
 type MockWebSocketCallback = (event: Event | MessageEvent | CloseEvent) => void;
@@ -24,21 +24,21 @@ class MockWebSocket {
     this.readyState = MockWebSocket.OPEN;
     // Simulate async connection
     setTimeout(() => {
-        if (this.onopen) this.onopen({});
+        if (this.onopen) this.onopen(new Event("open"));
     }, 0);
   }
 
   // Helper to simulate incoming messages
   simulateMessage(data: unknown) {
     if (this.onmessage) {
-      this.onmessage({ data: JSON.stringify(data) } as MessageEvent);
+      this.onmessage(new MessageEvent("message", { data: JSON.stringify(data) }));
     }
   }
 
   // Helper to simulate error
-  simulateError(error: unknown) {
+  simulateError() {
     if (this.onerror) {
-      this.onerror(error);
+      this.onerror(new Event("error"));
     }
   }
 
@@ -63,7 +63,7 @@ describe('useTradingEngine', () => {
       mockWSInstance = new MockWebSocket(url);
       return mockWSInstance;
     }) as unknown as typeof WebSocket;
-    MockSocket.OPEN = 1;
+    Object.defineProperty(MockSocket, "OPEN", { value: 1, writable: true });
     vi.stubGlobal('WebSocket', MockSocket);
 
     // Mock Notification
@@ -71,8 +71,8 @@ describe('useTradingEngine', () => {
     global.Notification = vi.fn().mockImplementation(() => ({
       close: vi.fn()
     })) as unknown as typeof Notification;
-    (global.Notification as unknown as { requestPermission: vitest.Mock; permission: string }).requestPermission = vi.fn();
-    (global.Notification as unknown as { requestPermission: vitest.Mock; permission: string }).permission = 'granted';
+    (global.Notification as unknown as { requestPermission: Mock; permission: string }).requestPermission = vi.fn();
+    (global.Notification as unknown as { requestPermission: Mock; permission: string }).permission = "granted";
   });
 
   afterEach(() => {
