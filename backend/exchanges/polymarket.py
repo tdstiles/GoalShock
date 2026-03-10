@@ -35,7 +35,7 @@ class PolymarketClient:
                 )
                 logger.info("🔐 ClobClient initialized with private key")
             except Exception as e:
-                logger.error(f"Failed to initialize ClobClient: {e}")
+                logger.error(f"Failed to initialize ClobClient: {e}", exc_info=True)
 
         logger.info("📊 Polymarket client initialized")
 
@@ -67,7 +67,7 @@ class PolymarketClient:
             return markets
 
         except Exception as e:
-            logger.error(f"Error fetching Polymarket markets: {e}")
+            logger.error(f"Error fetching Polymarket markets: {e}", exc_info=True)
             return []
 
     async def get_market(self, market_id: str) -> Optional[Dict]:
@@ -86,7 +86,7 @@ class PolymarketClient:
             return response.json()
 
         except Exception as e:
-            logger.error(f"Error fetching Polymarket market {market_id}: {e}")
+            logger.error(f"Error fetching Polymarket market {market_id}: {e}", exc_info=True)
             return None
 
     async def get_orderbook(self, token_id: str) -> Optional[Dict]:
@@ -130,7 +130,7 @@ class PolymarketClient:
             }
 
         except Exception as e:
-            logger.error(f"Error fetching orderbook: {e}")
+            logger.error(f"Error fetching orderbook: {e}", exc_info=True)
             return None
 
     async def get_yes_price(self, token_id: str) -> Optional[float]:
@@ -201,7 +201,7 @@ class PolymarketClient:
                 return response
 
         except Exception as e:
-            logger.error(f"Error placing signed order: {e}")
+            logger.error(f"Error placing signed order: {e}", exc_info=True)
             return None
 
     async def get_order(self, order_id: str) -> Optional[Dict]:
@@ -215,7 +215,7 @@ class PolymarketClient:
             # clob_client.get_order returns the order dict directly
             return await asyncio.to_thread(self.clob_client.get_order, order_id)
         except Exception as e:
-            logger.error(f"Error fetching order {order_id}: {e}")
+            logger.error(f"Error fetching order {order_id}: {e}", exc_info=True)
             return None
 
     async def cancel_order(self, order_id: str) -> bool:
@@ -230,7 +230,7 @@ class PolymarketClient:
             logger.info(f"🚫 Order cancelled: {order_id}")
             return True
         except Exception as e:
-            logger.error(f"Error cancelling order {order_id}: {e}")
+            logger.error(f"Error cancelling order {order_id}: {e}", exc_info=True)
             return False
 
     async def place_order_and_wait_for_fill(

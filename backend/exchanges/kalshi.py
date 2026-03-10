@@ -50,7 +50,7 @@ class KalshiClient:
             return False
 
         except Exception as exc:
-            logger.error("Kalshi login error: %s", exc)
+            logger.error("Kalshi login error: %s", exc, exc_info=True)
             self.auth_token = None
             return False
 
@@ -109,7 +109,7 @@ class KalshiClient:
             return markets
 
         except Exception as exc:
-            logger.error("Error fetching Kalshi markets: %s", exc)
+            logger.error("Error fetching Kalshi markets: %s", exc, exc_info=True)
             return []
 
     async def get_orderbook(self, ticker: str) -> Optional[Dict]:
@@ -170,7 +170,7 @@ class KalshiClient:
             }
 
         except Exception as exc:
-            logger.error("Error fetching orderbook: %s", exc)
+            logger.error("Error fetching orderbook: %s", exc, exc_info=True)
             return None
 
     async def get_yes_price(self, ticker: str) -> Optional[float]:
@@ -248,7 +248,7 @@ class KalshiClient:
             return None
 
         except Exception as exc:
-            logger.error("Error placing Kalshi order: %s", exc)
+            logger.error("Error placing Kalshi order: %s", exc, exc_info=True)
             return None
 
     async def close(self) -> None:

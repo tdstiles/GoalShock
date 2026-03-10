@@ -106,7 +106,7 @@ class MarketFetcher:
                         await self._process_polymarket_update(data)
 
             except Exception as e:
-                logger.error(f"Polymarket WebSocket error: {e}")
+                logger.error(f"Polymarket WebSocket error: {e}", exc_info=True)
                 await asyncio.sleep(settings.WS_RECONNECT_DELAY)
 
     async def _connect_kalshi_ws(self) -> None:
@@ -140,7 +140,7 @@ class MarketFetcher:
                         await self._process_kalshi_update(data)
 
             except Exception as e:
-                logger.error(f"Kalshi WebSocket error: {e}")
+                logger.error(f"Kalshi WebSocket error: {e}", exc_info=True)
                 await asyncio.sleep(settings.WS_RECONNECT_DELAY)
 
     async def _process_polymarket_update(self, data: Dict) -> None:
@@ -171,7 +171,7 @@ class MarketFetcher:
             )
 
         except Exception as e:
-            logger.error(f"Failed to process Polymarket update: {e}")
+            logger.error(f"Failed to process Polymarket update: {e}", exc_info=True)
 
     async def _process_kalshi_update(self, data: Dict) -> None:
         """Handle Kalshi payloads by parsing and dispatching updates.
@@ -204,7 +204,7 @@ class MarketFetcher:
             )
 
         except Exception as e:
-            logger.error(f"Failed to process Kalshi update: {e}")
+            logger.error(f"Failed to process Kalshi update: {e}", exc_info=True)
 
     async def _apply_market_update(
         self, market_id: str, yes_price: float, no_price: float
@@ -320,7 +320,7 @@ class MarketFetcher:
             return markets
 
         except Exception as e:
-            logger.error(f"Failed to fetch Polymarket markets: {e}")
+            logger.error(f"Failed to fetch Polymarket markets: {e}", exc_info=True)
             return []
 
     async def _fetch_kalshi_markets(
@@ -371,7 +371,7 @@ class MarketFetcher:
             return markets
 
         except Exception as e:
-            logger.error(f"Failed to fetch Kalshi markets: {e}")
+            logger.error(f"Failed to fetch Kalshi markets: {e}", exc_info=True)
             return []
 
     def get_market(self, market_id: str) -> Optional[MarketPrice]:
