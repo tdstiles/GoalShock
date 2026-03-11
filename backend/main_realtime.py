@@ -293,7 +293,7 @@ async def websocket_live_feed(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}", exc_info=True)
     finally:
         realtime_system.websocket_clients.discard(websocket)
         logger.info(

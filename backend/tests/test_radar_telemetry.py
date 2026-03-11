@@ -4,6 +4,19 @@ from backend.bot.realtime_ingestor import RealtimeIngestor
 from backend.bot.websocket_goal_listener import WebSocketGoalListener
 from backend.bot.market_fetcher import MarketFetcher
 from backend.data.api_football import APIFootballClient
+from backend.main_realtime import websocket_live_feed
+
+
+@pytest.mark.asyncio
+async def test_main_realtime_websocket_logging_has_exc_info():
+    with patch("backend.main_realtime.logger.error") as mock_logger:
+        # Create a mock websocket that raises an exception when sending json
+        mock_websocket = AsyncMock()
+        mock_websocket.send_json.side_effect = Exception("WS exception")
+
+        await websocket_live_feed(mock_websocket)
+
+        mock_logger.assert_called_with("WebSocket error: WS exception", exc_info=True)
 
 
 @pytest.mark.asyncio
