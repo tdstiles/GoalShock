@@ -28,6 +28,8 @@ class Settings:
     WS_MAX_RECONNECT_ATTEMPTS = 10
     WS_RECONNECT_BACKOFF_BASE = 2  
 
+    HTTP_TIMEOUT = 10.0
+
     # Polling settings for the new API
     POLL_INTERVAL_SECONDS = 10
     MAX_POLL_RETRIES = 3

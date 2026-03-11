@@ -7,6 +7,8 @@ import logging
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 
+from backend.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION CONSTANTS ---
@@ -88,7 +90,7 @@ class DataAcquisitionLayer:
         self._kalshi_secret = os.getenv("KALSHI_API_SECRET", "")
 
         self._srvc_mode = self._determine_operational_mode()
-        self._client = httpx.AsyncClient(timeout=10.0)
+        self._client = httpx.AsyncClient(timeout=settings.HTTP_TIMEOUT)
 
     def _determine_operational_mode(self) -> str:
         """Determine whether runtime should use primary or auxiliary mode.

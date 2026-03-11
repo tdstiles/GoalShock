@@ -19,7 +19,7 @@ class PolymarketClient:
         self.api_key = os.getenv("POLYMARKET_API_KEY", "")
         self.base_url = "https://clob.polymarket.com"
         self.gamma_url = "https://gamma-api.polymarket.com"
-        self.client = httpx.AsyncClient(timeout=10.0)
+        self.client = httpx.AsyncClient(timeout=settings.HTTP_TIMEOUT)
 
         # Initialize authenticated ClobClient if private key is present
         self.clob_client = None

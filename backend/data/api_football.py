@@ -46,7 +46,7 @@ class APIFootballClient:
         """
         self.api_key = settings.API_FOOTBALL_KEY if api_key is None else api_key
         self.base_url = settings.API_FOOTBALL_BASE
-        self.client = httpx.AsyncClient(timeout=10.0)
+        self.client = httpx.AsyncClient(timeout=settings.HTTP_TIMEOUT)
 
         self.previous_scores: Dict[int, tuple] = {}
 
