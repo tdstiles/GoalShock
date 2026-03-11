@@ -9,6 +9,7 @@ export interface MarketPrice {
   last_updated: string;
   volume_24h?: number;
   volume?: number; // For backward compatibility if needed
+  liquidity?: number;
   home_team: string;
   away_team: string;
 }
@@ -23,6 +24,7 @@ export interface LiveMatch {
   away_score: number;
   minute: number;
   status: string;
+  timestamp: string;
   markets?: MarketPrice[];
 }
 
@@ -37,6 +39,7 @@ export interface GoalEvent {
   player: string;
   assist?: string;
   minute: number;
+  extra_time?: number;
   goal_type: string;
   home_score: number;
   away_score: number;
@@ -100,4 +103,28 @@ export interface Settings {
   max_positions?: string | number;
   api_configured?: boolean;
   market_access?: boolean;
+}
+
+export interface LiveMatchesResponse {
+  matches: LiveMatch[];
+  total: number;
+  timestamp: string;
+}
+
+export interface FixtureMarketsResponse {
+  fixture_id: number;
+  match: LiveMatch;
+  markets: MarketPrice[];
+  total_markets: number;
+}
+
+export interface AllMarketsResponse {
+  markets: MarketPrice[];
+  total: number;
+  timestamp: string;
+}
+
+export interface BotActionResponse {
+  status: string;
+  message: string;
 }

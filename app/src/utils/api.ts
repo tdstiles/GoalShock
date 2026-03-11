@@ -3,7 +3,7 @@
  * Handles HTTP requests to backend
  */
 
-import { LiveMatch, MarketPrice, HealthResponse, BotStatus, Settings } from '../types';
+import { LiveMatch, MarketPrice, HealthResponse, BotStatus, Settings, LiveMatchesResponse, FixtureMarketsResponse, AllMarketsResponse } from '../types';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -15,7 +15,7 @@ export async function fetchLiveMatches(): Promise<LiveMatch[]> {
     const response = await fetch(`${API_BASE}/api/matches/live`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = await response.json();
+    const data = (await response.json()) as LiveMatchesResponse;
     return data.matches || [];
   } catch (error) {
     console.error('Failed to fetch live matches:', error);
@@ -31,7 +31,7 @@ export async function fetchMarketsForFixture(fixtureId: number): Promise<MarketP
     const response = await fetch(`${API_BASE}/api/markets/${fixtureId}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = await response.json();
+    const data = (await response.json()) as FixtureMarketsResponse;
     return data.markets || [];
   } catch (error) {
     console.error(`Failed to fetch markets for fixture ${fixtureId}:`, error);
@@ -47,7 +47,7 @@ export async function fetchAllMarkets(): Promise<MarketPrice[]> {
     const response = await fetch(`${API_BASE}/api/markets/all`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = await response.json();
+    const data = (await response.json()) as AllMarketsResponse;
     return data.markets || [];
   } catch (error) {
     console.error('Failed to fetch markets:', error);
@@ -63,7 +63,7 @@ export async function checkHealth(): Promise<HealthResponse> {
     const response = await fetch(`${API_BASE}/api/health`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    return await response.json();
+    return (await response.json()) as HealthResponse;
   } catch (error) {
     console.error('Health check failed:', error);
     return { status: 'error', error: String(error) };
@@ -77,7 +77,7 @@ export async function fetchBotStatus(): Promise<BotStatus | null> {
   try {
     const response = await fetch(`${API_BASE}/api/status`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const data = (await response.json()) as BotStatus;
     // Assuming api/status returns { data: BotStatus } or just BotStatus?
     // In App.tsx: setBotStatus(data.data) in websocket message, but setBotStatus(data) in fetchStatus.
     // Let's assume it returns the status object directly based on fetchStatus usage.
@@ -121,7 +121,7 @@ export async function loadSettings(): Promise<Settings> {
   try {
     const response = await fetch(`${API_BASE}/api/settings/load`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    return (await response.json()) as Settings;
   } catch (error) {
     console.error('Error loading settings:', error);
     return {};
