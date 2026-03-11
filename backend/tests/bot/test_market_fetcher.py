@@ -313,18 +313,19 @@ async def test_apply_market_update_updates_cache_and_notifies(
 
 @pytest.mark.asyncio
 async def test_fetch_markets_for_fixture_fetches_and_caches_from_configured_sources(
-    market_fetcher: MarketFetcher, mocker
+    market_fetcher: MarketFetcher, monkeypatch
 ) -> None:
     """Test fetching and caching markets from configured sources.
 
     Args:
         market_fetcher: The market fetcher under test.
-        mocker: pytest-mock fixture.
+        monkeypatch: pytest fixture.
     """
     from backend.config.settings import settings
+    from unittest.mock import AsyncMock
 
-    mocker.patch.object(settings, "POLYMARKET_API_KEY", "test_poly")
-    mocker.patch.object(settings, "KALSHI_API_KEY", "test_kalshi")
+    monkeypatch.setattr(settings, "POLYMARKET_API_KEY", "test_poly")
+    monkeypatch.setattr(settings, "KALSHI_API_KEY", "test_kalshi")
 
     poly_market = _make_market_price(
         "poly_1",
@@ -339,11 +340,11 @@ async def test_fetch_markets_for_fixture_fetches_and_caches_from_configured_sour
         last_updated=datetime(2021, 1, 1, tzinfo=timezone.utc),
     )
 
-    mocker.patch.object(
-        market_fetcher, "_fetch_polymarket_markets", return_value=[poly_market]
+    monkeypatch.setattr(
+        market_fetcher, "_fetch_polymarket_markets", AsyncMock(return_value=[poly_market])
     )
-    mocker.patch.object(
-        market_fetcher, "_fetch_kalshi_markets", return_value=[kalshi_market]
+    monkeypatch.setattr(
+        market_fetcher, "_fetch_kalshi_markets", AsyncMock(return_value=[kalshi_market])
     )
 
     markets = await market_fetcher.fetch_markets_for_fixture(
@@ -358,23 +359,23 @@ async def test_fetch_markets_for_fixture_fetches_and_caches_from_configured_sour
 
 @pytest.mark.asyncio
 async def test_fetch_markets_for_fixture_handles_api_errors(
-    market_fetcher: MarketFetcher, mocker
+    market_fetcher: MarketFetcher, monkeypatch
 ) -> None:
     """Test fetching markets handles exceptions safely.
 
     Args:
         market_fetcher: The market fetcher under test.
-        mocker: pytest-mock fixture.
+        monkeypatch: pytest fixture.
     """
     from backend.config.settings import settings
+    from unittest.mock import AsyncMock
     import httpx
 
-    mocker.patch.object(settings, "POLYMARKET_API_KEY", "test_poly")
-    mocker.patch.object(settings, "KALSHI_API_KEY", "test_kalshi")
+    monkeypatch.setattr(settings, "POLYMARKET_API_KEY", "test_poly")
+    monkeypatch.setattr(settings, "KALSHI_API_KEY", "test_kalshi")
 
-    mocker.patch.object(
-        market_fetcher.client, "get", side_effect=httpx.HTTPError("API Down")
-    )
+    mock_get = AsyncMock(side_effect=httpx.HTTPError("API Down"))
+    monkeypatch.setattr(market_fetcher.client, "get", mock_get)
 
     markets = await market_fetcher.fetch_markets_for_fixture(
         fixture_id=1, home_team="Team A", away_team="Team B"
