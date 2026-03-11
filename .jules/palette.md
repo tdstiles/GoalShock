@@ -1,0 +1,3 @@
+## 2026-03-11 - Custom Tooltip Keyboard Accessibility
+**Learning:** Found a recurring accessibility issue pattern specific to custom UI components in this app (e.g., `ProbabilityBar`), where `div` elements with custom tooltips triggered via mouse events (`onMouseEnter`, `onMouseLeave`) lacked `tabIndex={0}` and equivalent keyboard focus handlers (`onFocus`, `onBlur`).
+**Action:** When adding or reviewing custom tooltips on non-interactive semantic elements (like `role="progressbar"`), always add `tabIndex={0}` and keyboard focus event handlers to ensure screen readers and keyboard-only users can access the content.
