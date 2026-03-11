@@ -31,6 +31,9 @@ export default function ProbabilityBar({ yesPrice, noPrice, height = 8 }: Probab
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={yesPercent}
+        tabIndex={0}
+        onFocus={() => setIsHovered(true)}
+        onBlur={() => setIsHovered(false)}
         style={{
           width: '100%',
           height: `${height}px`,
