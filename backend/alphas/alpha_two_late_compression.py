@@ -536,34 +536,27 @@ class AlphaTwoLateCompression(BaseAlpha):
 
         if "win" in question:
             if home_score > away_score:
+                confidence = self._calculate_lead_confidence(
+                    home_score - away_score, time_remaining, market_type
+                )
                 if (
                     "home" in question
                     or market.get("home_team", "").lower() in question
                 ):
-                    confidence = self._calculate_lead_confidence(
-                        home_score - away_score, time_remaining, market_type
-                    )
                     return {"outcome": MarketSide.YES.value, "confidence": confidence}
                 else:
-                    confidence = self._calculate_lead_confidence(
-                        home_score - away_score, time_remaining, market_type
-                    )
                     return {"outcome": MarketSide.NO.value, "confidence": confidence}
 
             elif away_score > home_score:
-
+                confidence = self._calculate_lead_confidence(
+                    away_score - home_score, time_remaining, market_type
+                )
                 if (
                     "away" in question
                     or market.get("away_team", "").lower() in question
                 ):
-                    confidence = self._calculate_lead_confidence(
-                        away_score - home_score, time_remaining, market_type
-                    )
                     return {"outcome": MarketSide.YES.value, "confidence": confidence}
                 else:
-                    confidence = self._calculate_lead_confidence(
-                        away_score - home_score, time_remaining, market_type
-                    )
                     return {"outcome": MarketSide.NO.value, "confidence": confidence}
 
             else:
