@@ -22,8 +22,7 @@ async def test_realtime_ingestor_logging_has_exc_info():
                 await ingestor._poll_live_matches()
 
         mock_logger.assert_called_with(
-            "Error polling live matches: Test error",
-            exc_info=True
+            "Error polling live matches: Test error", exc_info=True
         )
 
     # Test _fetch_live_fixtures error
@@ -31,8 +30,7 @@ async def test_realtime_ingestor_logging_has_exc_info():
         ingestor.client.get = AsyncMock(side_effect=Exception("API error"))
         await ingestor._fetch_live_fixtures()
         mock_logger.assert_called_with(
-            "Failed to fetch live fixtures: API error",
-            exc_info=True
+            "Failed to fetch live fixtures: API error", exc_info=True
         )
 
     # Test _create_goal_event error
@@ -42,8 +40,7 @@ async def test_realtime_ingestor_logging_has_exc_info():
         faulty_fixture_data.get.side_effect = Exception("Parse error")
         ingestor._create_goal_event(faulty_fixture_data, "Team A", "home")
         mock_logger.assert_called_with(
-            "Failed to create goal event: Parse error",
-            exc_info=True
+            "Failed to create goal event: Parse error", exc_info=True
         )
 
     # Test _notify_goal callback error
@@ -66,8 +63,7 @@ async def test_realtime_ingestor_logging_has_exc_info():
 
         await ingestor._notify_goal(mock_goal)
         mock_logger.assert_called_with(
-            "Goal callback error: Callback failed",
-            exc_info=True
+            "Goal callback error: Callback failed", exc_info=True
         )
 
 
@@ -88,8 +84,7 @@ async def test_websocket_goal_listener_logging_has_exc_info():
             ):
                 await listener.start()
         mock_logger.assert_called_with(
-            "Error in polling cycle: Cycle error",
-            exc_info=True
+            "Error in polling cycle: Cycle error", exc_info=True
         )
 
     # Test _notify_goal_callbacks exception
@@ -101,8 +96,7 @@ async def test_websocket_goal_listener_logging_has_exc_info():
         listener.register_goal_callback(failing_callback)
         await listener._notify_goal_callbacks(MagicMock())
         mock_logger.assert_called_with(
-            "Goal callback error: Goal callback error",
-            exc_info=True
+            "Goal callback error: Goal callback error", exc_info=True
         )
 
     # Test _notify_fixture_callbacks exception
@@ -114,8 +108,7 @@ async def test_websocket_goal_listener_logging_has_exc_info():
         listener.register_fixture_callback(failing_fixture_callback)
         await listener._notify_fixture_callbacks([MagicMock()])
         mock_logger.assert_called_with(
-            "Fixture callback error: Fixture callback error",
-            exc_info=True
+            "Fixture callback error: Fixture callback error", exc_info=True
         )
 
 
@@ -132,8 +125,7 @@ async def test_market_fetcher_logging_has_exc_info():
         fetcher.register_update_callback(failing_callback)
         await fetcher._notify_update(MagicMock())
         mock_logger.assert_called_with(
-            "Market callback error: Market callback failed",
-            exc_info=True
+            "Market callback error: Market callback failed", exc_info=True
         )
 
 
@@ -146,24 +138,19 @@ async def test_api_football_logging_has_exc_info():
         with patch("httpx.AsyncClient.get", side_effect=Exception("API GET error")):
             await client.get_live_fixtures()
         mock_logger.assert_called_with(
-            "Error fetching live fixtures: API GET error",
-            exc_info=True
+            "Error fetching live fixtures: API GET error", exc_info=True
         )
 
     # Test get_pre_match_odds error
     with patch("backend.data.api_football.logger.error") as mock_logger:
         with patch("httpx.AsyncClient.get", side_effect=Exception("Odds error")):
             await client.get_pre_match_odds(123)
-        mock_logger.assert_called_with(
-            "Error fetching odds: Odds error",
-            exc_info=True
-        )
+        mock_logger.assert_called_with("Error fetching odds: Odds error", exc_info=True)
 
     # Test get_fixture_details error
     with patch("backend.data.api_football.logger.error") as mock_logger:
         with patch("httpx.AsyncClient.get", side_effect=Exception("Details error")):
             await client.get_fixture_details(123)
         mock_logger.assert_called_with(
-            "Error fetching fixture details: Details error",
-            exc_info=True
+            "Error fetching fixture details: Details error", exc_info=True
         )

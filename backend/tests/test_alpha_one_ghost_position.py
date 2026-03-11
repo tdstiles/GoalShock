@@ -1,20 +1,26 @@
-
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from backend.alphas.alpha_one_underdog import AlphaOneUnderdog, TradeSignal, SimulatedPosition, TradingMode
+from backend.alphas.alpha_one_underdog import (
+    AlphaOneUnderdog,
+    TradeSignal,
+    SimulatedPosition,
+    TradingMode,
+)
 from datetime import datetime
+
 
 @pytest.fixture
 def alpha_one():
     polymarket = AsyncMock()
     # Mock place_order to return an order ID
-    polymarket.place_order.return_value = {"orderID": "test_order_123", "order_id": "test_order_123"}
+    polymarket.place_order.return_value = {
+        "orderID": "test_order_123",
+        "order_id": "test_order_123",
+    }
 
-    alpha = AlphaOneUnderdog(
-        mode=TradingMode.LIVE,
-        polymarket_client=polymarket
-    )
+    alpha = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=polymarket)
     return alpha
+
 
 @pytest.mark.asyncio
 async def test_ghost_position_prevention(alpha_one):
@@ -26,13 +32,23 @@ async def test_ghost_position_prevention(alpha_one):
     """
     # Setup a position
     signal = TradeSignal(
-        signal_id="sig1", fixture_id=1, team="Underdog", side="YES",
-        entry_price=0.5, target_price=0.8, stop_loss_price=0.2,
-        size_usd=100, confidence=0.8, reason="Test"
+        signal_id="sig1",
+        fixture_id=1,
+        team="Underdog",
+        side="YES",
+        entry_price=0.5,
+        target_price=0.8,
+        stop_loss_price=0.2,
+        size_usd=100,
+        confidence=0.8,
+        reason="Test",
     )
     position = SimulatedPosition(
-        position_id="pos1", signal=signal, entry_time=datetime.now(),
-        token_id="token123", quantity=200
+        position_id="pos1",
+        signal=signal,
+        entry_time=datetime.now(),
+        token_id="token123",
+        quantity=200,
     )
     alpha_one.positions["pos1"] = position
 
@@ -43,7 +59,9 @@ async def test_ghost_position_prevention(alpha_one):
     alpha_one.polymarket.place_order_and_wait_for_fill.return_value = None
 
     # Execute close logic
-    success = await alpha_one._close_position(position, exit_price=0.85, reason="TAKE_PROFIT")
+    success = await alpha_one._close_position(
+        position, exit_price=0.85, reason="TAKE_PROFIT"
+    )
 
     # Wait, _close_position doesn't return value, it just executes.
     # But internally it calls _execute_live_close.

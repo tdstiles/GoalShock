@@ -5,6 +5,7 @@ import os
 # Import relative to PYTHONPATH=backend
 from core.data_pipeline import DataAcquisitionLayer, PrimaryProviderUnavailableError
 
+
 @pytest.fixture
 def mock_env_primary():
     """Environment variables for primary mode."""
@@ -12,16 +13,15 @@ def mock_env_primary():
         "API_FOOTBALL_KEY": "valid_key_over_20_chars_long",
         "POLYMARKET_API_KEY": "poly_key",
         "KALSHI_API_KEY": "kalshi_key",
-        "KALSHI_API_SECRET": "kalshi_secret"
+        "KALSHI_API_SECRET": "kalshi_secret",
     }
+
 
 @pytest.fixture
 def mock_env_auxiliary():
     """Environment variables for auxiliary mode."""
-    return {
-        "API_FOOTBALL_KEY": "", # Missing
-        "POLYMARKET_API_KEY": ""
-    }
+    return {"API_FOOTBALL_KEY": "", "POLYMARKET_API_KEY": ""}  # Missing
+
 
 @pytest.mark.asyncio
 async def test_operational_mode_primary(mock_env_primary):
@@ -29,11 +29,13 @@ async def test_operational_mode_primary(mock_env_primary):
         dal = DataAcquisitionLayer()
         assert dal._srvc_mode == "primary"
 
+
 @pytest.mark.asyncio
 async def test_operational_mode_auxiliary(mock_env_auxiliary):
     with patch.dict(os.environ, mock_env_auxiliary):
         dal = DataAcquisitionLayer()
         assert dal._srvc_mode == "auxiliary"
+
 
 @pytest.mark.asyncio
 async def test_fetch_live_goals_primary_success(mock_env_primary):
@@ -55,9 +57,9 @@ async def test_fetch_live_goals_primary_success(mock_env_primary):
                                 "type": "Goal",
                                 "team": {"name": "Team A"},
                                 "player": {"name": "Player 1"},
-                                "time": {"elapsed": 45}
+                                "time": {"elapsed": 45},
                             }
-                        ]
+                        ],
                     }
                 ]
             }
@@ -76,6 +78,7 @@ async def test_fetch_live_goals_primary_success(mock_env_primary):
             args, kwargs = mock_client.get.call_args
             assert "v3.football.api-sports.io" in args[0]
 
+
 @pytest.mark.asyncio
 async def test_fetch_live_goals_primary_raises_on_failure(mock_env_primary):
     """Test primary mode raises explicit failure instead of synthetic fallback."""
@@ -92,13 +95,16 @@ async def test_fetch_live_goals_primary_raises_on_failure(mock_env_primary):
 
             dal = DataAcquisitionLayer()
 
-            with patch.object(dal, "_generate_event_stream", wraps=dal._generate_event_stream) as mock_synth:
+            with patch.object(
+                dal, "_generate_event_stream", wraps=dal._generate_event_stream
+            ) as mock_synth:
                 with pytest.raises(PrimaryProviderUnavailableError) as exc_info:
                     await dal.fetch_live_goals()
 
             assert exc_info.value.operation == "fetch_live_goals"
             assert exc_info.value.source == "api_football"
             mock_synth.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_fetch_market_data_polymarket(mock_env_primary):
@@ -119,11 +125,12 @@ async def test_fetch_market_data_polymarket(mock_env_primary):
             assert markets == [{"id": "m1", "question": "Q1"}]
             assert "api.polymarket.com" in mock_client.get.call_args[0][0]
 
+
 @pytest.mark.asyncio
 async def test_fetch_market_data_kalshi_fallback(mock_env_primary):
     """Test using Kalshi if Polymarket key is missing but Kalshi is present."""
     env = mock_env_primary.copy()
-    env["POLYMARKET_API_KEY"] = "" # Disable polymarket
+    env["POLYMARKET_API_KEY"] = ""  # Disable polymarket
 
     with patch.dict(os.environ, env):
         with patch("httpx.AsyncClient") as mock_client_cls:
@@ -151,10 +158,11 @@ async def test_fetch_market_data_kalshi_fallback(mock_env_primary):
             mock_client.post.assert_called_once()
             assert "api.kalshi.com/v1/login" in mock_client.post.call_args[0][0]
 
+
 @pytest.mark.asyncio
 async def test_fetch_market_data_auxiliary_uses_simulation():
     """Test auxiliary mode uses synthetic market data by design."""
-    with patch.dict(os.environ, {}): # No keys
+    with patch.dict(os.environ, {}):  # No keys
         dal = DataAcquisitionLayer()
         data = await dal.fetch_market_data()
 
@@ -168,8 +176,12 @@ async def test_fetch_market_data_primary_raises_on_failure(mock_env_primary):
     """Test primary mode market failure raises explicit provider unavailable exception."""
     with patch.dict(os.environ, mock_env_primary):
         dal = DataAcquisitionLayer()
-        with patch.object(dal, "_fetch_polymarket_data", side_effect=Exception("provider down")):
-            with patch.object(dal, "_generate_market_data", wraps=dal._generate_market_data) as mock_synth:
+        with patch.object(
+            dal, "_fetch_polymarket_data", side_effect=Exception("provider down")
+        ):
+            with patch.object(
+                dal, "_generate_market_data", wraps=dal._generate_market_data
+            ) as mock_synth:
                 with pytest.raises(PrimaryProviderUnavailableError) as exc_info:
                     await dal.fetch_market_data()
 

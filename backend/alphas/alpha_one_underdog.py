@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 import os
@@ -52,6 +51,7 @@ MATCH_DURATION_MINUTES = 90.0
 # --- MARKET PRICE CONSTANTS ---
 MARKET_PRICE_MULTIPLIER_BACKUP = 1.2
 
+
 class TradingMode(Enum):
     SIMULATION = "simulation"
     LIVE = "live"
@@ -62,12 +62,12 @@ class TradeSignal:
     signal_id: str
     fixture_id: int
     team: str
-    side: str  
+    side: str
     entry_price: float
     target_price: float
     stop_loss_price: float
     size_usd: float
-    confidence: float  
+    confidence: float
     reason: str
     timestamp: datetime = field(default_factory=datetime.now)
 
@@ -102,27 +102,36 @@ class AlphaOneStats:
 
 
 class AlphaOneUnderdog(BaseAlpha):
-   
-    
+
     def __init__(
         self,
         mode: TradingMode = TradingMode.SIMULATION,
         polymarket_client=None,
-        kalshi_client=None
+        kalshi_client=None,
     ):
         super().__init__()
         self.mode = mode
         self.polymarket = polymarket_client
         self.kalshi = kalshi_client
-        
-        self.underdog_threshold = float(os.getenv("UNDERDOG_THRESHOLD", str(DEFAULT_UNDERDOG_THRESHOLD)))
-        self.max_trade_size = float(os.getenv("MAX_TRADE_SIZE_USD", str(DEFAULT_MAX_TRADE_SIZE)))
+
+        self.underdog_threshold = float(
+            os.getenv("UNDERDOG_THRESHOLD", str(DEFAULT_UNDERDOG_THRESHOLD))
+        )
+        self.max_trade_size = float(
+            os.getenv("MAX_TRADE_SIZE_USD", str(DEFAULT_MAX_TRADE_SIZE))
+        )
         self.max_positions = int(os.getenv("MAX_POSITIONS", str(DEFAULT_MAX_POSITIONS)))
-        self.take_profit_pct = float(os.getenv("TAKE_PROFIT_PERCENT", str(DEFAULT_TAKE_PROFIT_PCT)))
-        self.stop_loss_pct = float(os.getenv("STOP_LOSS_PERCENT", str(DEFAULT_STOP_LOSS_PCT)))
-        self.max_daily_loss = float(os.getenv("MAX_DAILY_LOSS_USD", str(DEFAULT_MAX_DAILY_LOSS)))
-        
-        self.pre_match_odds: Dict[int, Dict[str, float]] = {}  
+        self.take_profit_pct = float(
+            os.getenv("TAKE_PROFIT_PERCENT", str(DEFAULT_TAKE_PROFIT_PCT))
+        )
+        self.stop_loss_pct = float(
+            os.getenv("STOP_LOSS_PERCENT", str(DEFAULT_STOP_LOSS_PCT))
+        )
+        self.max_daily_loss = float(
+            os.getenv("MAX_DAILY_LOSS_USD", str(DEFAULT_MAX_DAILY_LOSS))
+        )
+
+        self.pre_match_odds: Dict[int, Dict[str, float]] = {}
         self.positions: Dict[str, SimulatedPosition] = {}
         self.closed_positions: List[SimulatedPosition] = []
         self.daily_pnl = 0.0
@@ -131,7 +140,7 @@ class AlphaOneUnderdog(BaseAlpha):
         # Cache for token IDs to avoid expensive search calls
         # Key: (fixture_id, team_name) -> Value: token_id
         self.token_map: Dict[tuple, str] = {}
-        
+
         logger.info(f"Alpha One initialized in {mode.value} mode")
         logger.info(f"  Underdog threshold: {self.underdog_threshold}")
         logger.info(f"  Max trade size: ${self.max_trade_size}")
@@ -139,23 +148,27 @@ class AlphaOneUnderdog(BaseAlpha):
         logger.info(f"  Stop loss: {self.stop_loss_pct}%")
 
     async def cache_pre_match_odds(self, fixture_id: int, odds: Dict[str, float]):
-       
+
         self.pre_match_odds[fixture_id] = odds
-        
-      
+
         underdog = min(odds.items(), key=lambda x: x[1])
-        
-        self._log_event("odds_cached", {
-            "fixture_id": fixture_id,
-            "odds": odds,
-            "underdog": underdog[0],
-            "underdog_odds": underdog[1]
-        })
-        
-        logger.info(f"Cached odds for fixture {fixture_id}: underdog = {underdog[0]} @ {underdog[1]:.2f}")
+
+        self._log_event(
+            "odds_cached",
+            {
+                "fixture_id": fixture_id,
+                "odds": odds,
+                "underdog": underdog[0],
+                "underdog_odds": underdog[1],
+            },
+        )
+
+        logger.info(
+            f"Cached odds for fixture {fixture_id}: underdog = {underdog[0]} @ {underdog[1]:.2f}"
+        )
 
     async def on_goal_event(self, goal_event) -> Optional[TradeSignal]:
-       
+
         fixture_id = goal_event.fixture_id
         scoring_team = goal_event.team
         home_team = goal_event.home_team
@@ -163,74 +176,93 @@ class AlphaOneUnderdog(BaseAlpha):
         home_score = goal_event.home_score
         away_score = goal_event.away_score
         minute = goal_event.minute
-        
-        self._log_event("goal_received", goal_event.to_dict() if hasattr(goal_event, 'to_dict') else vars(goal_event))
-        
+
+        self._log_event(
+            "goal_received",
+            (
+                goal_event.to_dict()
+                if hasattr(goal_event, "to_dict")
+                else vars(goal_event)
+            ),
+        )
+
         if fixture_id not in self.pre_match_odds:
             logger.debug(f"No pre-match odds for fixture {fixture_id}")
             return None
-        
+
         odds = self.pre_match_odds[fixture_id]
-        
-       
+
         team_odds_map = self._map_odds_to_teams(odds, home_team, away_team)
-        
+
         if not team_odds_map:
             logger.warning(f"Could not map teams to odds for fixture {fixture_id}")
             return None
-        
+
         underdog_team = min(team_odds_map.items(), key=lambda x: x[1])[0]
         underdog_odds = team_odds_map[underdog_team]
-        
+
         if scoring_team != underdog_team:
-            logger.debug(f"Goal by favorite ({scoring_team}), not underdog ({underdog_team})")
-            self._log_event("goal_by_favorite", {
-                "scoring_team": scoring_team,
-                "underdog": underdog_team
-            })
+            logger.debug(
+                f"Goal by favorite ({scoring_team}), not underdog ({underdog_team})"
+            )
+            self._log_event(
+                "goal_by_favorite",
+                {"scoring_team": scoring_team, "underdog": underdog_team},
+            )
             return None
-        
+
         logger.info(f"Underdog {underdog_team} scored!")
-        
+
         if underdog_team == home_team:
             underdog_score = home_score
             favorite_score = away_score
         else:
             underdog_score = away_score
             favorite_score = home_score
-        
+
         is_leading = underdog_score > favorite_score
-        
+
         if not is_leading:
-            logger.info(f"Underdog scored but not leading: {underdog_score}-{favorite_score}")
-            self._log_event("underdog_not_leading", {
-                "underdog": underdog_team,
-                "underdog_score": underdog_score,
-                "favorite_score": favorite_score
-            })
+            logger.info(
+                f"Underdog scored but not leading: {underdog_score}-{favorite_score}"
+            )
+            self._log_event(
+                "underdog_not_leading",
+                {
+                    "underdog": underdog_team,
+                    "underdog_score": underdog_score,
+                    "favorite_score": favorite_score,
+                },
+            )
             return None
-        
-        logger.info(f"Underdog {underdog_team} is NOW LEADING {underdog_score}-{favorite_score}!")
-        
+
+        logger.info(
+            f"Underdog {underdog_team} is NOW LEADING {underdog_score}-{favorite_score}!"
+        )
+
         if underdog_odds > self.underdog_threshold:
-            logger.info(f"Underdog odds {underdog_odds:.2f} above threshold {self.underdog_threshold}")
+            logger.info(
+                f"Underdog odds {underdog_odds:.2f} above threshold {self.underdog_threshold}"
+            )
             return None
-        
+
         if len(self.positions) >= self.max_positions:
             logger.warning(f"Max positions ({self.max_positions}) reached")
             return None
-        
+
         if self.daily_pnl <= -self.max_daily_loss:
             logger.warning(f"Daily loss limit (${self.max_daily_loss}) reached")
             return None
-        
-        existing = [p for p in self.positions.values() if p.signal.fixture_id == fixture_id]
+
+        existing = [
+            p for p in self.positions.values() if p.signal.fixture_id == fixture_id
+        ]
         if existing:
             logger.debug(f"Already have position on fixture {fixture_id}")
             return None
-        
+
         current_price = await self._get_current_market_price(fixture_id, underdog_team)
-        
+
         if current_price is None:
             logger.warning(f"Could not get market price for {underdog_team}")
             # Sherlock Fix: More realistic simulation pricing.
@@ -241,7 +273,9 @@ class AlphaOneUnderdog(BaseAlpha):
 
             # Time decay factor: Price increases as time runs out (if leading)
             time_progression = minute / MATCH_DURATION_MINUTES
-            time_component = time_progression * SIM_TIME_COMPONENT_WEIGHT  # Adds up to SIM_TIME_COMPONENT_WEIGHT by end of game
+            time_component = (
+                time_progression * SIM_TIME_COMPONENT_WEIGHT
+            )  # Adds up to SIM_TIME_COMPONENT_WEIGHT by end of game
 
             # Margin factor: Extra cushion for bigger leads (e.g. 2-0 vs 1-0)
             lead_margin = underdog_score - favorite_score
@@ -250,16 +284,21 @@ class AlphaOneUnderdog(BaseAlpha):
             estimated_price = base_lead_price + time_component + margin_component
 
             # Clamp between SIM_PRICE_FLOOR and SIM_PRICE_CEILING, but ensure it's at least significantly higher than pre-match odds
-            current_price = max(underdog_odds * SIM_ODDS_MULTIPLIER, min(SIM_PRICE_CEILING, estimated_price))
+            current_price = max(
+                underdog_odds * SIM_ODDS_MULTIPLIER,
+                min(SIM_PRICE_CEILING, estimated_price),
+            )
 
-        
-        confidence = self._calculate_confidence(underdog_odds, minute, underdog_score - favorite_score)
+        confidence = self._calculate_confidence(
+            underdog_odds, minute, underdog_score - favorite_score
+        )
         adjusted_size = self.max_trade_size * confidence
-        
-     
+
         # Sherlock Fix: Clamp target price to ceiling.
         # If target price exceeds 1.0 (or simulated ceiling), it is unreachable, causing stuck positions.
-        target_price = min(SIM_PRICE_CEILING, current_price * (1 + self.take_profit_pct / 100))
+        target_price = min(
+            SIM_PRICE_CEILING, current_price * (1 + self.take_profit_pct / 100)
+        )
 
         signal = TradeSignal(
             signal_id=f"alpha1_{fixture_id}_{int(datetime.now().timestamp())}",
@@ -271,19 +310,22 @@ class AlphaOneUnderdog(BaseAlpha):
             stop_loss_price=current_price * (1 - self.stop_loss_pct / 100),
             size_usd=adjusted_size,
             confidence=confidence,
-            reason=f"Underdog {underdog_team} (pre-match odds: {underdog_odds:.2f}) now leading {underdog_score}-{favorite_score}"
+            reason=f"Underdog {underdog_team} (pre-match odds: {underdog_odds:.2f}) now leading {underdog_score}-{favorite_score}",
         )
-        
+
         self.stats.total_signals += 1
-        
-        self._log_event("signal_generated", {
-            "signal_id": signal.signal_id,
-            "team": underdog_team,
-            "entry_price": current_price,
-            "confidence": confidence,
-            "size_usd": adjusted_size
-        })
-        
+
+        self._log_event(
+            "signal_generated",
+            {
+                "signal_id": signal.signal_id,
+                "team": underdog_team,
+                "entry_price": current_price,
+                "confidence": confidence,
+                "size_usd": adjusted_size,
+            },
+        )
+
         logger.info(f"SIGNAL GENERATED: {signal.signal_id}")
         logger.info(f"  Team: {underdog_team}")
         logger.info(f"  Entry: {current_price:.4f} ({current_price*100:.1f}%)")
@@ -291,13 +333,14 @@ class AlphaOneUnderdog(BaseAlpha):
         logger.info(f"  Stop: {signal.stop_loss_price:.4f}")
         logger.info(f"  Size: ${adjusted_size:.2f}")
         logger.info(f"  Confidence: {confidence:.2f}")
-        
-       
+
         await self._execute_trade(signal)
-        
+
         return signal
 
-    def _map_odds_to_teams(self, odds: Dict[str, float], home_team: str, away_team: str) -> Dict[str, float]:
+    def _map_odds_to_teams(
+        self, odds: Dict[str, float], home_team: str, away_team: str
+    ) -> Dict[str, float]:
         """
         Maps team names to odds values using fuzzy matching on the odds keys.
         Resolves ambiguities by scoring matches (Exact > Partial > Keyword).
@@ -337,28 +380,41 @@ class AlphaOneUnderdog(BaseAlpha):
 
         return team_odds_map
 
-    def _calculate_confidence(self, pre_match_odds: float, minute: int, lead_margin: int) -> float:
+    def _calculate_confidence(
+        self, pre_match_odds: float, minute: int, lead_margin: int
+    ) -> float:
         # Sherlock Fix: Previous logic was inverted (1 - ...), favoring weaker underdogs.
         # We want higher confidence for stronger underdogs (odds closer to threshold).
         odds_ratio = pre_match_odds / self.underdog_threshold
         odds_factor = max(ODDS_FACTOR_FLOOR, min(1.0, odds_ratio))
-        
+
         if minute < EARLY_GAME_MINUTE:
-            time_factor = TIME_FACTOR_EARLY_FLOOR + (minute / EARLY_GAME_MINUTE) * TIME_FACTOR_EARLY_SLOPE
+            time_factor = (
+                TIME_FACTOR_EARLY_FLOOR
+                + (minute / EARLY_GAME_MINUTE) * TIME_FACTOR_EARLY_SLOPE
+            )
         elif minute < LATE_GAME_MINUTE:
             time_factor = 1.0
         else:
-            time_factor = max(TIME_FACTOR_LATE_FLOOR, 1 - (minute - LATE_GAME_MINUTE) / LATE_GAME_DURATION * TIME_FACTOR_LATE_SLOPE)
-        
+            time_factor = max(
+                TIME_FACTOR_LATE_FLOOR,
+                1
+                - (minute - LATE_GAME_MINUTE)
+                / LATE_GAME_DURATION
+                * TIME_FACTOR_LATE_SLOPE,
+            )
+
         margin_factor = min(1.0, MARGIN_FACTOR_BASE + lead_margin * MARGIN_FACTOR_SLOPE)
-        
+
         confidence = odds_factor * time_factor * margin_factor
-        
+
         return min(MAX_CONFIDENCE, max(MIN_CONFIDENCE, confidence))
 
-    async def _get_current_market_price(self, fixture_id: int, team: str) -> Optional[float]:
+    async def _get_current_market_price(
+        self, fixture_id: int, team: str
+    ) -> Optional[float]:
         # Shadow Mode: Even in simulation, try to fetch real prices if clients are available
-        
+
         if self.polymarket:
             try:
                 # Check cache first
@@ -367,7 +423,9 @@ class AlphaOneUnderdog(BaseAlpha):
 
                 if not token_id:
                     # Search for market
-                    token_id = await self.polymarket.get_market_token_id(f"{team} to win")
+                    token_id = await self.polymarket.get_market_token_id(
+                        f"{team} to win"
+                    )
                     if token_id:
                         self.token_map[cache_key] = token_id
 
@@ -378,14 +436,14 @@ class AlphaOneUnderdog(BaseAlpha):
             except Exception as e:
                 # Log only if verbose, as this might happen frequently in offline mode
                 logger.debug(f"Polymarket price fetch error: {e}")
-        
+
         if self.kalshi:
             try:
-           
+
                 pass
             except Exception as e:
                 logger.error(f"Kalshi price fetch error: {e}")
-        
+
         return None
 
     async def _get_exit_price(self, fixture_id: int, team: str) -> Optional[float]:
@@ -400,13 +458,15 @@ class AlphaOneUnderdog(BaseAlpha):
 
                 if not token_id:
                     # Search for market (redundant if already opened, but safe)
-                    token_id = await self.polymarket.get_market_token_id(f"{team} to win")
+                    token_id = await self.polymarket.get_market_token_id(
+                        f"{team} to win"
+                    )
                     if token_id:
                         self.token_map[cache_key] = token_id
 
                 if token_id:
                     # Use get_bid_price (implemented in PolymarketClient)
-                    if hasattr(self.polymarket, 'get_bid_price'):
+                    if hasattr(self.polymarket, "get_bid_price"):
                         price = await self.polymarket.get_bid_price(token_id)
                         if price is not None:
                             return price
@@ -436,28 +496,35 @@ class AlphaOneUnderdog(BaseAlpha):
             last_update_time=datetime.now(),
             token_id=token_id,
             # In simulation, we assume full fill at the requested size
-            quantity=signal.size_usd / signal.entry_price if signal.entry_price > 0 else 0
+            quantity=(
+                signal.size_usd / signal.entry_price if signal.entry_price > 0 else 0
+            ),
         )
-        
+
         self.positions[signal.signal_id] = position
         self.stats.total_trades += 1
-        
-        self._log_event("trade_executed_simulation", {
-            "position_id": position.position_id,
-            "entry_price": signal.entry_price,
-            "size_usd": signal.size_usd
-        })
-        
+
+        self._log_event(
+            "trade_executed_simulation",
+            {
+                "position_id": position.position_id,
+                "entry_price": signal.entry_price,
+                "size_usd": signal.size_usd,
+            },
+        )
+
         logger.info(f"[SIMULATION] Trade executed: {signal.signal_id}")
 
     async def _execute_live_trade(self, signal: TradeSignal):
         if not self.polymarket and not self.kalshi:
             logger.error("No exchange client configured for live trading")
             return
-        
+
         if self.polymarket:
             try:
-                token_id = await self.polymarket.get_market_token_id(f"{signal.team} to win")
+                token_id = await self.polymarket.get_market_token_id(
+                    f"{signal.team} to win"
+                )
                 if token_id:
                     # Sherlock Fix: Convert USD Size to Share Count
                     # size_usd is the amount to invest.
@@ -465,7 +532,7 @@ class AlphaOneUnderdog(BaseAlpha):
                     if signal.entry_price > 0:
                         quantity = signal.size_usd / signal.entry_price
                     else:
-                        quantity = signal.size_usd # Fallback if price 0, though unsafe
+                        quantity = signal.size_usd  # Fallback if price 0, though unsafe
 
                     # Use helper to place and verify order
                     order_filled = await self.polymarket.place_order_and_wait_for_fill(
@@ -473,11 +540,13 @@ class AlphaOneUnderdog(BaseAlpha):
                         side="BUY",
                         price=signal.entry_price,
                         size=quantity,
-                        timeout=5
+                        timeout=5,
                     )
-                    
+
                     if order_filled:
-                        order_id = order_filled.get("orderID") or order_filled.get("order_id")
+                        order_id = order_filled.get("orderID") or order_filled.get(
+                            "order_id"
+                        )
 
                         # Order is confirmed filled
                         position = SimulatedPosition(
@@ -485,19 +554,23 @@ class AlphaOneUnderdog(BaseAlpha):
                             signal=signal,
                             entry_time=datetime.now(),
                             token_id=token_id,
-                            quantity=quantity
+                            quantity=quantity,
                         )
                         self.positions[position.position_id] = position
                         self.stats.total_trades += 1
-                        
-                        logger.info(f"[LIVE] Trade executed and filled on Polymarket: {position.position_id} (Qty: {quantity:.2f})")
+
+                        logger.info(
+                            f"[LIVE] Trade executed and filled on Polymarket: {position.position_id} (Qty: {quantity:.2f})"
+                        )
                         return
             except Exception as e:
                 logger.error(f"Polymarket trade error: {e}")
-        
+
         logger.error("Failed to execute live trade")
 
-    async def _execute_live_close(self, position: SimulatedPosition, price: float, reason: str = "") -> bool:
+    async def _execute_live_close(
+        self, position: SimulatedPosition, price: float, reason: str = ""
+    ) -> bool:
         if not self.polymarket:
             return False
 
@@ -506,10 +579,14 @@ class AlphaOneUnderdog(BaseAlpha):
             token_id = position.token_id
 
             if not token_id:
-                token_id = await self.polymarket.get_market_token_id(f"{position.signal.team} to win")
+                token_id = await self.polymarket.get_market_token_id(
+                    f"{position.signal.team} to win"
+                )
 
             if not token_id:
-                logger.error(f"Could not find token_id for position {position.position_id}")
+                logger.error(
+                    f"Could not find token_id for position {position.position_id}"
+                )
                 return False
 
             # Determine quantity to close
@@ -518,7 +595,9 @@ class AlphaOneUnderdog(BaseAlpha):
             else:
                 # Fallback for positions opened before this fix or in simulation
                 if position.signal.entry_price > 0:
-                    qty_to_close = position.signal.size_usd / position.signal.entry_price
+                    qty_to_close = (
+                        position.signal.size_usd / position.signal.entry_price
+                    )
                 else:
                     qty_to_close = position.signal.size_usd
 
@@ -527,7 +606,9 @@ class AlphaOneUnderdog(BaseAlpha):
             # Using a very low Limit Price guarantees we cross the spread and take the best Bids.
             execution_price = AGGRESSIVE_MARKET_PRICE
 
-            logger.info(f"Closing trade ({reason}) with aggressive Limit Sell at {execution_price} (Trigger Price: {price})")
+            logger.info(
+                f"Closing trade ({reason}) with aggressive Limit Sell at {execution_price} (Trigger Price: {price})"
+            )
 
             # Execute SELL order with verification
             order_filled = await self.polymarket.place_order_and_wait_for_fill(
@@ -535,7 +616,7 @@ class AlphaOneUnderdog(BaseAlpha):
                 side="SELL",
                 price=execution_price,
                 size=qty_to_close,
-                timeout=3
+                timeout=3,
             )
 
             if order_filled:
@@ -555,10 +636,9 @@ class AlphaOneUnderdog(BaseAlpha):
                 for position_id, position in list(self.positions.items()):
                     # Use EXIT price (Bid) for monitoring
                     exit_price = await self._get_exit_price(
-                        position.signal.fixture_id,
-                        position.signal.team
+                        position.signal.fixture_id, position.signal.team
                     )
-                    
+
                     if exit_price is None:
                         if self.mode == TradingMode.SIMULATION:
                             # If no live data, use simulated price
@@ -570,15 +650,15 @@ class AlphaOneUnderdog(BaseAlpha):
                             exit_price = self._simulate_price_movement(position)
                         else:
                             continue
-                    
+
                     if exit_price >= position.signal.target_price:
                         await self._close_position(position, exit_price, "TAKE_PROFIT")
-                    
+
                     elif exit_price <= position.signal.stop_loss_price:
                         await self._close_position(position, exit_price, "STOP_LOSS")
-                
-                await asyncio.sleep(5) 
-                
+
+                await asyncio.sleep(5)
+
             except Exception as e:
                 logger.error(f"Position monitoring error: {e}")
                 await asyncio.sleep(5)
@@ -589,7 +669,7 @@ class AlphaOneUnderdog(BaseAlpha):
         Uses module-level simulation constants.
         """
         now = datetime.now()
-        
+
         # Initialize if not set (for backward compatibility or recovery)
         if position.last_price is None:
             position.last_price = position.signal.entry_price
@@ -604,12 +684,12 @@ class AlphaOneUnderdog(BaseAlpha):
         # Volatility decreases slightly over time but remains relative to price
         # Using a simpler model: Annualized Volatility scaled to time step
         # Assuming ~50% daily volatility for these markets
-        dt = elapsed_step / SIM_SECONDS_IN_DAY # Fraction of day
-        
+        dt = elapsed_step / SIM_SECONDS_IN_DAY  # Fraction of day
+
         # Drift towards 0.5 slightly if extreme, else random walk
         current_p = position.last_price
         drift = 0.0
-        
+
         # Mean reversion for extreme prices
         if current_p > SIM_DRIFT_THRESHOLD_HIGH:
             drift = -SIM_DRIFT_FACTOR * dt
@@ -618,7 +698,7 @@ class AlphaOneUnderdog(BaseAlpha):
 
         # Random walk step: P_t = P_{t-1} + P_{t-1} * shock
         # shock ~ N(drift * dt, vol * sqrt(dt))
-        shock = random.gauss(drift, SIM_ANNUAL_VOLATILITY * (dt ** 0.5))
+        shock = random.gauss(drift, SIM_ANNUAL_VOLATILITY * (dt**0.5))
 
         new_price = current_p * (1 + shock)
         new_price = max(SIM_PRICE_FLOOR, min(SIM_PRICE_CEILING, new_price))
@@ -629,12 +709,16 @@ class AlphaOneUnderdog(BaseAlpha):
 
         return new_price
 
-    async def _close_position(self, position: SimulatedPosition, exit_price: float, reason: str):
+    async def _close_position(
+        self, position: SimulatedPosition, exit_price: float, reason: str
+    ):
         # Sherlock Fix: Execute SELL on exchange if in LIVE mode
         if self.mode == TradingMode.LIVE:
             success = await self._execute_live_close(position, exit_price, reason)
             if not success:
-                logger.error(f"CRITICAL: Failed to close position {position.position_id} on exchange!")
+                logger.error(
+                    f"CRITICAL: Failed to close position {position.position_id} on exchange!"
+                )
                 # We DO NOT proceed to update stats or remove position,
                 # so the monitor loop tries again next time.
                 return
@@ -642,34 +726,37 @@ class AlphaOneUnderdog(BaseAlpha):
         position.exit_time = datetime.now()
         position.exit_price = exit_price
         position.status = f"closed_{reason.lower()}"
-        
+
         entry = position.signal.entry_price
         size = position.signal.size_usd
-        
+
         pnl_pct = (exit_price - entry) / entry
         position.pnl = pnl_pct * size
-        
+
         self.daily_pnl += position.pnl
         self.stats.total_pnl += position.pnl
-        
+
         if position.pnl > 0:
             self.stats.winning_trades += 1
         else:
             self.stats.losing_trades += 1
-        
+
         total = self.stats.winning_trades + self.stats.losing_trades
         self.stats.win_rate = self.stats.winning_trades / total if total > 0 else 0
-        
+
         del self.positions[position.position_id]
         self.closed_positions.append(position)
-        
-        self._log_event("position_closed", {
-            "position_id": position.position_id,
-            "exit_price": exit_price,
-            "pnl": position.pnl,
-            "reason": reason
-        })
-        
+
+        self._log_event(
+            "position_closed",
+            {
+                "position_id": position.position_id,
+                "exit_price": exit_price,
+                "pnl": position.pnl,
+                "reason": reason,
+            },
+        )
+
         logger.info(f"Position closed: {position.position_id}")
         logger.info(f"  Exit price: {exit_price:.4f}")
         logger.info(f"  P&L: ${position.pnl:.2f}")

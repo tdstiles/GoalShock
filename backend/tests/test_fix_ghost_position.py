@@ -1,9 +1,12 @@
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
 from backend.alphas.alpha_one_underdog import AlphaOneUnderdog, TradingMode, TradeSignal
-from backend.alphas.alpha_two_late_compression import AlphaTwoLateCompression, ClippingOpportunity
+from backend.alphas.alpha_two_late_compression import (
+    AlphaTwoLateCompression,
+    ClippingOpportunity,
+)
+
 
 @pytest.mark.asyncio
 async def test_alpha_one_ghost_position_prevented():
@@ -18,9 +21,16 @@ async def test_alpha_one_ghost_position_prevented():
 
     alpha = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
     signal = TradeSignal(
-        signal_id="sig_1", fixture_id=100, team="Test", side="YES",
-        entry_price=0.5, target_price=0.8, stop_loss_price=0.4,
-        size_usd=10.0, confidence=0.8, reason="Test"
+        signal_id="sig_1",
+        fixture_id=100,
+        team="Test",
+        side="YES",
+        entry_price=0.5,
+        target_price=0.8,
+        stop_loss_price=0.4,
+        size_usd=10.0,
+        confidence=0.8,
+        reason="Test",
     )
 
     await alpha._execute_live_trade(signal)
@@ -30,6 +40,7 @@ async def test_alpha_one_ghost_position_prevented():
     # Verify method was called
     mock_poly.place_order_and_wait_for_fill.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_alpha_one_position_created_when_filled():
     """
@@ -37,15 +48,24 @@ async def test_alpha_one_position_created_when_filled():
     """
     mock_poly = MagicMock()
     # Mock returning FILLED order
-    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "order_id": "0xFILLED", "orderID": "0xFILLED"})
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(
+        return_value={"status": "FILLED", "order_id": "0xFILLED", "orderID": "0xFILLED"}
+    )
 
     mock_poly.get_market_token_id = AsyncMock(return_value="0xYES")
 
     alpha = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
     signal = TradeSignal(
-        signal_id="sig_2", fixture_id=101, team="Test2", side="YES",
-        entry_price=0.5, target_price=0.8, stop_loss_price=0.4,
-        size_usd=10.0, confidence=0.8, reason="Test"
+        signal_id="sig_2",
+        fixture_id=101,
+        team="Test2",
+        side="YES",
+        entry_price=0.5,
+        target_price=0.8,
+        stop_loss_price=0.4,
+        size_usd=10.0,
+        confidence=0.8,
+        reason="Test",
     )
 
     await alpha._execute_live_trade(signal)
@@ -53,6 +73,7 @@ async def test_alpha_one_position_created_when_filled():
     # Verify position CREATED
     assert len(alpha.positions) == 1
     assert alpha.positions["0xFILLED"].position_id == "0xFILLED"
+
 
 @pytest.mark.asyncio
 async def test_alpha_two_ghost_trade_prevented():
@@ -63,18 +84,30 @@ async def test_alpha_two_ghost_trade_prevented():
     # Mock returning None
     mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value=None)
 
-    mock_poly.get_market = AsyncMock(return_value={
-        "clobTokenIds": ["0xYES", "0xNO"],
-        "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
-    })
+    mock_poly.get_market = AsyncMock(
+        return_value={
+            "clobTokenIds": ["0xYES", "0xNO"],
+            "tokens": [{"outcome": "YES", "token_id": "0xYES"}],
+        }
+    )
 
     alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
     opportunity = ClippingOpportunity(
-        opportunity_id="clip_1", market_id="mkt_1", market_question="?", fixture_id=99,
-        yes_price=0.5, no_price=0.5, spread=0, expected_outcome="YES", confidence=0.9,
-        expected_profit_pct=10, seconds_to_resolution=60, recommended_side="YES",
-        recommended_price=0.5, recommended_size=10
+        opportunity_id="clip_1",
+        market_id="mkt_1",
+        market_question="?",
+        fixture_id=99,
+        yes_price=0.5,
+        no_price=0.5,
+        spread=0,
+        expected_outcome="YES",
+        confidence=0.9,
+        expected_profit_pct=10,
+        seconds_to_resolution=60,
+        recommended_side="YES",
+        recommended_price=0.5,
+        recommended_size=10,
     )
 
     # We test _place_exchange_order directly as it returns the boolean
@@ -83,6 +116,7 @@ async def test_alpha_two_ghost_trade_prevented():
     assert result is False
     mock_poly.place_order_and_wait_for_fill.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_alpha_two_trade_success_when_filled():
     """
@@ -90,20 +124,34 @@ async def test_alpha_two_trade_success_when_filled():
     """
     mock_poly = MagicMock()
     # Mock returning FILLED
-    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "order_id": "0xGOOD", "orderID": "0xGOOD"})
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(
+        return_value={"status": "FILLED", "order_id": "0xGOOD", "orderID": "0xGOOD"}
+    )
 
-    mock_poly.get_market = AsyncMock(return_value={
-        "clobTokenIds": ["0xYES", "0xNO"],
-        "tokens": [{"outcome": "YES", "token_id": "0xYES"}]
-    })
+    mock_poly.get_market = AsyncMock(
+        return_value={
+            "clobTokenIds": ["0xYES", "0xNO"],
+            "tokens": [{"outcome": "YES", "token_id": "0xYES"}],
+        }
+    )
 
     alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
     opportunity = ClippingOpportunity(
-        opportunity_id="clip_2", market_id="mkt_2", market_question="?", fixture_id=99,
-        yes_price=0.5, no_price=0.5, spread=0, expected_outcome="YES", confidence=0.9,
-        expected_profit_pct=10, seconds_to_resolution=60, recommended_side="YES",
-        recommended_price=0.5, recommended_size=10
+        opportunity_id="clip_2",
+        market_id="mkt_2",
+        market_question="?",
+        fixture_id=99,
+        yes_price=0.5,
+        no_price=0.5,
+        spread=0,
+        expected_outcome="YES",
+        confidence=0.9,
+        expected_profit_pct=10,
+        seconds_to_resolution=60,
+        recommended_side="YES",
+        recommended_price=0.5,
+        recommended_size=10,
     )
 
     result = await alpha._place_exchange_order(opportunity)

@@ -32,7 +32,9 @@ def build_live_match(home_score: int, away_score: int) -> LiveMatch:
     )
 
 
-def build_goal_event(team: str, home_score: int, away_score: int, event_id: str) -> GoalEvent:
+def build_goal_event(
+    team: str, home_score: int, away_score: int, event_id: str
+) -> GoalEvent:
     """Create a GoalEvent sentinel for tests."""
     return GoalEvent(
         id=event_id,
@@ -64,7 +66,9 @@ def test_detect_new_goals_home_score_increase() -> None:
     old_match = build_live_match(home_score=0, away_score=0)
     new_match = build_live_match(home_score=1, away_score=0)
     fixture_data = build_fixture_data()
-    home_goal = build_goal_event("Home", home_score=1, away_score=0, event_id="goal-home")
+    home_goal = build_goal_event(
+        "Home", home_score=1, away_score=0, event_id="goal-home"
+    )
 
     ingestor._create_goal_event = MagicMock(return_value=home_goal)
 
@@ -80,7 +84,9 @@ def test_detect_new_goals_away_score_increase() -> None:
     old_match = build_live_match(home_score=0, away_score=0)
     new_match = build_live_match(home_score=0, away_score=1)
     fixture_data = build_fixture_data()
-    away_goal = build_goal_event("Away", home_score=0, away_score=1, event_id="goal-away")
+    away_goal = build_goal_event(
+        "Away", home_score=0, away_score=1, event_id="goal-away"
+    )
 
     ingestor._create_goal_event = MagicMock(return_value=away_goal)
 
@@ -96,8 +102,12 @@ def test_detect_new_goals_both_scores_increase() -> None:
     old_match = build_live_match(home_score=0, away_score=0)
     new_match = build_live_match(home_score=1, away_score=1)
     fixture_data = build_fixture_data()
-    home_goal = build_goal_event("Home", home_score=1, away_score=1, event_id="goal-home")
-    away_goal = build_goal_event("Away", home_score=1, away_score=1, event_id="goal-away")
+    home_goal = build_goal_event(
+        "Home", home_score=1, away_score=1, event_id="goal-home"
+    )
+    away_goal = build_goal_event(
+        "Away", home_score=1, away_score=1, event_id="goal-away"
+    )
 
     ingestor._create_goal_event = MagicMock(side_effect=[home_goal, away_goal])
 

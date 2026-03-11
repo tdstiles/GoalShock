@@ -1,9 +1,9 @@
-
 import pytest
 from fastapi.testclient import TestClient
 from backend.main_realtime import app
 
 client = TestClient(app)
+
 
 def test_security_headers_present():
     """
@@ -25,14 +25,12 @@ def test_security_headers_present():
     assert "cdn.jsdelivr.net" in csp
     assert "frame-ancestors 'none'" in csp
 
+
 def test_cors_headers_still_present():
     """
     Verify that CORS headers are still present (middleware didn't break them).
     """
     # Simulate a cross-origin request
-    response = client.get(
-        "/",
-        headers={"Origin": "http://localhost:3000"}
-    )
+    response = client.get("/", headers={"Origin": "http://localhost:3000"})
     assert response.status_code == 200
     assert response.headers["Access-Control-Allow-Origin"] == "http://localhost:3000"

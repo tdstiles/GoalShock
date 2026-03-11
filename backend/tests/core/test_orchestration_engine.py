@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import AsyncMock, patch
 from datetime import datetime
@@ -6,15 +5,20 @@ from datetime import datetime
 from backend.core.orchestration_engine import OrchestrationEngine
 from backend.core.data_pipeline import GoalEvent, PrimaryProviderUnavailableError
 
+
 # Define a fixture for the engine with mocked dependencies
 @pytest.fixture
 def orchestration_engine():
     # Patch the dependencies where they are imported in orchestration_engine.py
     # or patch the class instantiation inside __init__
 
-    with patch("backend.core.orchestration_engine.DataAcquisitionLayer") as MockDAL, \
-         patch("backend.core.orchestration_engine.StreamProcessor") as MockSP, \
-         patch("backend.core.orchestration_engine.MarketMicrostructure") as MockMM:
+    with patch(
+        "backend.core.orchestration_engine.DataAcquisitionLayer"
+    ) as MockDAL, patch(
+        "backend.core.orchestration_engine.StreamProcessor"
+    ) as MockSP, patch(
+        "backend.core.orchestration_engine.MarketMicrostructure"
+    ) as MockMM:
 
         # Setup the mock instances
         mock_dal = MockDAL.return_value
@@ -27,21 +31,18 @@ def orchestration_engine():
         # Return the engine and the mocks for configuration/assertion in tests
         yield engine, mock_dal, mock_sp, mock_mm
 
+
 @pytest.mark.asyncio
 async def test_get_live_feed_success(orchestration_engine):
     engine, mock_dal, mock_sp, mock_mm = orchestration_engine
 
     # Arrange
     # 1. Mock fetch_live_goals
-    mock_goals = [
-        GoalEvent("match_1", "Team A", "Player 1", 10, datetime.now())
-    ]
+    mock_goals = [GoalEvent("match_1", "Team A", "Player 1", 10, datetime.now())]
     mock_dal.fetch_live_goals = AsyncMock(return_value=mock_goals)
 
     # 2. Mock fetch_market_data
-    mock_market_data = {
-        "markets": [{"id": "m1", "question": "Q1"}]
-    }
+    mock_market_data = {"markets": [{"id": "m1", "question": "Q1"}]}
     mock_dal.fetch_market_data = AsyncMock(return_value=mock_market_data)
 
     # 3. Mock enrich_events
@@ -68,6 +69,7 @@ async def test_get_live_feed_success(orchestration_engine):
     mock_sp.enrich_events.assert_awaited_once_with(mock_goals, mock_market_data)
     mock_sp.aggregate_statistics.assert_awaited_once_with(mock_enriched_events)
 
+
 @pytest.mark.asyncio
 async def test_get_live_feed_empty_events(orchestration_engine):
     engine, mock_dal, mock_sp, mock_mm = orchestration_engine
@@ -84,7 +86,6 @@ async def test_get_live_feed_empty_events(orchestration_engine):
     # Assert
     assert result["events"] == []
     assert result["timestamp"] is None
-
 
 
 @pytest.mark.asyncio
@@ -110,6 +111,7 @@ async def test_get_live_feed_handles_primary_provider_failures(orchestration_eng
     assert result["errors"][0]["operation"] == "fetch_live_goals"
     assert result["errors"][0]["source"] == "api_football"
 
+
 @pytest.mark.asyncio
 async def test_get_market_details(orchestration_engine):
     engine, mock_dal, mock_sp, mock_mm = orchestration_engine
@@ -134,6 +136,7 @@ async def test_get_market_details(orchestration_engine):
 
     mock_mm.synthesize_orderbook.assert_called_once_with(market_id)
     mock_mm.generate_trade_history.assert_called_once_with(market_id)
+
 
 @pytest.mark.asyncio
 async def test_get_portfolio_status(orchestration_engine):
@@ -165,6 +168,7 @@ async def test_get_portfolio_status(orchestration_engine):
     assert result["positions"][0]["market_id"] == "market_0"
 
     mock_mm.generate_pnl_path.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_cleanup(orchestration_engine):

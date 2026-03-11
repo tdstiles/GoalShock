@@ -1,4 +1,3 @@
-
 import os
 import asyncio
 import httpx
@@ -13,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class PolymarketClient:
-   
 
     def __init__(self):
         self.api_key = os.getenv("POLYMARKET_API_KEY", "")
@@ -31,7 +29,7 @@ class PolymarketClient:
                 self.clob_client = ClobClient(
                     host=self.base_url,
                     key=self.private_key,
-                    chain_id=settings.POLYMARKET_CHAIN_ID
+                    chain_id=settings.POLYMARKET_CHAIN_ID,
                 )
                 logger.info("🔐 ClobClient initialized with private key")
             except Exception as e:
@@ -50,11 +48,11 @@ class PolymarketClient:
         return None
 
     async def get_markets_by_event(self, event_name: str) -> List[Dict]:
-        
+
         try:
             response = await self.client.get(
                 f"{self.gamma_url}/markets",
-                params={"search": event_name, "active": True}
+                params={"search": event_name, "active": True},
             )
 
             if response.status_code != 200:
@@ -75,26 +73,27 @@ class PolymarketClient:
         Fetches market details from Gamma API by ID.
         """
         try:
-            response = await self.client.get(
-                f"{self.gamma_url}/markets/{market_id}"
-            )
+            response = await self.client.get(f"{self.gamma_url}/markets/{market_id}")
 
             if response.status_code != 200:
-                logger.error(f"Polymarket API error (get_market): {response.status_code}")
+                logger.error(
+                    f"Polymarket API error (get_market): {response.status_code}"
+                )
                 return None
 
             return response.json()
 
         except Exception as e:
-            logger.error(f"Error fetching Polymarket market {market_id}: {e}", exc_info=True)
+            logger.error(
+                f"Error fetching Polymarket market {market_id}: {e}", exc_info=True
+            )
             return None
 
     async def get_orderbook(self, token_id: str) -> Optional[Dict]:
-       
+
         try:
             response = await self.client.get(
-                f"{self.base_url}/book",
-                params={"token_id": token_id}
+                f"{self.base_url}/book", params={"token_id": token_id}
             )
 
             if response.status_code != 200:
@@ -111,8 +110,8 @@ class PolymarketClient:
                 logger.warning(f"Empty orderbook for token {token_id}")
                 return None
 
-            best_bid = float(bids[0]["price"])  
-            best_ask = float(asks[0]["price"]) 
+            best_bid = float(bids[0]["price"])
+            best_ask = float(asks[0]["price"])
             mid_price = (best_bid + best_ask) / 2
 
             logger.debug(f"Orderbook for {token_id}:")
@@ -126,7 +125,7 @@ class PolymarketClient:
                 "best_ask": best_ask,
                 "mid_price": mid_price,
                 "spread": best_ask - best_bid,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -134,13 +133,12 @@ class PolymarketClient:
             return None
 
     async def get_yes_price(self, token_id: str) -> Optional[float]:
-      
+
         orderbook = await self.get_orderbook(token_id)
 
         if not orderbook:
             return None
 
-      
         yes_price = orderbook["best_ask"]
 
         logger.info(f"YES price for {token_id}: {yes_price:.4f} ({yes_price*100:.1f}%)")
@@ -163,30 +161,24 @@ class PolymarketClient:
         return bid_price
 
     async def place_order(
-        self,
-        token_id: str,
-        side: str,  
-        price: float,
-        size: float
+        self, token_id: str, side: str, price: float, size: float
     ) -> Optional[Dict]:
-       
+
         try:
             if not self.clob_client:
-                logger.error("❌ Cannot place order: Private Key missing (ClobClient not initialized)")
+                logger.error(
+                    "❌ Cannot place order: Private Key missing (ClobClient not initialized)"
+                )
                 return None
 
             # Create OrderArgs (py-clob-client handles signing)
             order_args = OrderArgs(
-                price=price,
-                size=size,
-                side=side.upper(),
-                token_id=token_id
+                price=price, size=size, side=side.upper(), token_id=token_id
             )
 
             # Execute in thread to avoid blocking event loop if client is sync
             response = await asyncio.to_thread(
-                self.clob_client.create_and_post_order,
-                order_args
+                self.clob_client.create_and_post_order, order_args
             )
 
             if response and response.get("orderID"):
@@ -197,7 +189,9 @@ class PolymarketClient:
                     response["order_id"] = order_id
                 return response
             else:
-                logger.error(f"❌ Order placement returned unexpected response: {response}")
+                logger.error(
+                    f"❌ Order placement returned unexpected response: {response}"
+                )
                 return response
 
         except Exception as e:
@@ -240,7 +234,7 @@ class PolymarketClient:
         price: float,
         size: float,
         timeout: int = 5,
-        poll_interval: float = 1.0
+        poll_interval: float = 1.0,
     ) -> Optional[Dict]:
         """
         Places an order and polls for fill confirmation.
@@ -255,8 +249,8 @@ class PolymarketClient:
 
         order_id = order_res.get("orderID") or order_res.get("order_id")
         if not order_id:
-             logger.error(f"Order placement returned no ID: {order_res}")
-             return None
+            logger.error(f"Order placement returned no ID: {order_res}")
+            return None
 
         logger.info(f"Order placed ({order_id}). Verifying fill...")
 
@@ -272,7 +266,9 @@ class PolymarketClient:
             if not order_status:
                 continue
 
-            status = str(order_status.get("status") or order_status.get("state") or "").upper()
+            status = str(
+                order_status.get("status") or order_status.get("state") or ""
+            ).upper()
 
             if status in ["MATCHED", "FILLED"]:
                 logger.info(f"Order {order_id} filled.")
@@ -291,9 +287,13 @@ class PolymarketClient:
             logger.warning(f"Failed to cancel order {order_id}. Checking if filled...")
             final_status = await self.get_order(order_id)
             if final_status:
-                status = str(final_status.get("status") or final_status.get("state") or "").upper()
+                status = str(
+                    final_status.get("status") or final_status.get("state") or ""
+                ).upper()
                 if status in ["MATCHED", "FILLED"]:
-                    logger.info(f"Order {order_id} was filled during cancellation attempt.")
+                    logger.info(
+                        f"Order {order_id} was filled during cancellation attempt."
+                    )
                     return final_status
 
         return None

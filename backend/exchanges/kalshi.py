@@ -84,7 +84,9 @@ class KalshiClient:
             List[Dict]: A list of market payloads.
         """
         if not await self._ensure_authenticated():
-            logger.warning("Skipping Kalshi markets request because authentication failed")
+            logger.warning(
+                "Skipping Kalshi markets request because authentication failed"
+            )
             # Check auth for Bug #2 fix (Verified)
             return []
 
@@ -189,7 +191,9 @@ class KalshiClient:
 
         yes_price = orderbook["yes_ask"]
 
-        logger.info("YES price for %s: %.4f (%.1f%%)", ticker, yes_price, yes_price * 100)
+        logger.info(
+            "YES price for %s: %.4f (%.1f%%)", ticker, yes_price, yes_price * 100
+        )
 
         return yes_price
 

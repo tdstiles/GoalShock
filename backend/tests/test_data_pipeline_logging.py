@@ -1,7 +1,11 @@
 import pytest
-from backend.core.data_pipeline import DataAcquisitionLayer, PrimaryProviderUnavailableError
+from backend.core.data_pipeline import (
+    DataAcquisitionLayer,
+    PrimaryProviderUnavailableError,
+)
 from unittest.mock import MagicMock, patch
 import logging
+
 
 @pytest.mark.asyncio
 async def test_fetch_verified_goals_slow_warning(caplog):
@@ -37,6 +41,7 @@ async def test_fetch_verified_goals_slow_warning(caplog):
 
             assert "Slow API response from API-Football" in caplog.text
 
+
 @pytest.mark.asyncio
 async def test_fetch_market_data_primary_error_does_not_fallback(caplog):
     caplog.set_level(logging.INFO)
@@ -46,13 +51,16 @@ async def test_fetch_market_data_primary_error_does_not_fallback(caplog):
     dal._srvc_mode = "primary"
 
     # Mock primary source failing
-    with patch.object(dal, "_fetch_polymarket_data", side_effect=Exception("API Error")):
+    with patch.object(
+        dal, "_fetch_polymarket_data", side_effect=Exception("API Error")
+    ):
         with patch.object(dal, "_generate_market_data") as mock_generate:
             with pytest.raises(PrimaryProviderUnavailableError):
                 await dal.fetch_market_data()
 
             mock_generate.assert_not_called()
             assert "synthetic fallback blocked in primary mode" in caplog.text
+
 
 @pytest.mark.asyncio
 async def test_error_logging_includes_context(caplog):

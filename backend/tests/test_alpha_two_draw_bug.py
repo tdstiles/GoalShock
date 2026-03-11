@@ -1,22 +1,25 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock
-from alphas.alpha_two_late_compression import AlphaTwoLateCompression, ClippingOpportunity
+from alphas.alpha_two_late_compression import (
+    AlphaTwoLateCompression,
+    ClippingOpportunity,
+)
+
 
 @pytest.fixture
 def mock_clients():
-    return {
-        'poly': MagicMock(),
-        'kalshi': MagicMock()
-    }
+    return {"poly": MagicMock(), "kalshi": MagicMock()}
+
 
 @pytest.fixture
 def alpha_two(mock_clients):
     return AlphaTwoLateCompression(
-        polymarket_client=mock_clients['poly'],
-        kalshi_client=mock_clients['kalshi'],
-        simulation_mode=True
+        polymarket_client=mock_clients["poly"],
+        kalshi_client=mock_clients["kalshi"],
+        simulation_mode=True,
     )
+
 
 @pytest.mark.asyncio
 async def test_alpha_two_draw_resolution_failure(alpha_two):
@@ -37,7 +40,7 @@ async def test_alpha_two_draw_resolution_failure(alpha_two):
         "away_team": "Away",
         "question": "Will Home win?",
         "yes_price": 0.80,
-        "no_price": 0.20
+        "no_price": 0.20,
     }
 
     # Update state
@@ -58,7 +61,7 @@ async def test_alpha_two_draw_resolution_failure(alpha_two):
         seconds_to_resolution=120,
         recommended_side="YES",
         recommended_price=0.80,
-        recommended_size=10
+        recommended_size=10,
     )
 
     await alpha_two._execute_clipping_trade(opp)
@@ -78,7 +81,7 @@ async def test_alpha_two_draw_resolution_failure(alpha_two):
         "away_score": 1,  # DRAW
         "home_team": "Home",
         "away_team": "Away",
-        "question": "Will Home win?"
+        "question": "Will Home win?",
     }
 
     await alpha_two.feed_live_fixture_update(fixture_ended)

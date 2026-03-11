@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from backend.exchanges.kalshi import KalshiClient
 
+
 @pytest.fixture
 def client():
     with patch("httpx.AsyncClient") as mock_http_client_cls:
@@ -11,16 +12,19 @@ def client():
 
         # Patch os.getenv to return dummy keys
         with patch("os.getenv") as mock_getenv:
+
             def getenv_side_effect(key, default=None):
                 if key == "KALSHI_API_KEY":
                     return "test_email"
                 if key == "KALSHI_API_SECRET":
                     return "test_pass"
                 return default
+
             mock_getenv.side_effect = getenv_side_effect
 
             client = KalshiClient()
             yield client
+
 
 @pytest.mark.asyncio
 async def test_login_success(client):
@@ -39,6 +43,7 @@ async def test_login_success(client):
     args, _ = client.client.post.call_args
     assert args[0].endswith("/login")
 
+
 @pytest.mark.asyncio
 async def test_login_failure(client):
     mock_response = MagicMock()
@@ -50,6 +55,7 @@ async def test_login_failure(client):
     assert result is False
     assert client.auth_token is None
 
+
 @pytest.mark.asyncio
 async def test_get_markets_success(client):
     # Pre-set auth token to avoid login call
@@ -58,9 +64,7 @@ async def test_get_markets_success(client):
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "markets": [
-            {"ticker": "KXTEST", "title": "Test Market"}
-        ]
+        "markets": [{"ticker": "KXTEST", "title": "Test Market"}]
     }
     client.client.get.return_value = mock_response
 
@@ -72,6 +76,7 @@ async def test_get_markets_success(client):
     # Verify auth header
     call_kwargs = client.client.get.call_args.kwargs
     assert call_kwargs["headers"]["Authorization"] == "Bearer existing_token"
+
 
 @pytest.mark.asyncio
 async def test_get_markets_auto_login(client):
@@ -96,8 +101,9 @@ async def test_get_markets_auto_login(client):
     await client.get_markets()
 
     assert client.auth_token == "new_token"
-    client.client.post.assert_called_once() # Login called
+    client.client.post.assert_called_once()  # Login called
     client.client.get.assert_called_once()  # Markets called
+
 
 @pytest.mark.asyncio
 async def test_get_orderbook_success(client):
@@ -108,10 +114,7 @@ async def test_get_orderbook_success(client):
     # yes_bids: [[price, size], ...]
     # Kalshi format roughly: [[99, 10], [98, 5]] (cents)
     mock_response.json.return_value = {
-        "orderbook": {
-            "yes": [[60, 100]],
-            "no": [[38, 50]]
-        }
+        "orderbook": {"yes": [[60, 100]], "no": [[38, 50]]}
     }
     client.client.get.return_value = mock_response
 
@@ -127,6 +130,7 @@ async def test_get_orderbook_success(client):
     # mid = (0.60 + 0.62) / 2 = 0.61
     assert ob["mid_price"] == 0.61
 
+
 @pytest.mark.asyncio
 async def test_get_orderbook_empty(client):
     client.auth_token = "token"
@@ -138,6 +142,7 @@ async def test_get_orderbook_empty(client):
     ob = await client.get_orderbook("KXTEST")
     assert ob is None
 
+
 @pytest.mark.asyncio
 async def test_get_yes_price(client):
     # Mock get_orderbook by patching the method on the instance
@@ -147,12 +152,7 @@ async def test_get_yes_price(client):
     client.auth_token = "token"
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "orderbook": {
-            "yes": [[50, 1]],
-            "no": [[45, 1]]
-        }
-    }
+    mock_response.json.return_value = {"orderbook": {"yes": [[50, 1]], "no": [[45, 1]]}}
     client.client.get.return_value = mock_response
 
     price = await client.get_yes_price("KXTEST")
@@ -160,25 +160,18 @@ async def test_get_yes_price(client):
     # yes_ask = (100 - 45) / 100 = 0.55
     assert price == 0.55
 
+
 @pytest.mark.asyncio
 async def test_place_order_success(client):
     client.auth_token = "token"
 
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "order": {
-            "order_id": "ord_123"
-        }
-    }
+    mock_response.json.return_value = {"order": {"order_id": "ord_123"}}
     client.client.post.return_value = mock_response
 
     result = await client.place_order(
-        ticker="KXTEST",
-        side="yes",
-        action="buy",
-        count=10,
-        price=50
+        ticker="KXTEST", side="yes", action="buy", count=10, price=50
     )
 
     assert result["order_id"] == "ord_123"

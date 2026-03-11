@@ -1,8 +1,8 @@
-
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 class Settings:
 
@@ -22,11 +22,11 @@ class Settings:
     # GOAL_WS_SOFASCORE = "wss://ws.sofascore.com/live/events"
     # GOAL_WS_BACKUP = "wss://sportdata.io/ws/soccer"
 
-    WS_RECONNECT_DELAY = 5  
-    WS_PING_INTERVAL = 30  
-    WS_TIMEOUT = 10         
+    WS_RECONNECT_DELAY = 5
+    WS_PING_INTERVAL = 30
+    WS_TIMEOUT = 10
     WS_MAX_RECONNECT_ATTEMPTS = 10
-    WS_RECONNECT_BACKOFF_BASE = 2  
+    WS_RECONNECT_BACKOFF_BASE = 2
 
     # Polling settings for the new API
     POLL_INTERVAL_SECONDS = 10
@@ -37,18 +37,18 @@ class Settings:
     REQUEST_DELAY_MS = 1000
 
     SUPPORTED_LEAGUES = [
-        39,   # Premier League
+        39,  # Premier League
         140,  # La Liga
-        78,   # Bundesliga
+        78,  # Bundesliga
         135,  # Serie A
-        61,   # Ligue 1
-        2,    # Champions League
-        3,    # Europa League
+        61,  # Ligue 1
+        2,  # Champions League
+        3,  # Europa League
         848,  # Conference League
     ]
 
-    MARKET_REFRESH_INTERVAL = 5  
-    STALE_DATA_THRESHOLD = 60    
+    MARKET_REFRESH_INTERVAL = 5
+    STALE_DATA_THRESHOLD = 60
 
     # Alpha One - Underdog Strategy
     UNDERDOG_THRESHOLD = float(os.getenv("UNDERDOG_THRESHOLD", "0.45"))
@@ -64,7 +64,7 @@ class Settings:
     CLIP_MIN_PROFIT_PCT = float(os.getenv("CLIP_MIN_PROFIT_PCT", "3"))
     CLIP_MAX_SECONDS = int(os.getenv("CLIP_MAX_SECONDS", "300"))
 
-    TRADING_MODE = os.getenv("TRADING_MODE", "simulation")  
+    TRADING_MODE = os.getenv("TRADING_MODE", "simulation")
 
     @classmethod
     def is_configured(cls) -> bool:
@@ -77,5 +77,6 @@ class Settings:
     @classmethod
     def is_live_mode(cls) -> bool:
         return cls.TRADING_MODE.lower() == "live"
+
 
 settings = Settings()

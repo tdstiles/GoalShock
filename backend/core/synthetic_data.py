@@ -23,7 +23,7 @@ SYNTHETIC_POSITIONS: List[Dict[str, float | str | int]] = [
         "entry_price": 0.68,
         "current_price": 0.72,
         "size": 100,
-        "pnl": 4.0
+        "pnl": 4.0,
     },
     {
         "market_id": "market_2",
@@ -32,6 +32,6 @@ SYNTHETIC_POSITIONS: List[Dict[str, float | str | int]] = [
         "entry_price": 0.63,
         "current_price": 0.65,
         "size": 150,
-        "pnl": 3.0
-    }
+        "pnl": 3.0,
+    },
 ]

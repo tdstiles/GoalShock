@@ -1,4 +1,3 @@
-
 import random
 import math
 from typing import Dict, List
@@ -42,14 +41,17 @@ PNL_WIN_STD = 0.01
 PNL_AVG_LOSS_RET = -0.015
 PNL_LOSS_STD = 0.008
 
+
 class MarketMicrostructure:
     def __init__(self):
         self._vol_state = {}
         self._flow_imbalance = {}
         self._price_state = {}
 
-    def _brownian_drift(self, current: float, volatility: float, dt: float = 1.0) -> float:
-        mu = 0.0 
+    def _brownian_drift(
+        self, current: float, volatility: float, dt: float = 1.0
+    ) -> float:
+        mu = 0.0
         sigma = volatility
         dW = random.gauss(0, math.sqrt(dt))
         return current * math.exp((mu - 0.5 * sigma**2) * dt + sigma * dW)
@@ -76,7 +78,10 @@ class MarketMicrostructure:
 
         current_vol = self._vol_state[market_id]
         vol_shock = random.gauss(0, VOLATILITY_SHOCK_STD)
-        self._vol_state[market_id] = max(VOLATILITY_FLOOR, current_vol * VOLATILITY_DECAY + abs(vol_shock) * VOLATILITY_SHOCK_WEIGHT)
+        self._vol_state[market_id] = max(
+            VOLATILITY_FLOOR,
+            current_vol * VOLATILITY_DECAY + abs(vol_shock) * VOLATILITY_SHOCK_WEIGHT,
+        )
 
         mid_price = self._brownian_drift(base_price, current_vol, DRIFT_DT)
         mid_price = max(PRICE_MIN, min(PRICE_MAX, mid_price))
@@ -93,11 +98,15 @@ class MarketMicrostructure:
 
         for i in range(ORDERBOOK_DEPTH):
             bid_price = mid_price - spread / 2 - i * TICK_SIZE
-            bid_size = random.randint(ORDER_SIZE_MIN, ORDER_SIZE_MAX) * (1 + random.random())
+            bid_size = random.randint(ORDER_SIZE_MIN, ORDER_SIZE_MAX) * (
+                1 + random.random()
+            )
             bids.append({"price": round(bid_price, 4), "size": int(bid_size)})
 
             ask_price = mid_price + spread / 2 + i * TICK_SIZE
-            ask_size = random.randint(ORDER_SIZE_MIN, ORDER_SIZE_MAX) * (1 + random.random())
+            ask_size = random.randint(ORDER_SIZE_MIN, ORDER_SIZE_MAX) * (
+                1 + random.random()
+            )
             asks.append({"price": round(ask_price, 4), "size": int(ask_size)})
 
         total_volume = random.randint(VOLUME_MIN, VOLUME_MAX)
@@ -108,10 +117,12 @@ class MarketMicrostructure:
             "bids": sorted(bids, key=lambda x: x["price"], reverse=True),
             "asks": sorted(asks, key=lambda x: x["price"]),
             "total_volume": total_volume,
-            "volatility": round(current_vol, 4)
+            "volatility": round(current_vol, 4),
         }
 
-    def generate_trade_history(self, market_id: str, num_trades: int = 20) -> List[Dict]:
+    def generate_trade_history(
+        self, market_id: str, num_trades: int = 20
+    ) -> List[Dict]:
         """Generate realistic trade history"""
         trades = []
         current_time = datetime.now()
@@ -133,22 +144,28 @@ class MarketMicrostructure:
             size = random.randint(TRADE_SIZE_MIN, TRADE_SIZE_MAX)
 
             # Sherlock Fix: Accumulate time offsets to ensure consistent intervals
-            current_offset_minutes += random.randint(TRADE_INTERVAL_MIN, TRADE_INTERVAL_MAX)
+            current_offset_minutes += random.randint(
+                TRADE_INTERVAL_MIN, TRADE_INTERVAL_MAX
+            )
             timestamp = current_time - timedelta(minutes=current_offset_minutes)
 
-            trades.append({
-                "price": round(price, 4),
-                "size": size,
-                "side": "buy" if is_buy else "sell",
-                "timestamp": timestamp.isoformat()
-            })
+            trades.append(
+                {
+                    "price": round(price, 4),
+                    "size": size,
+                    "side": "buy" if is_buy else "sell",
+                    "timestamp": timestamp.isoformat(),
+                }
+            )
 
         # Optimization: Trades are generated in chronological reverse order (newest first)
         # by the loop structure above, so explicit sorting is redundant.
         # Removing sorted() converts O(N log N) to O(N).
         return trades
 
-    def generate_pnl_path(self, initial_value: float = 1000, num_points: int = 100) -> List[Dict]:
+    def generate_pnl_path(
+        self, initial_value: float = 1000, num_points: int = 100
+    ) -> List[Dict]:
         """Generate realistic P&L path with proper risk characteristics"""
         pnl_history = []
         current_pnl = initial_value
@@ -161,17 +178,19 @@ class MarketMicrostructure:
 
             # Sherlock Fix: Ensure internal state matches persisted state to prevent drift
             change_pct = round(change_pct, 4)  # Normalize precision
-            current_pnl *= (1 + change_pct)
+            current_pnl *= 1 + change_pct
             current_pnl = round(current_pnl, 2)  # Snap to grid
 
             # Sherlock Fix: Corrected timestamp calculation to align last point with 'now'
             # Previous: num_points - i (last point = 1 hour ago)
             # New: num_points - 1 - i (last point = 0 hours ago)
             timestamp = datetime.now() - timedelta(hours=num_points - 1 - i)
-            pnl_history.append({
-                "timestamp": timestamp.isoformat(),
-                "pnl": current_pnl,
-                "change_pct": round(change_pct * 100, 2)
-            })
+            pnl_history.append(
+                {
+                    "timestamp": timestamp.isoformat(),
+                    "pnl": current_pnl,
+                    "change_pct": round(change_pct * 100, 2),
+                }
+            )
 
         return pnl_history

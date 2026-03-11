@@ -6,7 +6,8 @@ from backend.bot.websocket_goal_listener import WebSocketGoalListener, GoalEvent
 from backend.data.api_football import LiveFixture, Goal
 
 # Mock supported league ID
-SUPPORTED_LEAGUE_ID = 39 # Premier League
+SUPPORTED_LEAGUE_ID = 39  # Premier League
+
 
 @pytest.fixture
 def listener():
@@ -15,6 +16,7 @@ def listener():
         # Ensure client mock is accessible
         listener.client = MockClient.return_value
         return listener
+
 
 @pytest.mark.asyncio
 async def test_poll_cycle_detects_goal(listener):
@@ -36,7 +38,7 @@ async def test_poll_cycle_detects_goal(listener):
         away_score=0,
         minute=15,
         status="1H",
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
     # Mock detected goal
@@ -46,7 +48,7 @@ async def test_poll_cycle_detects_goal(listener):
         player="Player 1",
         minute=15,
         home_score=1,
-        away_score=0
+        away_score=0,
     )
 
     # Setup client mocks
@@ -65,6 +67,7 @@ async def test_poll_cycle_detects_goal(listener):
     assert call_args.home_score == 1
     assert call_args.away_score == 0
     assert call_args.minute == 15
+
 
 @pytest.mark.asyncio
 async def test_poll_cycle_no_goals(listener):
@@ -85,11 +88,11 @@ async def test_poll_cycle_no_goals(listener):
         away_score=0,
         minute=10,
         status="1H",
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
     listener.client.get_live_fixtures = AsyncMock(return_value=[fixture])
-    listener.client.detect_goals = AsyncMock(return_value=[]) # No new goals
+    listener.client.detect_goals = AsyncMock(return_value=[])  # No new goals
 
     # Act
     await listener._poll_cycle()
@@ -99,15 +102,23 @@ async def test_poll_cycle_no_goals(listener):
     # But fixture should be in active list
     assert 1001 in listener.active_fixtures
 
+
 @pytest.mark.asyncio
 async def test_poll_cycle_empty_response(listener):
     """Test that empty fixture list is handled gracefully and cleans up stale fixtures."""
 
     # Pre-populate with a fixture that should be removed
     stale_fixture = LiveFixture(
-        fixture_id=999, league_id=1, league_name="Old",
-        home_team="A", away_team="B", home_score=0, away_score=0,
-        minute=90, status="FT", timestamp=datetime.now()
+        fixture_id=999,
+        league_id=1,
+        league_name="Old",
+        home_team="A",
+        away_team="B",
+        home_score=0,
+        away_score=0,
+        minute=90,
+        status="FT",
+        timestamp=datetime.now(),
     )
     listener.active_fixtures[999] = stale_fixture
 
@@ -117,22 +128,32 @@ async def test_poll_cycle_empty_response(listener):
 
     assert len(listener.active_fixtures) == 0
 
+
 @pytest.mark.asyncio
 async def test_notify_multiple_callbacks(listener):
     """Test that all registered callbacks are notified."""
 
     cb1 = AsyncMock()
     cb1.__name__ = "async_callback"
-    cb2 = Mock() # Synchronous callback
+    cb2 = Mock()  # Synchronous callback
     cb2.__name__ = "sync_callback"
 
     listener.register_goal_callback(cb1)
     listener.register_goal_callback(cb2)
 
     event = GoalEventWS(
-        fixture_id=1, league_id=1, league_name="L", home_team="H", away_team="A",
-        team="H", player="P", minute=1, home_score=1, away_score=0, goal_type="G",
-        timestamp=datetime.now()
+        fixture_id=1,
+        league_id=1,
+        league_name="L",
+        home_team="H",
+        away_team="A",
+        team="H",
+        player="P",
+        minute=1,
+        home_score=1,
+        away_score=0,
+        goal_type="G",
+        timestamp=datetime.now(),
     )
 
     await listener._notify_goal_callbacks(event)
