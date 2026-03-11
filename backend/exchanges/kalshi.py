@@ -4,6 +4,8 @@ import logging
 from typing import Dict, Optional, List
 from datetime import datetime
 
+from backend.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,7 +20,7 @@ class KalshiClient:
         self.api_key = os.getenv("KALSHI_API_KEY", "")
         self.api_secret = os.getenv("KALSHI_API_SECRET", "")
         self.base_url = "https://trading-api.kalshi.com/trade-api/v2"
-        self.client = httpx.AsyncClient(timeout=10.0)
+        self.client = httpx.AsyncClient(timeout=settings.HTTP_TIMEOUT)
         self.auth_token: Optional[str] = None
 
         logger.info("📊 Kalshi client initialized")
