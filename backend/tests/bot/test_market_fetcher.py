@@ -310,3 +310,107 @@ async def test_apply_market_update_updates_cache_and_notifies(
     assert updates[0].market_id == "mkt-5"
     assert updates[0].yes_price == 0.62
     assert updates[0].no_price == 0.38
+
+@pytest.mark.asyncio
+async def test_fetch_markets_for_fixture_fetches_and_caches_from_configured_sources(
+    market_fetcher: MarketFetcher, mocker
+) -> None:
+    """Test fetching and caching markets from configured sources.
+
+    Args:
+        market_fetcher: The market fetcher under test.
+        mocker: pytest-mock fixture.
+    """
+    from backend.config.settings import settings
+
+    mocker.patch.object(settings, "POLYMARKET_API_KEY", "test_poly")
+    mocker.patch.object(settings, "KALSHI_API_KEY", "test_kalshi")
+
+    poly_market = _make_market_price(
+        "poly_1",
+        yes_price=0.4,
+        no_price=0.6,
+        last_updated=datetime(2021, 1, 1, tzinfo=timezone.utc),
+    )
+    kalshi_market = _make_market_price(
+        "kalshi_1",
+        yes_price=0.5,
+        no_price=0.5,
+        last_updated=datetime(2021, 1, 1, tzinfo=timezone.utc),
+    )
+
+    mocker.patch.object(
+        market_fetcher, "_fetch_polymarket_markets", return_value=[poly_market]
+    )
+    mocker.patch.object(
+        market_fetcher, "_fetch_kalshi_markets", return_value=[kalshi_market]
+    )
+
+    markets = await market_fetcher.fetch_markets_for_fixture(
+        fixture_id=1, home_team="Team A", away_team="Team B"
+    )
+
+    assert len(markets) == 2
+    assert markets[0].market_id == "poly_1"
+    assert markets[1].market_id == "kalshi_1"
+    assert "poly_1" in market_fetcher.market_cache
+    assert "kalshi_1" in market_fetcher.market_cache
+
+@pytest.mark.asyncio
+async def test_fetch_markets_for_fixture_handles_api_errors(
+    market_fetcher: MarketFetcher, mocker
+) -> None:
+    """Test fetching markets handles exceptions safely.
+
+    Args:
+        market_fetcher: The market fetcher under test.
+        mocker: pytest-mock fixture.
+    """
+    from backend.config.settings import settings
+    import httpx
+
+    mocker.patch.object(settings, "POLYMARKET_API_KEY", "test_poly")
+    mocker.patch.object(settings, "KALSHI_API_KEY", "test_kalshi")
+
+    mocker.patch.object(
+        market_fetcher.client, "get", side_effect=httpx.HTTPError("API Down")
+    )
+
+    markets = await market_fetcher.fetch_markets_for_fixture(
+        fixture_id=1, home_team="Team A", away_team="Team B"
+    )
+
+    assert len(markets) == 0
+
+def test_getters(market_fetcher: MarketFetcher) -> None:
+    """Test getting markets from cache.
+
+    Args:
+        market_fetcher: The market fetcher under test.
+    """
+    poly_market = _make_market_price(
+        "poly_1",
+        yes_price=0.4,
+        no_price=0.6,
+        last_updated=datetime(2021, 1, 1, tzinfo=timezone.utc),
+    )
+    kalshi_market = _make_market_price(
+        "kalshi_1",
+        yes_price=0.5,
+        no_price=0.5,
+        last_updated=datetime(2021, 1, 1, tzinfo=timezone.utc),
+    )
+
+    market_fetcher.market_cache["poly_1"] = poly_market
+    market_fetcher.market_cache["kalshi_1"] = kalshi_market
+
+    m1 = market_fetcher.get_market("poly_1")
+    assert m1 is poly_market
+
+    m2 = market_fetcher.get_market("missing")
+    assert m2 is None
+
+    all_markets = market_fetcher.get_all_markets()
+    assert len(all_markets) == 2
+    assert poly_market in all_markets
+    assert kalshi_market in all_markets
