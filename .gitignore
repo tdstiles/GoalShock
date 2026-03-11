@@ -29,3 +29,7 @@ Thumbs.db
 # Local config
 .env
 *.local
+
+# Coverage
+coverage/
+.coverage
