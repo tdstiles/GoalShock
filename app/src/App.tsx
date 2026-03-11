@@ -367,6 +367,7 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
   const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
+  const [isTogglingBot, setIsTogglingBot] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Fetch bot status
@@ -377,6 +378,7 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
 
   // Start bot
   const handleStartBot = async () => {
+    setIsTogglingBot(true);
     const success = await startBot();
     if (success) {
       // Immediately update local state for instant UI feedback
@@ -386,10 +388,12 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
     } else {
       alert('Backend not running. Please start the backend server first.');
     }
+    setIsTogglingBot(false);
   };
 
   // Stop bot
   const handleStopBot = async () => {
+    setIsTogglingBot(true);
     const success = await stopBot();
     if (success) {
       // Immediately update local state for instant UI feedback
@@ -399,6 +403,7 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
     } else {
       alert('Backend not running. Please start the backend server first.');
     }
+    setIsTogglingBot(false);
   };
 
   // WebSocket connection
@@ -535,12 +540,24 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {!botStatus?.running ? (
-              <button className="btn-success" onClick={handleStartBot}>
-                <ButtonText>Start Bot</ButtonText>
+              <button
+                className="btn-success"
+                onClick={handleStartBot}
+                disabled={isTogglingBot}
+                aria-busy={isTogglingBot}
+                style={{ opacity: isTogglingBot ? 0.7 : 1, pointerEvents: isTogglingBot ? 'none' : 'auto' }}
+              >
+                <ButtonText>{isTogglingBot ? 'Starting...' : 'Start Bot'}</ButtonText>
               </button>
             ) : (
-              <button className="btn-accent" onClick={handleStopBot}>
-                <ButtonText>Stop Bot</ButtonText>
+              <button
+                className="btn-accent"
+                onClick={handleStopBot}
+                disabled={isTogglingBot}
+                aria-busy={isTogglingBot}
+                style={{ opacity: isTogglingBot ? 0.7 : 1, pointerEvents: isTogglingBot ? 'none' : 'auto' }}
+              >
+                <ButtonText>{isTogglingBot ? 'Stopping...' : 'Stop Bot'}</ButtonText>
               </button>
             )}
           </div>
