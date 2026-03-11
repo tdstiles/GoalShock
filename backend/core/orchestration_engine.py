@@ -1,4 +1,3 @@
-
 from .data_pipeline import DataAcquisitionLayer, PrimaryProviderUnavailableError
 from .stream_processor import StreamProcessor
 from .market_synthesizer import MarketMicrostructure
@@ -7,6 +6,7 @@ from typing import Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class OrchestrationEngine:
     """Coordinates data acquisition, enrichment, and aggregation for live feeds."""
@@ -27,13 +27,19 @@ class OrchestrationEngine:
         try:
             raw_events = await self._dal.fetch_live_goals()
         except PrimaryProviderUnavailableError as exc:
-            logger.warning("Provider unavailable for live goals.", extra={"source": exc.source})
+            logger.warning(
+                "Provider unavailable for live goals.", extra={"source": exc.source}
+            )
             raw_events = []
             errors.append(
                 {
                     "operation": exc.operation,
                     "source": exc.source,
-                    "status": str(exc.status_code) if exc.status_code is not None else "unavailable",
+                    "status": (
+                        str(exc.status_code)
+                        if exc.status_code is not None
+                        else "unavailable"
+                    ),
                     "message": exc.message,
                 }
             )
@@ -41,13 +47,19 @@ class OrchestrationEngine:
         try:
             market_data = await self._dal.fetch_market_data()
         except PrimaryProviderUnavailableError as exc:
-            logger.warning("Provider unavailable for market data.", extra={"source": exc.source})
+            logger.warning(
+                "Provider unavailable for market data.", extra={"source": exc.source}
+            )
             market_data = {"markets": [], "count": 0}
             errors.append(
                 {
                     "operation": exc.operation,
                     "source": exc.source,
-                    "status": str(exc.status_code) if exc.status_code is not None else "unavailable",
+                    "status": (
+                        str(exc.status_code)
+                        if exc.status_code is not None
+                        else "unavailable"
+                    ),
                     "message": exc.message,
                 }
             )
@@ -76,7 +88,7 @@ class OrchestrationEngine:
             "market_id": market_id,
             "orderbook": orderbook,
             "recent_trades": trade_history,
-            "timestamp": trade_history[0]["timestamp"] if trade_history else None
+            "timestamp": trade_history[0]["timestamp"] if trade_history else None,
         }
 
     async def get_portfolio_status(self) -> Dict:
@@ -90,7 +102,7 @@ class OrchestrationEngine:
             "pnl_history": pnl_history,
             "current_pnl": pnl_history[-1]["pnl"] if pnl_history else 1000,
             "positions": positions,
-            "total_positions": len(positions)
+            "total_positions": len(positions),
         }
 
     async def cleanup(self):

@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 import os
@@ -74,13 +73,15 @@ TIME_THRESHOLD_LATE = 600  # 10 minutes
 TIME_THRESHOLD_VERY_LATE = 300  # 5 minutes
 TIME_THRESHOLD_CRITICAL = 120  # 2 minutes
 
+
 class MarketStatus(Enum):
     """
     Enum representing the lifecycle status of a market.
     """
+
     ACTIVE = "active"
-    CLOSING_SOON = "closing_soon" 
-    FINAL_SECONDS = "final_seconds"  
+    CLOSING_SOON = "closing_soon"
+    FINAL_SECONDS = "final_seconds"
     RESOLVED = "resolved"
 
 
@@ -95,24 +96,23 @@ class ClippingOpportunity:
     market_id: str
     market_question: str
     fixture_id: int
-    
+
     # Current state
     yes_price: float
     no_price: float
     spread: float
-    
-    expected_outcome: str  
-    confidence: float 
+
+    expected_outcome: str
+    confidence: float
     expected_profit_pct: float
-    
-    
+
     seconds_to_resolution: int
     recommended_side: str
     recommended_price: float
     recommended_size: float
 
     detected_at: datetime = field(default_factory=datetime.now)
-    
+
     def to_dict(self) -> Dict:
         return {
             "opportunity_id": self.opportunity_id,
@@ -126,7 +126,7 @@ class ClippingOpportunity:
             "seconds_to_resolution": self.seconds_to_resolution,
             "recommended_side": self.recommended_side,
             "recommended_price": self.recommended_price,
-            "recommended_size": self.recommended_size
+            "recommended_size": self.recommended_size,
         }
 
 
@@ -137,7 +137,7 @@ class ClippingTrade:
     entry_time: datetime
     entry_price: float
     size_usd: float
-    
+
     resolved: bool = False
     resolution_time: Optional[datetime] = None
     actual_outcome: Optional[str] = None
@@ -162,36 +162,27 @@ class AlphaTwoStats:
     total_pnl: float = 0.0
     win_rate: float = 0.0
     avg_profit_per_trade: float = 0.0
-    false_positives: int = 0  
+    false_positives: int = 0
 
 
 class AlphaTwoLateCompression(BaseAlpha):
-  
-    
+
     # Markets to avoid (high dispute risk)
-    AVOIDED_MARKET_TYPES = [
-        "political",
-        "crypto",
-        "weather",
-        "entertainment"
-    ]
-    
+    AVOIDED_MARKET_TYPES = ["political", "crypto", "weather", "entertainment"]
+
     def __init__(
-        self,
-        polymarket_client=None,
-        kalshi_client=None,
-        simulation_mode: bool = True
+        self, polymarket_client=None, kalshi_client=None, simulation_mode: bool = True
     ):
         super().__init__()
         self.polymarket = polymarket_client
         self.kalshi = kalshi_client
         self.simulation_mode = simulation_mode
-        
+
         self.min_confidence = float(os.getenv("CLIP_MIN_CONFIDENCE", "0.95"))
         self.max_trade_size = float(os.getenv("CLIP_MAX_SIZE_USD", "50"))
-        self.min_profit_threshold = float(os.getenv("CLIP_MIN_PROFIT_PCT", "3"))  
-        self.max_seconds_to_close = int(os.getenv("CLIP_MAX_SECONDS", "300")) 
-        self.monitored_markets: Dict[str, Dict] = {} 
+        self.min_profit_threshold = float(os.getenv("CLIP_MIN_PROFIT_PCT", "3"))
+        self.max_seconds_to_close = int(os.getenv("CLIP_MAX_SECONDS", "300"))
+        self.monitored_markets: Dict[str, Dict] = {}
         self.active_opportunities: Dict[str, ClippingOpportunity] = {}
         self.trades: Dict[str, ClippingTrade] = {}
         self.active_trade_market_ids: Set[str] = set()
@@ -199,13 +190,13 @@ class AlphaTwoLateCompression(BaseAlpha):
         self.closed_trades: List[ClippingTrade] = []
         self.execution_retry_state: Dict[str, ExecutionRetryState] = {}
         self.stats = AlphaTwoStats()
-        
+
         self.running = False
 
         self.max_execution_retries = int(os.getenv("CLIP_MAX_EXECUTION_RETRIES", "3"))
         self.retry_backoff_seconds = int(os.getenv("CLIP_RETRY_BACKOFF_SECONDS", "2"))
         self.retry_ttl_seconds = int(os.getenv("CLIP_RETRY_TTL_SECONDS", "120"))
-        
+
         logger.info(f"Alpha Two initialized (simulation={simulation_mode})")
         logger.info(f"  Min confidence: {self.min_confidence}")
         logger.info(f"  Max trade size: ${self.max_trade_size}")
@@ -214,14 +205,14 @@ class AlphaTwoLateCompression(BaseAlpha):
     async def start(self):
         self.running = True
         logger.info("Starting Alpha Two - Late Compression Strategy")
-        
+
         tasks = [
             asyncio.create_task(self._market_scanner_loop()),
             asyncio.create_task(self._opportunity_detector_loop()),
             asyncio.create_task(self._execution_loop()),
-            asyncio.create_task(self._resolution_monitor_loop())
+            asyncio.create_task(self._resolution_monitor_loop()),
         ]
-        
+
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def stop(self):
@@ -232,17 +223,22 @@ class AlphaTwoLateCompression(BaseAlpha):
         while self.running:
             try:
                 closing_markets = await self._fetch_closing_markets()
-                
+
                 for market in closing_markets:
                     market_id = market.get("market_id")
-                    seconds_to_close = market.get("seconds_to_close", DEFAULT_SECONDS_TO_CLOSE)
-                    
+                    seconds_to_close = market.get(
+                        "seconds_to_close", DEFAULT_SECONDS_TO_CLOSE
+                    )
+
                     if seconds_to_close <= self.max_seconds_to_close:
                         self.monitored_markets[market_id] = market
-                        logger.debug(f"Monitoring market {market_id}: {seconds_to_close}s to close")
-                
+                        logger.debug(
+                            f"Monitoring market {market_id}: {seconds_to_close}s to close"
+                        )
+
                 resolved = [
-                    mid for mid, m in self.monitored_markets.items()
+                    mid
+                    for mid, m in self.monitored_markets.items()
                     if m.get("status") == MarketStatus.RESOLVED.value
                 ]
 
@@ -250,36 +246,44 @@ class AlphaTwoLateCompression(BaseAlpha):
                 for mid in resolved:
                     if mid not in self.active_trade_market_ids:
                         del self.monitored_markets[mid]
-                
+
                 await asyncio.sleep(LOOP_INTERVAL_MARKET_SCANNER_SECONDS)
-                
+
             except Exception as e:
                 logger.error(f"Market scanner error: {e}")
                 await asyncio.sleep(ERROR_RETRY_SECONDS_MARKET_SCANNER)
 
     async def _opportunity_detector_loop(self):
-        
+
         while self.running:
             try:
                 for market_id, market in list(self.monitored_markets.items()):
                     opportunity = await self._analyze_market_for_clipping(market)
-                    
+
                     if opportunity:
-                        self.active_opportunities[opportunity.opportunity_id] = opportunity
+                        self.active_opportunities[opportunity.opportunity_id] = (
+                            opportunity
+                        )
                         self.stats.opportunities_detected += 1
-                        
+
                         self._log_event("opportunity_detected", opportunity.to_dict())
-                        
-                        logger.info(f"CLIPPING OPPORTUNITY: {opportunity.opportunity_id}")
+
+                        logger.info(
+                            f"CLIPPING OPPORTUNITY: {opportunity.opportunity_id}"
+                        )
                         logger.info(f"  Market: {opportunity.market_question}")
                         logger.info(f"  Expected: {opportunity.expected_outcome}")
                         logger.info(f"  Current price: {opportunity.yes_price:.4f}")
                         logger.info(f"  Confidence: {opportunity.confidence:.2f}")
-                        logger.info(f"  Expected profit: {opportunity.expected_profit_pct:.1f}%")
-                        logger.info(f"  Seconds to resolution: {opportunity.seconds_to_resolution}")
-                
+                        logger.info(
+                            f"  Expected profit: {opportunity.expected_profit_pct:.1f}%"
+                        )
+                        logger.info(
+                            f"  Seconds to resolution: {opportunity.seconds_to_resolution}"
+                        )
+
                 await asyncio.sleep(LOOP_INTERVAL_OPPORTUNITY_SECONDS)
-                
+
             except Exception as e:
                 logger.error(f"Opportunity detector error: {e}")
                 await asyncio.sleep(ERROR_RETRY_SECONDS_OPPORTUNITY)
@@ -293,9 +297,9 @@ class AlphaTwoLateCompression(BaseAlpha):
         while self.running:
             try:
                 await self._execute_opportunity_cycle()
-                
+
                 await asyncio.sleep(LOOP_INTERVAL_EXECUTION_SECONDS)
-                
+
             except Exception as e:
                 logger.error(f"Execution loop error: {e}")
                 await asyncio.sleep(ERROR_RETRY_SECONDS_EXECUTION)
@@ -340,7 +344,9 @@ class AlphaTwoLateCompression(BaseAlpha):
             else:
                 self._record_execution_retry(opp_id, now)
 
-    def _is_retry_state_expired(self, retry_state: ExecutionRetryState, now: datetime) -> bool:
+    def _is_retry_state_expired(
+        self, retry_state: ExecutionRetryState, now: datetime
+    ) -> bool:
         """Determine whether a retry state has exceeded configured limits.
 
         Args:
@@ -351,7 +357,9 @@ class AlphaTwoLateCompression(BaseAlpha):
             True if the retry limits have been exceeded.
         """
         attempts_exceeded = retry_state.attempts >= self.max_execution_retries
-        ttl_exceeded = (now - retry_state.first_seen).total_seconds() >= self.retry_ttl_seconds
+        ttl_exceeded = (
+            now - retry_state.first_seen
+        ).total_seconds() >= self.retry_ttl_seconds
         return attempts_exceeded or ttl_exceeded
 
     def _expire_opportunity(self, opportunity_id: str, reason: str) -> None:
@@ -389,16 +397,16 @@ class AlphaTwoLateCompression(BaseAlpha):
                 for trade_id, trade in list(self.trades.items()):
                     if trade.resolved:
                         continue
-                    
+
                     resolution = await self._check_market_resolution(
                         trade.opportunity.market_id
                     )
-                    
+
                     if resolution:
                         await self._process_trade_resolution(trade, resolution)
-                
+
                 await asyncio.sleep(LOOP_INTERVAL_RESOLUTION_SECONDS)
-                
+
             except Exception as e:
                 logger.error(f"Resolution monitor error: {e}")
                 await asyncio.sleep(ERROR_RETRY_SECONDS_RESOLUTION)
@@ -406,25 +414,25 @@ class AlphaTwoLateCompression(BaseAlpha):
     async def _fetch_closing_markets(self) -> List[Dict]:
         """Fetch markets that are closing soon"""
         markets = []
-        
+
         if self.polymarket:
             try:
                 poly_markets = await self._fetch_polymarket_closing_markets()
                 markets.extend(poly_markets)
             except Exception as e:
                 logger.error(f"Polymarket fetch error: {e}")
-        
+
         if self.kalshi:
             try:
                 kalshi_markets = await self._fetch_kalshi_closing_markets()
                 markets.extend(kalshi_markets)
             except Exception as e:
                 logger.error(f"Kalshi fetch error: {e}")
-        
+
         return markets
 
     async def _fetch_polymarket_closing_markets(self) -> List[Dict]:
-        
+
         #  Daniel NOTE: This would query Polymarket API for markets with close_time approaching
         # For now this returns empty we would implement with actual API
         return []
@@ -433,7 +441,9 @@ class AlphaTwoLateCompression(BaseAlpha):
         # Daniel Note: This would query Kalshi API for markets with close_time approaching
         return []
 
-    async def _analyze_market_for_clipping(self, market: Dict) -> Optional[ClippingOpportunity]:
+    async def _analyze_market_for_clipping(
+        self, market: Dict
+    ) -> Optional[ClippingOpportunity]:
 
         market_id = market.get("market_id")
 
@@ -452,7 +462,7 @@ class AlphaTwoLateCompression(BaseAlpha):
 
         question = market.get("question", "")
         fixture_id = market.get("fixture_id", 0)
-        
+
         # Get current prices
         yes_price = market.get("yes_price", -1.0)
         no_price = market.get("no_price", -1.0)
@@ -462,36 +472,36 @@ class AlphaTwoLateCompression(BaseAlpha):
             return None
 
         spread = abs(yes_price - no_price)
-        
+
         seconds_to_close = market.get("seconds_to_close", DEFAULT_SECONDS_TO_CLOSE)
-        
+
         outcome_analysis = await self._predict_outcome(market)
-        
+
         if not outcome_analysis:
             return None
-        
-        expected_outcome = outcome_analysis["outcome"]  
+
+        expected_outcome = outcome_analysis["outcome"]
         confidence = outcome_analysis["confidence"]
-        
+
         if confidence < self.min_confidence:
             return None
-        
+
         if expected_outcome == MarketSide.YES.value:
             current_price = yes_price
             target_price = 1.0
         else:
             current_price = no_price
             target_price = 1.0
-        
+
         # Sherlock: Fix Division by Zero risk
         if current_price <= MIN_PRICE_THRESHOLD:
             return None
 
         expected_profit_pct = ((target_price - current_price) / current_price) * 100
-        
+
         if expected_profit_pct < self.min_profit_threshold:
             return None
-        
+
         return ClippingOpportunity(
             opportunity_id=f"clip_{market_id}_{int(datetime.now().timestamp())}",
             market_id=market_id,
@@ -506,58 +516,53 @@ class AlphaTwoLateCompression(BaseAlpha):
             seconds_to_resolution=seconds_to_close,
             recommended_side=expected_outcome,
             recommended_price=current_price,
-            recommended_size=min(
-                self.max_trade_size,
-                self.max_trade_size * confidence 
-            )
+            recommended_size=min(self.max_trade_size, self.max_trade_size * confidence),
         )
 
     async def _predict_outcome(self, market: Dict) -> Optional[Dict]:
-    
+
         market_type = market.get("type", "unknown")
-        
+
         if market_type not in SUPPORTED_SPORTS:
             return None
-        
+
         current_score = market.get("current_score", {})
         time_remaining = market.get("seconds_to_close", DEFAULT_SECONDS_TO_CLOSE)
-        
+
         home_score = current_score.get("home", 0)
         away_score = current_score.get("away", 0)
-        
+
         question = market.get("question", "").lower()
-        
+
         if "win" in question:
             if home_score > away_score:
-                if "home" in question or market.get("home_team", "").lower() in question:
+                if (
+                    "home" in question
+                    or market.get("home_team", "").lower() in question
+                ):
                     confidence = self._calculate_lead_confidence(
-                        home_score - away_score,
-                        time_remaining,
-                        market_type
+                        home_score - away_score, time_remaining, market_type
                     )
                     return {"outcome": MarketSide.YES.value, "confidence": confidence}
                 else:
                     confidence = self._calculate_lead_confidence(
-                        home_score - away_score,
-                        time_remaining,
-                        market_type
+                        home_score - away_score, time_remaining, market_type
                     )
                     return {"outcome": MarketSide.NO.value, "confidence": confidence}
-            
+
             elif away_score > home_score:
-                
-                if "away" in question or market.get("away_team", "").lower() in question:
+
+                if (
+                    "away" in question
+                    or market.get("away_team", "").lower() in question
+                ):
                     confidence = self._calculate_lead_confidence(
-                        away_score - home_score,
-                        time_remaining,
-                        market_type
+                        away_score - home_score, time_remaining, market_type
                     )
                     return {"outcome": MarketSide.YES.value, "confidence": confidence}
                 else:
                     confidence = self._calculate_lead_confidence(
-                        away_score - home_score,
-                        time_remaining,
-                        market_type
+                        away_score - home_score, time_remaining, market_type
                     )
                     return {"outcome": MarketSide.NO.value, "confidence": confidence}
 
@@ -565,37 +570,39 @@ class AlphaTwoLateCompression(BaseAlpha):
                 # DRAW CASE (Scores Equal)
                 # If the market is checking for a "Win", a Draw means NO.
                 # Specifically needed for Trade Resolution when match ends in Draw.
-                if market.get("status") == MarketStatus.RESOLVED.value or time_remaining <= 0:
+                if (
+                    market.get("status") == MarketStatus.RESOLVED.value
+                    or time_remaining <= 0
+                ):
                     return {"outcome": MarketSide.NO.value, "confidence": 1.0}
 
                 # Sherlock Fix: Also evaluate active Draws. If it's a draw late in the game,
                 # the chance of a specific team winning is low -> outcome NO.
                 confidence = self._calculate_lead_confidence(
-                    0,
-                    time_remaining,
-                    market_type
+                    0, time_remaining, market_type
                 )
                 return {"outcome": MarketSide.NO.value, "confidence": confidence}
-        
+
         return None
 
     def _calculate_lead_confidence(
-        self,
-        lead_margin: int,
-        seconds_remaining: int,
-        sport: str
+        self, lead_margin: int, seconds_remaining: int, sport: str
     ) -> float:
-        
+
         if sport == SPORT_SOCCER:
             return self._calculate_soccer_confidence(lead_margin, seconds_remaining)
-        
+
         elif sport in [SPORT_BASKETBALL, SPORT_BASEBALL]:
-            return self._calculate_us_sports_confidence(lead_margin, seconds_remaining, sport)
+            return self._calculate_us_sports_confidence(
+                lead_margin, seconds_remaining, sport
+            )
 
         else:
             return CONFIDENCE_NEUTRAL
 
-    def _calculate_us_sports_confidence(self, lead_margin: int, seconds_remaining: int, sport: str) -> float:
+    def _calculate_us_sports_confidence(
+        self, lead_margin: int, seconds_remaining: int, sport: str
+    ) -> float:
         """
         Calculates confidence for US sports (Basketball, Baseball) based on lead margin and remaining time.
         """
@@ -617,7 +624,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 expected_swing = max(BASKETBALL_LOW_POSSESSION_SWING, expected_swing)
             else:
                 expected_swing = max(BASKETBALL_HIGH_POSSESSION_SWING, expected_swing)
-        
+
         if lead_margin > expected_swing * SWING_BUFFER_MULTIPLIER:
             confidence = CONFIDENCE_VERY_HIGH
         elif lead_margin > expected_swing:
@@ -630,7 +637,9 @@ class AlphaTwoLateCompression(BaseAlpha):
 
         return min(CONFIDENCE_MAX, confidence)
 
-    def _calculate_soccer_confidence(self, lead_margin: int, seconds_remaining: int) -> float:
+    def _calculate_soccer_confidence(
+        self, lead_margin: int, seconds_remaining: int
+    ) -> float:
         """
         Calculates confidence for soccer matches based on lead margin and remaining time.
         """
@@ -672,11 +681,15 @@ class AlphaTwoLateCompression(BaseAlpha):
         """
         # Sherlock Fix: Guard against double execution
         if opportunity.market_id in self.active_trade_market_ids:
-            logger.warning(f"Skipping duplicate trade execution for {opportunity.market_id}")
+            logger.warning(
+                f"Skipping duplicate trade execution for {opportunity.market_id}"
+            )
             return False
 
         if opportunity.market_id in self.pending_orders:
-            logger.warning(f"Skipping execution: Order pending for {opportunity.market_id}")
+            logger.warning(
+                f"Skipping execution: Order pending for {opportunity.market_id}"
+            )
             return False
 
         trade = ClippingTrade(
@@ -684,28 +697,31 @@ class AlphaTwoLateCompression(BaseAlpha):
             opportunity=opportunity,
             entry_time=datetime.now(),
             entry_price=opportunity.recommended_price,
-            size_usd=opportunity.recommended_size
+            size_usd=opportunity.recommended_size,
         )
-        
+
         if self.simulation_mode:
-            
+
             self.trades[trade.trade_id] = trade
             self.active_trade_market_ids.add(opportunity.market_id)
             self.stats.trades_executed += 1
-            
-            self._log_event("trade_executed_simulation", {
-                "trade_id": trade.trade_id,
-                "entry_price": trade.entry_price,
-                "size_usd": trade.size_usd,
-                "expected_profit": opportunity.expected_profit_pct
-            })
-            
+
+            self._log_event(
+                "trade_executed_simulation",
+                {
+                    "trade_id": trade.trade_id,
+                    "entry_price": trade.entry_price,
+                    "size_usd": trade.size_usd,
+                    "expected_profit": opportunity.expected_profit_pct,
+                },
+            )
+
             logger.info(f"[SIMULATION] Clipping trade executed: {trade.trade_id}")
             logger.info(f"  Entry: {trade.entry_price:.4f}")
             logger.info(f"  Size: ${trade.size_usd:.2f}")
             logger.info(f"  Expected profit: {opportunity.expected_profit_pct:.1f}%")
             return True
-        
+
         else:
             # Mark as pending to prevent duplicate signals during async execution
             self.pending_orders.add(opportunity.market_id)
@@ -731,7 +747,9 @@ class AlphaTwoLateCompression(BaseAlpha):
                 # Fetch market details to resolve Token ID
                 market = await self.polymarket.get_market(opportunity.market_id)
                 if not market:
-                    logger.error(f"Could not fetch market details for {opportunity.market_id}")
+                    logger.error(
+                        f"Could not fetch market details for {opportunity.market_id}"
+                    )
                     return False
 
                 token_id = None
@@ -755,10 +773,14 @@ class AlphaTwoLateCompression(BaseAlpha):
                         elif target_outcome == "NO":
                             token_id = clob_tokens[1]
 
-                        logger.warning(f"Inferred token_id via index for {opportunity.market_id} ({target_outcome})")
+                        logger.warning(
+                            f"Inferred token_id via index for {opportunity.market_id} ({target_outcome})"
+                        )
 
                 if not token_id:
-                    logger.error(f"Could not resolve token_id for {opportunity.market_id} outcome {target_outcome}")
+                    logger.error(
+                        f"Could not resolve token_id for {opportunity.market_id} outcome {target_outcome}"
+                    )
                     return False
 
                 # Convert USD Size to Shares
@@ -769,7 +791,9 @@ class AlphaTwoLateCompression(BaseAlpha):
 
                 size_shares = opportunity.recommended_size / price
 
-                logger.info(f"Placing Live Order: {target_outcome} @ {price:.2f}, Size: ${opportunity.recommended_size:.2f} (~{size_shares:.2f} shares)")
+                logger.info(
+                    f"Placing Live Order: {target_outcome} @ {price:.2f}, Size: ${opportunity.recommended_size:.2f} (~{size_shares:.2f} shares)"
+                )
 
                 # Use helper to place and verify order
                 order_filled = await self.polymarket.place_order_and_wait_for_fill(
@@ -777,26 +801,26 @@ class AlphaTwoLateCompression(BaseAlpha):
                     side="BUY",
                     price=price,
                     size=size_shares,
-                    timeout=DEFAULT_ORDER_TIMEOUT_SECONDS
+                    timeout=DEFAULT_ORDER_TIMEOUT_SECONDS,
                 )
 
                 if order_filled:
-                     logger.info(f"Order {order_filled.get('orderID')} filled.")
-                     return True
+                    logger.info(f"Order {order_filled.get('orderID')} filled.")
+                    return True
 
                 return False
 
             except Exception as e:
                 logger.error(f"Polymarket order error: {e}")
                 return False
-        
+
         if self.kalshi:
             try:
                 # Same For THIS result = await self.kalshi.place_order(...)
                 return False  # Placeholder
             except Exception as e:
                 logger.error(f"Kalshi order error: {e}")
-        
+
         return False
 
     async def _check_market_resolution(self, market_id: str) -> Optional[Dict]:
@@ -812,7 +836,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 if outcome_analysis:
                     return {
                         "outcome": outcome_analysis["outcome"],
-                        "resolution_time": datetime.now()
+                        "resolution_time": datetime.now(),
                     }
 
         elif self.polymarket:
@@ -823,10 +847,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                     # We expect the API to return the winning outcome (e.g., "YES" or "NO")
                     outcome = market.get("outcome")
                     if outcome:
-                        return {
-                            "outcome": outcome,
-                            "resolution_time": datetime.now()
-                        }
+                        return {"outcome": outcome, "resolution_time": datetime.now()}
             except Exception as e:
                 logger.error(f"Error checking resolution for {market_id}: {e}")
 
@@ -836,11 +857,13 @@ class AlphaTwoLateCompression(BaseAlpha):
         trade.resolved = True
         trade.resolution_time = resolution.get("resolution_time", datetime.now())
         trade.actual_outcome = resolution.get("outcome")
-        
+
         if trade.actual_outcome == trade.opportunity.expected_outcome:
             # Sherlock: Fix Division by Zero risk
             if trade.entry_price > MIN_PRICE_THRESHOLD:
-                trade.pnl = (1.0 - trade.entry_price) * trade.size_usd / trade.entry_price
+                trade.pnl = (
+                    (1.0 - trade.entry_price) * trade.size_usd / trade.entry_price
+                )
             else:
                 # If we somehow entered at 0, treat it as pure profit on the size?
                 # Or just protect the crash.
@@ -851,62 +874,75 @@ class AlphaTwoLateCompression(BaseAlpha):
             trade.pnl = -trade.size_usd
             self.stats.trades_lost += 1
             self.stats.false_positives += 1
-        
+
         self.stats.total_pnl += trade.pnl
-        
+
         total = self.stats.trades_won + self.stats.trades_lost
         self.stats.win_rate = self.stats.trades_won / total if total > 0 else 0
-        self.stats.avg_profit_per_trade = self.stats.total_pnl / total if total > 0 else 0
-        
+        self.stats.avg_profit_per_trade = (
+            self.stats.total_pnl / total if total > 0 else 0
+        )
+
         del self.trades[trade.trade_id]
 
         # Only remove from set if no other trades for this market exist
         # (Handles edge case where multiple trades might exist for same market)
-        has_active = any(t.opportunity.market_id == trade.opportunity.market_id for t in self.trades.values())
+        has_active = any(
+            t.opportunity.market_id == trade.opportunity.market_id
+            for t in self.trades.values()
+        )
         if not has_active:
             self.active_trade_market_ids.discard(trade.opportunity.market_id)
 
         self.closed_trades.append(trade)
-        
-        self._log_event("trade_resolved", {
-            "trade_id": trade.trade_id,
-            "expected_outcome": trade.opportunity.expected_outcome,
-            "actual_outcome": trade.actual_outcome,
-            "pnl": trade.pnl
-        })
-        
+
+        self._log_event(
+            "trade_resolved",
+            {
+                "trade_id": trade.trade_id,
+                "expected_outcome": trade.opportunity.expected_outcome,
+                "actual_outcome": trade.actual_outcome,
+                "pnl": trade.pnl,
+            },
+        )
+
         logger.info(f"Trade resolved: {trade.trade_id}")
         logger.info(f"  Expected: {trade.opportunity.expected_outcome}")
         logger.info(f"  Actual: {trade.actual_outcome}")
         logger.info(f"  P&L: ${trade.pnl:.2f}")
 
-
-    
     async def feed_live_fixture_update(self, fixture_data: Dict):
-        
+
         minute = fixture_data.get("minute", 0)
         status = fixture_data.get("status", "")
-        market_id = fixture_data.get("market_id", f"fixture_{fixture_data['fixture_id']}")
-        
+        market_id = fixture_data.get(
+            "market_id", f"fixture_{fixture_data['fixture_id']}"
+        )
+
         # Handle Match End / Resolution
         if status in ["FT", "AET", "PEN"]:
             if market_id in self.monitored_markets:
-                logger.info(f"Market {market_id} ended (Status: {status}). Marking resolved.")
-                self.monitored_markets[market_id]["status"] = MarketStatus.RESOLVED.value
+                logger.info(
+                    f"Market {market_id} ended (Status: {status}). Marking resolved."
+                )
+                self.monitored_markets[market_id][
+                    "status"
+                ] = MarketStatus.RESOLVED.value
                 # Update final score
                 self.monitored_markets[market_id]["current_score"] = {
                     "home": fixture_data.get("home_score", 0),
-                    "away": fixture_data.get("away_score", 0)
+                    "away": fixture_data.get("away_score", 0),
                 }
                 # Set seconds to 0 to ensure logic downstream treats it as over
                 self.monitored_markets[market_id]["seconds_to_close"] = 0
             return
-        
-       
+
         total_minutes = SOCCER_REGULAR_TIME_MINUTES
         if status == "HT":
             # At HT, we have 45 minutes of play left + Stoppage Buffer
-            seconds_remaining = (total_minutes - SOCCER_HALF_TIME_MINUTES + STOPPAGE_BUFFER_MINUTES) * SECONDS_PER_MINUTE
+            seconds_remaining = (
+                total_minutes - SOCCER_HALF_TIME_MINUTES + STOPPAGE_BUFFER_MINUTES
+            ) * SECONDS_PER_MINUTE
         elif status == "ET":
             # Extra Time is typically 30 mins (90 -> 120)
             # Use max(0, ...) to avoid negative if it goes beyond 120 in stoppage of ET
@@ -917,7 +953,7 @@ class AlphaTwoLateCompression(BaseAlpha):
 
             # Handle ET Stoppage Time: If minute >= 120 but status is still ET
             if seconds_remaining <= 0:
-                 seconds_remaining = SECONDS_PER_MINUTE
+                seconds_remaining = SECONDS_PER_MINUTE
         else:
             # Regular Time (90 minutes) logic
             # Sherlock Fix: Handle Stoppage Time conservatively.
@@ -930,7 +966,11 @@ class AlphaTwoLateCompression(BaseAlpha):
             # to 8 mins remaining (at min 90), causing false confidence spikes.
             stoppage_end_minute = SOCCER_REGULAR_TIME_MINUTES + STOPPAGE_BUFFER_MINUTES
 
-            if minute >= SOCCER_REGULAR_TIME_MINUTES and status not in ["FT", "AET", "PEN"]:
+            if minute >= SOCCER_REGULAR_TIME_MINUTES and status not in [
+                "FT",
+                "AET",
+                "PEN",
+            ]:
                 # Calculate remaining based on a theoretical 98th minute end
                 # Ensure it decays as minute increases (91, 92...)
                 # Clamp at 60s minimum to keep market "alive" until FT signal
@@ -939,10 +979,11 @@ class AlphaTwoLateCompression(BaseAlpha):
             else:
                 seconds_remaining = (stoppage_end_minute - minute) * SECONDS_PER_MINUTE
                 seconds_remaining = max(0, seconds_remaining)
-        
-    
+
         market = {
-            "market_id": fixture_data.get("market_id", f"fixture_{fixture_data['fixture_id']}"),
+            "market_id": fixture_data.get(
+                "market_id", f"fixture_{fixture_data['fixture_id']}"
+            ),
             "question": fixture_data.get("question", ""),
             "fixture_id": fixture_data.get("fixture_id"),
             "type": SPORT_SOCCER,
@@ -950,21 +991,27 @@ class AlphaTwoLateCompression(BaseAlpha):
             "away_team": fixture_data.get("away_team"),
             "current_score": {
                 "home": fixture_data.get("home_score", 0),
-                "away": fixture_data.get("away_score", 0)
+                "away": fixture_data.get("away_score", 0),
             },
             "seconds_to_close": seconds_remaining,
             "yes_price": fixture_data.get("yes_price", -1.0),
             "no_price": fixture_data.get("no_price", -1.0),
-            "status": MarketStatus.ACTIVE.value if seconds_remaining > 0 else MarketStatus.RESOLVED.value
+            "status": (
+                MarketStatus.ACTIVE.value
+                if seconds_remaining > 0
+                else MarketStatus.RESOLVED.value
+            ),
         }
-        
+
         self.monitored_markets[market["market_id"]] = market
-        
+
         if seconds_remaining <= self.max_seconds_to_close:
             opportunity = await self._analyze_market_for_clipping(market)
-            
+
             if opportunity:
-                logger.info(f"Clipping opportunity from live fixture: {opportunity.opportunity_id}")
+                logger.info(
+                    f"Clipping opportunity from live fixture: {opportunity.opportunity_id}"
+                )
                 self.active_opportunities[opportunity.opportunity_id] = opportunity
                 self.stats.opportunities_detected += 1
 

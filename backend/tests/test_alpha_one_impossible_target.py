@@ -1,9 +1,14 @@
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock
 from datetime import datetime
-from backend.alphas.alpha_one_underdog import AlphaOneUnderdog, TradingMode, TradeSignal, SimulatedPosition
+from backend.alphas.alpha_one_underdog import (
+    AlphaOneUnderdog,
+    TradingMode,
+    TradeSignal,
+    SimulatedPosition,
+)
+
 
 @pytest.mark.asyncio
 async def test_alpha_one_impossible_target_price():

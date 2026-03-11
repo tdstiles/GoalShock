@@ -1,9 +1,9 @@
-
 import logging
 from fastapi import HTTPException
 from functools import wraps
 
 logger = logging.getLogger(__name__)
+
 
 def safe_error_response(e: Exception, context: str = "Operation failed"):
     """

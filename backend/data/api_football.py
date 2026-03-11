@@ -104,7 +104,18 @@ class APIFootballClient:
             return []
 
     async def detect_goals(self, fixtures: List[LiveFixture]) -> List[Goal]:
+        """Detect new goals by comparing current fixture scores against the previous polling cycle.
 
+        Since the 'live=all' API endpoint provides the current match state (aggregate scores)
+        rather than a discrete event stream, we must infer goals by calculating the delta
+        between the cached `previous_scores` and the current `home_score` / `away_score`.
+
+        Args:
+            fixtures: List of current live fixtures from the API.
+
+        Returns:
+            List of newly detected Goal events since the last check.
+        """
         new_goals = []
 
         for fixture in fixtures:

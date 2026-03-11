@@ -2,11 +2,23 @@ import pytest
 import os
 import argparse
 from unittest.mock import MagicMock, AsyncMock, patch
-from backend.core.data_pipeline import DataAcquisitionLayer, PrimaryProviderUnavailableError
+from backend.core.data_pipeline import (
+    DataAcquisitionLayer,
+    PrimaryProviderUnavailableError,
+)
 from backend.exchanges.kalshi import KalshiClient
-from backend.engine_unified import parse_cli_args, build_engine_config_from_cli_args, EngineConfig, UnifiedTradingEngine, TradingMode, KEY_YES, KEY_NO
+from backend.engine_unified import (
+    parse_cli_args,
+    build_engine_config_from_cli_args,
+    EngineConfig,
+    UnifiedTradingEngine,
+    TradingMode,
+    KEY_YES,
+    KEY_NO,
+)
 
 # --- BUG #1: Data Pipeline Failure Fallback ---
+
 
 @pytest.mark.asyncio
 async def test_bug_1_primary_mode_failure_raises_exception():
@@ -18,7 +30,7 @@ async def test_bug_1_primary_mode_failure_raises_exception():
         "API_FOOTBALL_KEY": "valid_key_over_20_chars_long",
         "POLYMARKET_API_KEY": "poly_key",
         "KALSHI_API_KEY": "kalshi_key",
-        "KALSHI_API_SECRET": "kalshi_secret"
+        "KALSHI_API_SECRET": "kalshi_secret",
     }
 
     with patch.dict(os.environ, mock_env):
@@ -26,7 +38,9 @@ async def test_bug_1_primary_mode_failure_raises_exception():
         assert dal._srvc_mode == "primary"
 
         # Mock fetch_live_goals to simulate failure
-        with patch.object(dal, "_fetch_verified_goals", side_effect=Exception("API Down")):
+        with patch.object(
+            dal, "_fetch_verified_goals", side_effect=Exception("API Down")
+        ):
             # Ensure generate_event_stream is NOT called (no fallback)
             with patch.object(dal, "_generate_event_stream") as mock_fallback:
                 with pytest.raises(PrimaryProviderUnavailableError):
@@ -34,7 +48,9 @@ async def test_bug_1_primary_mode_failure_raises_exception():
 
                 mock_fallback.assert_not_called()
 
+
 # --- BUG #2: Kalshi Client Auth Failure ---
+
 
 @pytest.mark.asyncio
 async def test_bug_2_kalshi_auth_failure_does_not_send_request():
@@ -47,7 +63,9 @@ async def test_bug_2_kalshi_auth_failure_does_not_send_request():
         mock_client_cls.return_value = mock_instance
 
         # Patch verify method to fail
-        with patch.object(KalshiClient, "_ensure_authenticated", new_callable=AsyncMock) as mock_auth:
+        with patch.object(
+            KalshiClient, "_ensure_authenticated", new_callable=AsyncMock
+        ) as mock_auth:
             mock_auth.return_value = False
 
             client = KalshiClient()
@@ -57,7 +75,9 @@ async def test_bug_2_kalshi_auth_failure_does_not_send_request():
             assert result == []
             mock_instance.get.assert_not_called()
 
+
 # --- BUG #3: Zero Price Treated as Invalid ---
+
 
 @pytest.mark.asyncio
 async def test_bug_3_zero_price_is_treated_as_valid():
@@ -70,7 +90,7 @@ async def test_bug_3_zero_price_is_treated_as_valid():
         enable_alpha_one=False,
         enable_alpha_two=False,
         enable_websocket=False,
-        polymarket_key="test_key"
+        polymarket_key="test_key",
     )
     engine = UnifiedTradingEngine(config)
 
@@ -85,9 +105,7 @@ async def test_bug_3_zero_price_is_treated_as_valid():
     mock_fixture.fixture_id = 123
 
     # Mock get_markets_by_event
-    mock_market = {
-        "clobTokenIds": ["token123"]
-    }
+    mock_market = {"clobTokenIds": ["token123"]}
     mock_poly.get_markets_by_event.return_value = [mock_market]
 
     # Mock get_yes_price returning 0.0
@@ -100,7 +118,9 @@ async def test_bug_3_zero_price_is_treated_as_valid():
     assert prices[KEY_YES] == 0.0
     assert prices[KEY_NO] == 1.0
 
+
 # --- BUG #4: CLI Flags ---
+
 
 def test_bug_4_cli_flags_respect_env_vars_when_omitted():
     """

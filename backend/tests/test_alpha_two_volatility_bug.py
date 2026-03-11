@@ -1,12 +1,13 @@
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock
 from backend.alphas.alpha_two_late_compression import AlphaTwoLateCompression
 
+
 @pytest.fixture
 def alpha_two():
     return AlphaTwoLateCompression(simulation_mode=True)
+
 
 @pytest.mark.asyncio
 async def test_basketball_volatility_underestimation(alpha_two):
@@ -24,17 +25,18 @@ async def test_basketball_volatility_underestimation(alpha_two):
         "type": "basketball",
         "home_team": "H",
         "away_team": "A",
-        "current_score": {"home": 102, "away": 100}, # 2 pt lead
+        "current_score": {"home": 102, "away": 100},  # 2 pt lead
         "seconds_to_close": 10,
         "yes_price": 0.8,
         "no_price": 0.2,
-        "status": "active"
+        "status": "active",
     }
 
     opp = await alpha_two._analyze_market_for_clipping(market_data)
 
     # FIXED: Opportunity rejected due to low confidence
     assert opp is None
+
 
 @pytest.mark.asyncio
 async def test_tie_game_bias(alpha_two):
@@ -49,11 +51,11 @@ async def test_tie_game_bias(alpha_two):
         "type": "basketball",
         "home_team": "H",
         "away_team": "A",
-        "current_score": {"home": 100, "away": 100}, # Tie
+        "current_score": {"home": 100, "away": 100},  # Tie
         "seconds_to_close": 60,
         "yes_price": 0.5,
         "no_price": 0.5,
-        "status": "active"
+        "status": "active",
     }
 
     outcome = await alpha_two._predict_outcome(market_data)

@@ -14,27 +14,23 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend.bot.realtime_ingestor import RealtimeIngestor
 from backend.models.schemas import GoalEvent
 
+
 def build_full_fixture_data(
     home_team: str = "Home",
     away_team: str = "Away",
     home_score: int = 1,
     away_score: int = 0,
-    events: list[Dict[str, Any]] | None = None
+    events: list[Dict[str, Any]] | None = None,
 ) -> Dict[str, Any]:
     """Helper to build a complete fixture data structure mimicking API-Football."""
     return {
         "fixture": {"id": 100, "status": {"short": "2H", "elapsed": 65}},
         "league": {"id": 39, "name": "Premier League"},
-        "teams": {
-            "home": {"name": home_team},
-            "away": {"name": away_team}
-        },
-        "goals": {
-            "home": home_score,
-            "away": away_score
-        },
-        "events": events if events is not None else []
+        "teams": {"home": {"name": home_team}, "away": {"name": away_team}},
+        "goals": {"home": home_score, "away": away_score},
+        "events": events if events is not None else [],
     }
+
 
 def test_create_goal_event_happy_path():
     """Should correctly extract goal details from a valid event list."""
@@ -47,7 +43,7 @@ def test_create_goal_event_happy_path():
             "player": {"name": "Striker A"},
             "assist": {"name": "Midfielder B"},
             "type": "Goal",
-            "detail": "Normal Goal"
+            "detail": "Normal Goal",
         }
     ]
 
@@ -63,6 +59,7 @@ def test_create_goal_event_happy_path():
     assert goal.home_score == 1
     assert goal.fixture_id == 100
 
+
 def test_create_goal_event_extra_time():
     """Should correctly handle goals scored in extra time."""
     ingestor = RealtimeIngestor()
@@ -74,7 +71,7 @@ def test_create_goal_event_extra_time():
             "player": {"name": "Sub C"},
             "assist": {"name": None},
             "type": "Goal",
-            "detail": "Normal Goal"
+            "detail": "Normal Goal",
         }
     ]
 
@@ -87,6 +84,7 @@ def test_create_goal_event_extra_time():
     assert goal.extra_time == 4
     assert goal.player == "Sub C"
 
+
 def test_create_goal_event_filters_correct_team():
     """Should ignore goals from the opposing team."""
     ingestor = RealtimeIngestor()
@@ -98,7 +96,7 @@ def test_create_goal_event_filters_correct_team():
             "team": {"name": "Home"},
             "player": {"name": "Striker A"},
             "type": "Goal",
-            "detail": "Normal Goal"
+            "detail": "Normal Goal",
         },
         # Goal for Away (latest in list)
         {
@@ -106,8 +104,8 @@ def test_create_goal_event_filters_correct_team():
             "team": {"name": "Away"},
             "player": {"name": "Striker B"},
             "type": "Goal",
-            "detail": "Normal Goal"
-        }
+            "detail": "Normal Goal",
+        },
     ]
 
     data = build_full_fixture_data(events=events)
@@ -117,7 +115,8 @@ def test_create_goal_event_filters_correct_team():
 
     assert goal is not None
     assert goal.team == "Home"
-    assert goal.player == "Striker A" # Should be the Home goal
+    assert goal.player == "Striker A"  # Should be the Home goal
+
 
 def test_create_goal_event_no_events_found():
     """Should return None if the events array is empty."""
@@ -128,6 +127,7 @@ def test_create_goal_event_no_events_found():
 
     assert goal is None
 
+
 def test_create_goal_event_no_matching_goal():
     """Should return None if events exist but none match the team/type."""
     ingestor = RealtimeIngestor()
@@ -136,15 +136,15 @@ def test_create_goal_event_no_matching_goal():
         {
             "time": {"elapsed": 10},
             "team": {"name": "Home"},
-            "type": "Card", # Not a goal
-            "detail": "Yellow Card"
+            "type": "Card",  # Not a goal
+            "detail": "Yellow Card",
         },
         {
             "time": {"elapsed": 20},
-            "team": {"name": "Away"}, # Wrong team
+            "team": {"name": "Away"},  # Wrong team
             "type": "Goal",
-            "detail": "Normal Goal"
-        }
+            "detail": "Normal Goal",
+        },
     ]
 
     data = build_full_fixture_data(events=events)
@@ -152,6 +152,7 @@ def test_create_goal_event_no_matching_goal():
     goal = ingestor._create_goal_event(data, "Home", "home")
 
     assert goal is None
+
 
 def test_create_goal_event_malformed_data_graceful_failure():
     """Should return None and log error instead of crashing on malformed data."""
@@ -163,8 +164,8 @@ def test_create_goal_event_malformed_data_graceful_failure():
             "time": {"elapsed": 10},
             "team": {"name": "Home"},
             "type": "Goal",
-            "detail": "Normal Goal"
-             # 'player' key missing
+            "detail": "Normal Goal",
+            # 'player' key missing
         }
     ]
 
@@ -174,6 +175,7 @@ def test_create_goal_event_malformed_data_graceful_failure():
     goal = ingestor._create_goal_event(data, "Home", "home")
 
     assert goal is None
+
 
 def test_create_goal_event_picks_latest_goal():
     """Should pick the last goal in the list for the specified team."""
@@ -185,15 +187,15 @@ def test_create_goal_event_picks_latest_goal():
             "team": {"name": "Home"},
             "player": {"name": "First Scorer"},
             "type": "Goal",
-            "detail": "Normal Goal"
+            "detail": "Normal Goal",
         },
         {
             "time": {"elapsed": 85},
             "team": {"name": "Home"},
             "player": {"name": "Second Scorer"},
             "type": "Goal",
-            "detail": "Normal Goal"
-        }
+            "detail": "Normal Goal",
+        },
     ]
 
     data = build_full_fixture_data(events=events)

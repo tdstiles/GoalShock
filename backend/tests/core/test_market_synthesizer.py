@@ -2,6 +2,7 @@ from backend.core.market_synthesizer import MarketMicrostructure
 import pytest
 from datetime import datetime, timedelta
 
+
 def test_generate_trade_history_order():
     market = MarketMicrostructure()
     trades = market.generate_trade_history("test_market", num_trades=5)
@@ -18,7 +19,10 @@ def test_generate_trade_history_order():
 
     # Check if strictly descending
     for i in range(len(timestamps) - 1):
-        assert timestamps[i] > timestamps[i+1], f"Trades not in descending order at index {i}"
+        assert (
+            timestamps[i] > timestamps[i + 1]
+        ), f"Trades not in descending order at index {i}"
+
 
 def test_synthesize_orderbook_prices_valid():
     market = MarketMicrostructure()
@@ -34,6 +38,7 @@ def test_synthesize_orderbook_prices_valid():
 
     # Spread should be positive
     assert best_ask > best_bid
+
 
 def test_pnl_path_timestamp_correctness():
     """Verify that the generated PnL path ends at the current time (now), not 1 hour ago."""

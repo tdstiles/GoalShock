@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from backend.exchanges.polymarket import PolymarketClient
 import httpx
 
+
 @pytest.fixture
 def client():
     with patch("httpx.AsyncClient") as mock_http_client:
@@ -22,6 +23,7 @@ def client():
                 client.client = mock_http_client
                 yield client
 
+
 @pytest.mark.asyncio
 async def test_get_markets_by_event_success(client):
     # Mock response
@@ -36,6 +38,7 @@ async def test_get_markets_by_event_success(client):
     assert markets[0]["id"] == "mkt1"
     client.client.get.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_get_markets_by_event_failure(client):
     # Mock failure response
@@ -47,6 +50,7 @@ async def test_get_markets_by_event_failure(client):
 
     assert markets == []
 
+
 @pytest.mark.asyncio
 async def test_get_orderbook_success(client):
     mock_response = MagicMock()
@@ -54,7 +58,7 @@ async def test_get_orderbook_success(client):
     # Structure based on PolymarketClient implementation
     mock_response.json.return_value = {
         "bids": [{"price": "0.45", "size": "100"}],
-        "asks": [{"price": "0.55", "size": "100"}]
+        "asks": [{"price": "0.55", "size": "100"}],
     }
     client.client.get = AsyncMock(return_value=mock_response)
 
@@ -66,6 +70,7 @@ async def test_get_orderbook_success(client):
     assert ob["best_ask"] == 0.55
     assert ob["mid_price"] == 0.50
 
+
 @pytest.mark.asyncio
 async def test_get_orderbook_empty(client):
     mock_response = MagicMock()
@@ -76,6 +81,7 @@ async def test_get_orderbook_empty(client):
     ob = await client.get_orderbook("token123")
     assert ob is None
 
+
 @pytest.mark.asyncio
 async def test_get_orderbook_failure(client):
     mock_response = MagicMock()
@@ -85,6 +91,7 @@ async def test_get_orderbook_failure(client):
     ob = await client.get_orderbook("token123")
     assert ob is None
 
+
 @pytest.mark.asyncio
 async def test_get_yes_price_success(client):
     with patch.object(client, "get_orderbook", new_callable=AsyncMock) as mock_get_ob:
@@ -93,6 +100,7 @@ async def test_get_yes_price_success(client):
         price = await client.get_yes_price("token123")
         assert price == 0.65
 
+
 @pytest.mark.asyncio
 async def test_get_yes_price_none(client):
     with patch.object(client, "get_orderbook", new_callable=AsyncMock) as mock_get_ob:
@@ -100,6 +108,7 @@ async def test_get_yes_price_none(client):
 
         price = await client.get_yes_price("token123")
         assert price is None
+
 
 @pytest.mark.asyncio
 async def test_place_order_signed_success(client):
@@ -124,6 +133,7 @@ async def test_place_order_signed_success(client):
         # But we mocked to_thread return value directly. So we check to_thread call.
         mock_to_thread.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_place_order_no_key(client):
     # Simulate missing private key
@@ -131,6 +141,7 @@ async def test_place_order_no_key(client):
 
     result = await client.place_order("token123", "BUY", 0.5, 10)
     assert result is None
+
 
 @pytest.mark.asyncio
 async def test_place_order_failure_response(client):
@@ -140,6 +151,7 @@ async def test_place_order_failure_response(client):
 
         result = await client.place_order("token123", "BUY", 0.5, 10)
         assert result == {"error": "Insufficient balance"}
+
 
 @pytest.mark.asyncio
 async def test_place_order_wait_fill_timeout_race_condition(client):
@@ -173,7 +185,7 @@ async def test_place_order_wait_fill_timeout_race_condition(client):
         price=0.5,
         size=10.0,
         timeout=0.1,
-        poll_interval=0.04
+        poll_interval=0.04,
     )
 
     # Verification

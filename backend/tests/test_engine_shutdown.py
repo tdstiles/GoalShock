@@ -5,6 +5,7 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 from backend.engine_unified import UnifiedTradingEngine, EngineConfig, TradingMode
 
+
 class SlowPolymarket(AsyncMock):
     async def get_markets_by_event(self, *args, **kwargs):
         # Simulate work
@@ -15,8 +16,8 @@ class SlowPolymarket(AsyncMock):
             raise
 
         # Check if closed
-        if getattr(self, 'is_closed', False):
-             raise RuntimeError("Client is closed!")
+        if getattr(self, "is_closed", False):
+            raise RuntimeError("Client is closed!")
         return []
 
     async def get_yes_price(self, *args, **kwargs):
@@ -24,6 +25,7 @@ class SlowPolymarket(AsyncMock):
 
     async def close(self):
         self.is_closed = True
+
 
 @pytest.mark.asyncio
 async def test_shutdown_race_condition(caplog):
@@ -36,7 +38,7 @@ async def test_shutdown_race_condition(caplog):
         enable_alpha_two=True,
         enable_websocket=False,
         api_football_key="test",
-        polymarket_key="test"
+        polymarket_key="test",
     )
 
     engine = UnifiedTradingEngine(config)
@@ -71,10 +73,14 @@ async def test_shutdown_race_condition(caplog):
     try:
         await asyncio.wait_for(start_task, timeout=2.0)
     except asyncio.TimeoutError:
-        pytest.fail("Engine shutdown timed out! Background tasks were probably not cancelled.")
+        pytest.fail(
+            "Engine shutdown timed out! Background tasks were probably not cancelled."
+        )
 
     # Check if "Client is closed!" was logged as an error
-    error_logs = [r.message for r in caplog.records if r.levelname == 'ERROR']
-    assert not any("Client is closed!" in msg for msg in error_logs), f"Race condition detected: Errors logged: {error_logs}"
+    error_logs = [r.message for r in caplog.records if r.levelname == "ERROR"]
+    assert not any(
+        "Client is closed!" in msg for msg in error_logs
+    ), f"Race condition detected: Errors logged: {error_logs}"
 
     assert not engine.running

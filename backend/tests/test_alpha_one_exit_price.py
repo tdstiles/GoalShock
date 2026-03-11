@@ -1,9 +1,14 @@
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime
-from backend.alphas.alpha_one_underdog import AlphaOneUnderdog, TradingMode, TradeSignal, SimulatedPosition
+from backend.alphas.alpha_one_underdog import (
+    AlphaOneUnderdog,
+    TradingMode,
+    TradeSignal,
+    SimulatedPosition,
+)
+
 
 @pytest.mark.asyncio
 async def test_alpha_one_exit_price_uses_bid_not_ask():
@@ -11,12 +16,12 @@ async def test_alpha_one_exit_price_uses_bid_not_ask():
     mock_poly = MagicMock()
 
     # Create the strategy in SIMULATION mode (but relying on mocked client data "Shadow Mode")
-    strategy = AlphaOneUnderdog(mode=TradingMode.SIMULATION, polymarket_client=mock_poly)
+    strategy = AlphaOneUnderdog(
+        mode=TradingMode.SIMULATION, polymarket_client=mock_poly
+    )
 
     # Mock token map to ensure it finds a token
-    strategy.token_map = {
-        (123, "Team Underdog"): "token_123"
-    }
+    strategy.token_map = {(123, "Team Underdog"): "token_123"}
 
     # Setup a position
     # Entry: 0.40, Target: 0.55
@@ -30,7 +35,7 @@ async def test_alpha_one_exit_price_uses_bid_not_ask():
         stop_loss_price=0.30,
         size_usd=100,
         confidence=0.8,
-        reason="Test"
+        reason="Test",
     )
 
     position = SimulatedPosition(
@@ -39,7 +44,7 @@ async def test_alpha_one_exit_price_uses_bid_not_ask():
         entry_time=datetime.now(),
         last_price=0.40,
         token_id="token_123",
-        quantity=250
+        quantity=250,
     )
 
     strategy.positions["pos_1"] = position
@@ -59,7 +64,7 @@ async def test_alpha_one_exit_price_uses_bid_not_ask():
         "best_ask": 0.60,
         "mid_price": 0.55,
         "spread": 0.10,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
     # Mock get_orderbook (used by get_yes_price and potentially new get_bid_price)
@@ -83,15 +88,21 @@ async def test_alpha_one_exit_price_uses_bid_not_ask():
             pass
 
     # Assert
-    assert "pos_1" in strategy.positions, "Position should not be closed yet (Bid 0.50 < Target 0.55)"
-    assert strategy.positions["pos_1"].status == "open", f"Position status is {strategy.positions['pos_1'].status}, expected 'open'"
+    assert (
+        "pos_1" in strategy.positions
+    ), "Position should not be closed yet (Bid 0.50 < Target 0.55)"
+    assert (
+        strategy.positions["pos_1"].status == "open"
+    ), f"Position status is {strategy.positions['pos_1'].status}, expected 'open'"
 
 
 @pytest.mark.asyncio
 async def test_alpha_one_exit_price_triggers_on_bid_hit():
     # Setup
     mock_poly = MagicMock()
-    strategy = AlphaOneUnderdog(mode=TradingMode.SIMULATION, polymarket_client=mock_poly)
+    strategy = AlphaOneUnderdog(
+        mode=TradingMode.SIMULATION, polymarket_client=mock_poly
+    )
     strategy.token_map = {(123, "Team Underdog"): "token_123"}
 
     signal = TradeSignal(
@@ -104,7 +115,7 @@ async def test_alpha_one_exit_price_triggers_on_bid_hit():
         stop_loss_price=0.30,
         size_usd=100,
         confidence=0.8,
-        reason="Test"
+        reason="Test",
     )
     position = SimulatedPosition(
         position_id="pos_2",
@@ -112,7 +123,7 @@ async def test_alpha_one_exit_price_triggers_on_bid_hit():
         entry_time=datetime.now(),
         last_price=0.40,
         token_id="token_123",
-        quantity=250
+        quantity=250,
     )
     strategy.positions["pos_2"] = position
 
@@ -123,7 +134,7 @@ async def test_alpha_one_exit_price_triggers_on_bid_hit():
         "best_ask": 0.66,
         "mid_price": 0.61,
         "spread": 0.10,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
     mock_poly.get_orderbook = AsyncMock(return_value=mock_orderbook)
     mock_poly.get_bid_price = AsyncMock(return_value=0.56)
@@ -134,7 +145,9 @@ async def test_alpha_one_exit_price_triggers_on_bid_hit():
         except InterruptedError:
             pass
 
-    assert "pos_2" not in strategy.positions, "Position should be closed (Bid 0.56 >= Target 0.55)"
+    assert (
+        "pos_2" not in strategy.positions
+    ), "Position should be closed (Bid 0.56 >= Target 0.55)"
     assert len(strategy.closed_positions) == 1
     assert strategy.closed_positions[0].position_id == "pos_2"
     assert strategy.closed_positions[0].status == "closed_take_profit"
@@ -144,7 +157,9 @@ async def test_alpha_one_exit_price_triggers_on_bid_hit():
 async def test_alpha_one_exit_uses_aggressive_pricing():
     """Verify that Stop Loss / Take Profit orders use aggressive pricing (0.001) to guarantee fill."""
     mock_poly = MagicMock()
-    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"orderID": "123", "status": "FILLED"})
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(
+        return_value={"orderID": "123", "status": "FILLED"}
+    )
 
     strategy = AlphaOneUnderdog(mode=TradingMode.LIVE, polymarket_client=mock_poly)
     strategy.token_map = {(123, "Team Underdog"): "token_123"}
@@ -159,7 +174,7 @@ async def test_alpha_one_exit_uses_aggressive_pricing():
         stop_loss_price=0.30,
         size_usd=100,
         confidence=0.8,
-        reason="Test"
+        reason="Test",
     )
     position = SimulatedPosition(
         position_id="pos_3",
@@ -167,12 +182,12 @@ async def test_alpha_one_exit_uses_aggressive_pricing():
         entry_time=datetime.now(),
         last_price=0.40,
         token_id="token_123",
-        quantity=250
+        quantity=250,
     )
     strategy.positions["pos_3"] = position
 
     # Trigger Stop Loss
-    mock_poly.get_bid_price = AsyncMock(return_value=0.20) # Below 0.30
+    mock_poly.get_bid_price = AsyncMock(return_value=0.20)  # Below 0.30
 
     with patch("asyncio.sleep", side_effect=InterruptedError):
         try:
@@ -184,6 +199,8 @@ async def test_alpha_one_exit_uses_aggressive_pricing():
     assert mock_poly.place_order_and_wait_for_fill.called
     call_args = mock_poly.place_order_and_wait_for_fill.call_args[1]
 
-    assert call_args["price"] == 0.001, "Should use aggressive pricing (0.001) for market exit"
+    assert (
+        call_args["price"] == 0.001
+    ), "Should use aggressive pricing (0.001) for market exit"
     assert call_args["side"] == "SELL"
     assert call_args["token_id"] == "token_123"

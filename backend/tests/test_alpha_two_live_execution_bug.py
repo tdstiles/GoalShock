@@ -1,8 +1,11 @@
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
-from backend.alphas.alpha_two_late_compression import AlphaTwoLateCompression, ClippingOpportunity
+from backend.alphas.alpha_two_late_compression import (
+    AlphaTwoLateCompression,
+    ClippingOpportunity,
+)
+
 
 @pytest.mark.asyncio
 async def test_alpha_two_live_execution_explicit_mapping():
@@ -13,20 +16,21 @@ async def test_alpha_two_live_execution_explicit_mapping():
     # Setup
     mock_poly = MagicMock()
     # Mock get_market returning tokens with outcomes
-    mock_poly.get_market = AsyncMock(return_value={
-        "tokens": [
-            {"outcome": "YES", "token_id": "explicit_yes_token"},
-            {"outcome": "NO", "token_id": "explicit_no_token"}
-        ]
-    })
+    mock_poly.get_market = AsyncMock(
+        return_value={
+            "tokens": [
+                {"outcome": "YES", "token_id": "explicit_yes_token"},
+                {"outcome": "NO", "token_id": "explicit_no_token"},
+            ]
+        }
+    )
 
     # Mock place_order_and_wait_for_fill returning success
-    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
-
-    alpha = AlphaTwoLateCompression(
-        polymarket_client=mock_poly,
-        simulation_mode=False
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(
+        return_value={"status": "FILLED", "orderID": "order_789"}
     )
+
+    alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
     opportunity = ClippingOpportunity(
         opportunity_id="opp_1",
@@ -42,7 +46,7 @@ async def test_alpha_two_live_execution_explicit_mapping():
         seconds_to_resolution=60,
         recommended_side="YES",
         recommended_price=0.5,
-        recommended_size=50.0 # USD
+        recommended_size=50.0,  # USD
     )
 
     # Act
@@ -55,11 +59,7 @@ async def test_alpha_two_live_execution_explicit_mapping():
     # Verify mapping to 'explicit_yes_token'
     # Size shares = 50.0 / 0.5 = 100.0
     mock_poly.place_order_and_wait_for_fill.assert_called_with(
-        token_id="explicit_yes_token",
-        side="BUY",
-        price=0.5,
-        size=100.0,
-        timeout=3
+        token_id="explicit_yes_token", side="BUY", price=0.5, size=100.0, timeout=3
     )
 
 
@@ -72,17 +72,16 @@ async def test_alpha_two_live_execution_fallback_mapping():
     # Setup
     mock_poly = MagicMock()
     # Mock get_market returning only clobTokenIds
-    mock_poly.get_market = AsyncMock(return_value={
-        "clobTokenIds": ["fallback_yes_token", "fallback_no_token"]
-    })
+    mock_poly.get_market = AsyncMock(
+        return_value={"clobTokenIds": ["fallback_yes_token", "fallback_no_token"]}
+    )
 
     # Mock place_order_and_wait_for_fill returning success
-    mock_poly.place_order_and_wait_for_fill = AsyncMock(return_value={"status": "FILLED", "orderID": "order_789"})
-
-    alpha = AlphaTwoLateCompression(
-        polymarket_client=mock_poly,
-        simulation_mode=False
+    mock_poly.place_order_and_wait_for_fill = AsyncMock(
+        return_value={"status": "FILLED", "orderID": "order_789"}
     )
+
+    alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
     opportunity = ClippingOpportunity(
         opportunity_id="opp_2",
@@ -92,13 +91,13 @@ async def test_alpha_two_live_execution_fallback_mapping():
         yes_price=0.5,
         no_price=0.5,
         spread=0.1,
-        expected_outcome="NO", # Test NO side
+        expected_outcome="NO",  # Test NO side
         confidence=0.99,
         expected_profit_pct=10.0,
         seconds_to_resolution=60,
         recommended_side="NO",
         recommended_price=0.4,
-        recommended_size=40.0 # USD
+        recommended_size=40.0,  # USD
     )
 
     # Act
@@ -110,12 +109,9 @@ async def test_alpha_two_live_execution_fallback_mapping():
     # Verify mapping to index 1 (NO)
     # Size shares = 40.0 / 0.4 = 100.0
     mock_poly.place_order_and_wait_for_fill.assert_called_with(
-        token_id="fallback_no_token",
-        side="BUY",
-        price=0.4,
-        size=100.0,
-        timeout=3
+        token_id="fallback_no_token", side="BUY", price=0.4, size=100.0, timeout=3
     )
+
 
 @pytest.mark.asyncio
 async def test_alpha_two_live_execution_failure():
@@ -123,12 +119,9 @@ async def test_alpha_two_live_execution_failure():
     Verifies graceful failure when token cannot be resolved.
     """
     mock_poly = MagicMock()
-    mock_poly.get_market = AsyncMock(return_value={}) # Empty market
+    mock_poly.get_market = AsyncMock(return_value={})  # Empty market
 
-    alpha = AlphaTwoLateCompression(
-        polymarket_client=mock_poly,
-        simulation_mode=False
-    )
+    alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
     opportunity = ClippingOpportunity(
         opportunity_id="opp_3",
@@ -144,7 +137,7 @@ async def test_alpha_two_live_execution_failure():
         seconds_to_resolution=60,
         recommended_side="YES",
         recommended_price=0.5,
-        recommended_size=50.0
+        recommended_size=50.0,
     )
 
     result = await alpha._place_exchange_order(opportunity)

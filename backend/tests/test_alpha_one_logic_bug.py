@@ -1,6 +1,6 @@
-
 import pytest
 from backend.alphas.alpha_one_underdog import AlphaOneUnderdog
+
 
 def test_alpha_one_confidence_logic_inversion():
     """
@@ -18,18 +18,14 @@ def test_alpha_one_confidence_logic_inversion():
     # They score and lead by 1.
     odds_weak = 0.01
     conf_weak = alpha._calculate_confidence(
-        pre_match_odds=odds_weak,
-        minute=30,
-        lead_margin=1
+        pre_match_odds=odds_weak, minute=30, lead_margin=1
     )
 
     # Case B: Strong Underdog (40% chance to win pre-match)
     # They score and lead by 1.
     odds_strong = 0.40
     conf_strong = alpha._calculate_confidence(
-        pre_match_odds=odds_strong,
-        minute=30,
-        lead_margin=1
+        pre_match_odds=odds_strong, minute=30, lead_margin=1
     )
 
     print(f"\nWeak Underdog (1%) Confidence: {conf_weak:.4f}")

@@ -1,8 +1,8 @@
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
 from backend.alphas.alpha_two_late_compression import AlphaTwoLateCompression
+
 
 @pytest.mark.asyncio
 async def test_alpha_two_live_resolution_missing_bug():
@@ -24,14 +24,11 @@ async def test_alpha_two_live_resolution_missing_bug():
         "question": "Will Home Win?",
         "closed": True,
         "resolved": True,
-        "outcome": "YES" # Assuming get_market returns a processed outcome
+        "outcome": "YES",  # Assuming get_market returns a processed outcome
     }
 
     # 2. Initialize AlphaTwo in LIVE mode
-    alpha = AlphaTwoLateCompression(
-        polymarket_client=mock_poly,
-        simulation_mode=False
-    )
+    alpha = AlphaTwoLateCompression(polymarket_client=mock_poly, simulation_mode=False)
 
     # 3. Act: Check resolution for a market
     market_id = "market_123"

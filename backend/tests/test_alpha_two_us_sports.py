@@ -7,8 +7,9 @@ from alphas.alpha_two_late_compression import (
     CONFIDENCE_MEDIUM,
     CONFIDENCE_FAVORABLE,
     CONFIDENCE_NEUTRAL,
-    CONFIDENCE_MAX
+    CONFIDENCE_MAX,
 )
+
 
 class TestAlphaTwoUSSports:
 
@@ -82,16 +83,22 @@ class TestAlphaTwoUSSports:
         seconds_long = 100
 
         # Lead 13 -> Very High
-        conf = strategy._calculate_us_sports_confidence(13, seconds_long, SPORT_BASKETBALL)
+        conf = strategy._calculate_us_sports_confidence(
+            13, seconds_long, SPORT_BASKETBALL
+        )
         assert conf == CONFIDENCE_VERY_HIGH
 
         # Lead 9 -> Medium
-        conf = strategy._calculate_us_sports_confidence(9, seconds_long, SPORT_BASKETBALL)
+        conf = strategy._calculate_us_sports_confidence(
+            9, seconds_long, SPORT_BASKETBALL
+        )
         assert conf == CONFIDENCE_MEDIUM
 
         # Lead 8 -> Favorable (Assuming strictly > expected_swing for Medium)
         # Logic: if lead_margin > expected_swing... 8 > 8 is False.
-        conf = strategy._calculate_us_sports_confidence(8, seconds_long, SPORT_BASKETBALL)
+        conf = strategy._calculate_us_sports_confidence(
+            8, seconds_long, SPORT_BASKETBALL
+        )
         assert conf == CONFIDENCE_FAVORABLE
 
     def test_baseball_confidence(self, strategy):

@@ -1,24 +1,26 @@
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from alphas.alpha_two_late_compression import AlphaTwoLateCompression, ClippingOpportunity
+from alphas.alpha_two_late_compression import (
+    AlphaTwoLateCompression,
+    ClippingOpportunity,
+)
+
 
 @pytest.fixture
 def mock_clients():
-    return {
-        'poly': MagicMock(),
-        'kalshi': MagicMock()
-    }
+    return {"poly": MagicMock(), "kalshi": MagicMock()}
+
 
 @pytest.fixture
 def alpha_two(mock_clients):
     return AlphaTwoLateCompression(
-        polymarket_client=mock_clients['poly'],
-        kalshi_client=mock_clients['kalshi'],
-        simulation_mode=True
+        polymarket_client=mock_clients["poly"],
+        kalshi_client=mock_clients["kalshi"],
+        simulation_mode=True,
     )
+
 
 @pytest.mark.asyncio
 async def test_analyze_market_for_clipping_valid_opportunity(alpha_two):
@@ -36,14 +38,11 @@ async def test_analyze_market_for_clipping_valid_opportunity(alpha_two):
         "type": "soccer",
         "home_team": "Home Team",
         "away_team": "Away Team",
-        "current_score": {
-            "home": 2,
-            "away": 0
-        },
-        "seconds_to_close": 240, # 4 minutes
-        "yes_price": 0.90,       # 90 cents
+        "current_score": {"home": 2, "away": 0},
+        "seconds_to_close": 240,  # 4 minutes
+        "yes_price": 0.90,  # 90 cents
         "no_price": 0.10,
-        "status": "active"
+        "status": "active",
     }
 
     # 2. Act
@@ -54,7 +53,7 @@ async def test_analyze_market_for_clipping_valid_opportunity(alpha_two):
     assert isinstance(opportunity, ClippingOpportunity)
     assert opportunity.market_id == "market_123"
     assert opportunity.expected_outcome == "YES"
-    assert opportunity.confidence >= 0.95 # Should be 0.98 for 2 goal lead < 300s
+    assert opportunity.confidence >= 0.95  # Should be 0.98 for 2 goal lead < 300s
     assert opportunity.recommended_side == "YES"
 
     # Expected profit: (1.0 - 0.90) / 0.90 = 0.111... -> 11.1%
@@ -63,6 +62,7 @@ async def test_analyze_market_for_clipping_valid_opportunity(alpha_two):
     # Verify confidence calculation logic matches expectation
     # 2 goal lead, < 300s -> 0.98
     assert opportunity.confidence == 0.98
+
 
 @pytest.mark.asyncio
 async def test_analyze_market_ignores_low_confidence(alpha_two):
@@ -78,18 +78,16 @@ async def test_analyze_market_ignores_low_confidence(alpha_two):
         "type": "soccer",
         "home_team": "Home Team",
         "away_team": "Away Team",
-        "current_score": {
-            "home": 1,
-            "away": 0
-        },
-        "seconds_to_close": 600, # 10 minutes
+        "current_score": {"home": 1, "away": 0},
+        "seconds_to_close": 600,  # 10 minutes
         "yes_price": 0.80,
         "no_price": 0.20,
-        "status": "active"
+        "status": "active",
     }
 
     opportunity = await alpha_two._analyze_market_for_clipping(market_data)
     assert opportunity is None
+
 
 @pytest.mark.asyncio
 async def test_analyze_market_ignores_low_profit(alpha_two):
@@ -105,18 +103,16 @@ async def test_analyze_market_ignores_low_profit(alpha_two):
         "type": "soccer",
         "home_team": "Home Team",
         "away_team": "Away Team",
-        "current_score": {
-            "home": 3,
-            "away": 0
-        },
+        "current_score": {"home": 3, "away": 0},
         "seconds_to_close": 600,
         "yes_price": 0.98,
         "no_price": 0.02,
-        "status": "active"
+        "status": "active",
     }
 
     opportunity = await alpha_two._analyze_market_for_clipping(market_data)
     assert opportunity is None
+
 
 @pytest.mark.asyncio
 async def test_alpha_two_simulation_resolution(alpha_two):
@@ -137,7 +133,7 @@ async def test_alpha_two_simulation_resolution(alpha_two):
         "away_team": "Away",
         "question": "Will Home win?",
         "yes_price": 0.95,
-        "no_price": 0.05
+        "no_price": 0.05,
     }
 
     # Update state
@@ -158,7 +154,7 @@ async def test_alpha_two_simulation_resolution(alpha_two):
         seconds_to_resolution=120,
         recommended_side="YES",
         recommended_price=0.95,
-        recommended_size=10
+        recommended_size=10,
     )
 
     await alpha_two._execute_clipping_trade(opp)
@@ -178,7 +174,7 @@ async def test_alpha_two_simulation_resolution(alpha_two):
         "away_score": 0,
         "home_team": "Home",
         "away_team": "Away",
-        "question": "Will Home win?"
+        "question": "Will Home win?",
     }
 
     await alpha_two.feed_live_fixture_update(fixture_ended)

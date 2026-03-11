@@ -1,6 +1,7 @@
 from backend.core.market_synthesizer import MarketMicrostructure
 import pytest
 
+
 def test_pnl_path_mathematical_consistency():
     market = MarketMicrostructure()
 
@@ -26,6 +27,8 @@ def test_pnl_path_mathematical_consistency():
         # We assert that the value is consistent with the calculation.
         # Since we rounded internally at each step, there should be almost zero error
         # beyond the immediate rounding of the operation itself.
-        assert diff < 0.02, f"PnL consistency mismatch: Prev={prev_pnl}, Pct={change_pct}%, Expected={expected_pnl:.4f}, Got={current_pnl}, Diff={diff:.4f}"
+        assert (
+            diff < 0.02
+        ), f"PnL consistency mismatch: Prev={prev_pnl}, Pct={change_pct}%, Expected={expected_pnl:.4f}, Got={current_pnl}, Diff={diff:.4f}"
 
         prev_pnl = current_pnl

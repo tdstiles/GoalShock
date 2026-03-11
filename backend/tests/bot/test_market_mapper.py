@@ -128,6 +128,7 @@ async def test_map_goal_to_markets_cache_hit() -> None:
     mock_fetcher.get_market.assert_called_once_with("mkt-1")
     mock_fetcher.fetch_markets_for_fixture.assert_not_called()
 
+
 @pytest.mark.asyncio
 async def test_map_goal_to_markets_cache_miss() -> None:
     """Ensure map_goal_to_markets fetches markets on cache miss."""
@@ -159,8 +160,9 @@ def build_live_match(home_team: str, away_team: str) -> LiveMatch:
         home_score=0,
         away_score=0,
         minute=10,
-        status="live"
+        status="live",
     )
+
 
 @pytest.mark.asyncio
 async def test_get_markets_for_match_cache_hit() -> None:
@@ -181,6 +183,7 @@ async def test_get_markets_for_match_cache_hit() -> None:
     mock_fetcher.get_market.assert_called_once_with("mkt-1")
     mock_fetcher.fetch_markets_for_fixture.assert_not_called()
 
+
 @pytest.mark.asyncio
 async def test_get_markets_for_match_cache_miss() -> None:
     """Ensure get_markets_for_match fetches markets on cache miss."""
@@ -200,6 +203,7 @@ async def test_get_markets_for_match_cache_miss() -> None:
         match.fixture_id, match.home_team, match.away_team
     )
     assert mapper.fixture_market_map[match.fixture_id] == ["mkt-1"]
+
 
 @pytest.mark.asyncio
 async def test_get_markets_for_match_cache_hit_returns_none() -> None:
@@ -239,18 +243,16 @@ def test_update_market_mapping() -> None:
     assert mapper.fixture_market_map[101] == ["mkt-3"]
 
 
-
-
 def test_clear_stale_mappings() -> None:
     """Ensure clear_stale_mappings correctly removes stale mappings."""
     mock_fetcher = Mock()
     mapper = MarketMapper(mock_fetcher)
 
     mapper.fixture_market_map = {
-        101: ["mkt-1", "mkt-2"], # All stale
-        102: ["mkt-3"],          # Fresh
-        103: ["mkt-4", "mkt-5"], # Mixed
-        104: ["mkt-6"],          # Not found (None)
+        101: ["mkt-1", "mkt-2"],  # All stale
+        102: ["mkt-3"],  # Fresh
+        103: ["mkt-4", "mkt-5"],  # Mixed
+        104: ["mkt-6"],  # Not found (None)
     }
 
     # Mock markets
@@ -268,24 +270,33 @@ def test_clear_stale_mappings() -> None:
     type(mkt5).is_stale = PropertyMock(return_value=False)
 
     def side_effect(market_id: str):
-        if market_id == "mkt-1": return mkt1
-        if market_id == "mkt-2": return mkt2
-        if market_id == "mkt-3": return mkt3
-        if market_id == "mkt-4": return mkt4
-        if market_id == "mkt-5": return mkt5
-        if market_id == "mkt-6": return None
+        if market_id == "mkt-1":
+            return mkt1
+        if market_id == "mkt-2":
+            return mkt2
+        if market_id == "mkt-3":
+            return mkt3
+        if market_id == "mkt-4":
+            return mkt4
+        if market_id == "mkt-5":
+            return mkt5
+        if market_id == "mkt-6":
+            return None
         return None
 
     mock_fetcher.get_market.side_effect = side_effect
 
     mapper.clear_stale_mappings()
 
-    assert 101 not in mapper.fixture_market_map # Was stale
-    assert 102 in mapper.fixture_market_map     # Fresh
-    assert 103 in mapper.fixture_market_map     # Mixed, should not be deleted because not ALL are stale
-    assert 104 in mapper.fixture_market_map     # Markets were falsey so skip deletion
+    assert 101 not in mapper.fixture_market_map  # Was stale
+    assert 102 in mapper.fixture_market_map  # Fresh
+    assert (
+        103 in mapper.fixture_market_map
+    )  # Mixed, should not be deleted because not ALL are stale
+    assert 104 in mapper.fixture_market_map  # Markets were falsey so skip deletion
 
     assert mapper.fixture_market_map[102] == ["mkt-3"]
+
 
 def test_clear_stale_mappings_empty_map() -> None:
     """Ensure clear_stale_mappings handles an empty map correctly."""
@@ -301,8 +312,8 @@ def test_filter_relevant_markets_includes_team_names_for_win_market() -> None:
     mapper = MarketMapper(Mock())
     goal = build_goal_event(team="Arsenal", player="Bukayo Saka")
     markets: List[MarketPrice] = [
-        build_market_price("mkt-1", "Will Chelsea win the match?"), # away team
-        build_market_price("mkt-2", "Will Manchester United win?"), # irrelevant team
+        build_market_price("mkt-1", "Will Chelsea win the match?"),  # away team
+        build_market_price("mkt-2", "Will Manchester United win?"),  # irrelevant team
     ]
 
     relevant_markets = mapper._filter_relevant_markets(goal, markets)

@@ -15,6 +15,7 @@ LEAGUE_NAME = "Premier League"
 # Default odds: Underdog @ 0.35, Favorite @ 0.65
 DEFAULT_ODDS = {UNDERDOG_TEAM: 0.35, FAVORITE_TEAM: 0.65}
 
+
 @pytest.fixture
 def mock_clients():
     poly = MagicMock()
@@ -26,23 +27,24 @@ def mock_clients():
 
     return poly, kalshi
 
+
 @pytest.fixture
 def alpha_one(mock_clients):
     poly, kalshi = mock_clients
     alpha = AlphaOneUnderdog(
-        mode=TradingMode.SIMULATION,
-        polymarket_client=poly,
-        kalshi_client=kalshi
+        mode=TradingMode.SIMULATION, polymarket_client=poly, kalshi_client=kalshi
     )
     # Set default configuration for tests
     alpha.underdog_threshold = 0.45
     return alpha
+
 
 @pytest_asyncio.fixture
 async def setup_odds(alpha_one):
     """Fixture to cache default odds for the test fixture."""
     await alpha_one.cache_pre_match_odds(FIXTURE_ID, DEFAULT_ODDS)
     return alpha_one
+
 
 @pytest.fixture
 def goal_event_template():
@@ -58,11 +60,14 @@ def goal_event_template():
         home_score=0,
         away_score=0,
         goal_type="Normal",
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
+
 @pytest.mark.asyncio
-async def test_underdog_takes_lead_generates_signal(alpha_one, setup_odds, goal_event_template):
+async def test_underdog_takes_lead_generates_signal(
+    alpha_one, setup_odds, goal_event_template
+):
     """
     Test Happy Path: Underdog scores and takes the lead (1-0).
     Should generate a TradeSignal.
@@ -94,13 +99,25 @@ async def test_underdog_takes_lead_generates_signal(alpha_one, setup_odds, goal_
     assert alpha_one.stats.total_signals == 1
     assert len(alpha_one.positions) == 1
 
-@pytest.mark.parametrize("scenario_team, home_score, away_score, desc", [
-    (FAVORITE_TEAM, 0, 1, "Favorite scores (0-1)"),
-    (UNDERDOG_TEAM, 1, 2, "Underdog scores but losing (1-2)"),
-    (UNDERDOG_TEAM, 1, 1, "Underdog scores equalizer (1-1)"),
-])
+
+@pytest.mark.parametrize(
+    "scenario_team, home_score, away_score, desc",
+    [
+        (FAVORITE_TEAM, 0, 1, "Favorite scores (0-1)"),
+        (UNDERDOG_TEAM, 1, 2, "Underdog scores but losing (1-2)"),
+        (UNDERDOG_TEAM, 1, 1, "Underdog scores equalizer (1-1)"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_goal_scenarios_no_signal(alpha_one, setup_odds, goal_event_template, scenario_team, home_score, away_score, desc):
+async def test_goal_scenarios_no_signal(
+    alpha_one,
+    setup_odds,
+    goal_event_template,
+    scenario_team,
+    home_score,
+    away_score,
+    desc,
+):
     """
     Test various goal scenarios where NO signal should be generated.
     """
@@ -118,6 +135,7 @@ async def test_goal_scenarios_no_signal(alpha_one, setup_odds, goal_event_templa
     assert alpha_one.stats.total_signals == 0
     assert len(alpha_one.positions) == 0
 
+
 @pytest.mark.asyncio
 async def test_no_pre_match_odds_no_signal(alpha_one, goal_event_template):
     """
@@ -134,6 +152,7 @@ async def test_no_pre_match_odds_no_signal(alpha_one, goal_event_template):
 
     # Assert
     assert signal is None
+
 
 @pytest.mark.asyncio
 async def test_underdog_odds_too_high_no_signal(alpha_one, goal_event_template):
@@ -156,6 +175,7 @@ async def test_underdog_odds_too_high_no_signal(alpha_one, goal_event_template):
     # Assert
     assert signal is None
 
+
 @pytest.mark.asyncio
 async def test_max_positions_reached(alpha_one, setup_odds, goal_event_template):
     """
@@ -169,8 +189,13 @@ async def test_max_positions_reached(alpha_one, setup_odds, goal_event_template)
 
     # Create a dummy position
     from alphas.alpha_one_underdog import SimulatedPosition
-    dummy_signal = TradeSignal("dummy", 999, "Team", "YES", 0.5, 0.6, 0.4, 10, 0.8, "test")
-    alpha_one.positions["dummy"] = SimulatedPosition("dummy", dummy_signal, datetime.now())
+
+    dummy_signal = TradeSignal(
+        "dummy", 999, "Team", "YES", 0.5, 0.6, 0.4, 10, 0.8, "test"
+    )
+    alpha_one.positions["dummy"] = SimulatedPosition(
+        "dummy", dummy_signal, datetime.now()
+    )
 
     goal_event = goal_event_template
     goal_event.team = UNDERDOG_TEAM

@@ -45,7 +45,11 @@ class StreamProcessor:
                 "player": event.player,
                 "minute": event.minute,
                 "timestamp": event.timestamp.isoformat(),
-                "market_context": relevant_market if relevant_market else self._generate_market_context()
+                "market_context": (
+                    relevant_market
+                    if relevant_market
+                    else self._generate_market_context()
+                ),
             }
 
             enriched.append(enriched_event)
@@ -62,7 +66,7 @@ class StreamProcessor:
                     "market_id": market["id"],
                     "question": market["question"],
                     "current_price": market["yes_price"],
-                    "volume": market["volume"]
+                    "volume": market["volume"],
                 }
         return None
 
@@ -71,10 +75,9 @@ class StreamProcessor:
             "market_id": f"synth_{random.randint(SYNTH_MARKET_ID_MIN, SYNTH_MARKET_ID_MAX)}",
             "question": "Related match outcome market",
             "current_price": round(
-                random.uniform(SYNTH_PRICE_MIN, SYNTH_PRICE_MAX),
-                SYNTH_PRICE_ROUNDING
+                random.uniform(SYNTH_PRICE_MIN, SYNTH_PRICE_MAX), SYNTH_PRICE_ROUNDING
             ),
-            "volume": random.randint(SYNTH_VOLUME_MIN, SYNTH_VOLUME_MAX)
+            "volume": random.randint(SYNTH_VOLUME_MIN, SYNTH_VOLUME_MAX),
         }
 
     async def aggregate_statistics(self, events: List[Dict]) -> Dict:
@@ -83,7 +86,7 @@ class StreamProcessor:
                 "total_goals": 0,
                 "unique_matches": 0,
                 "avg_minute": 0,
-                "top_scorers": []
+                "top_scorers": [],
             }
 
         total_goals = len(events)
@@ -98,7 +101,7 @@ class StreamProcessor:
         top_scorers = sorted(
             [{"player": p, "goals": g} for p, g in player_goals.items()],
             key=lambda x: x["goals"],
-            reverse=True
+            reverse=True,
         )[:STATS_TOP_SCORERS_LIMIT]
 
         return {
@@ -106,5 +109,5 @@ class StreamProcessor:
             "unique_matches": unique_matches,
             "avg_minute": round(avg_minute, STATS_AVG_MINUTE_ROUNDING),
             "top_scorers": top_scorers,
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now().isoformat(),
         }

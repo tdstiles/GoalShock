@@ -2,6 +2,7 @@ import pytest
 from backend.core.stream_processor import StreamProcessor
 from datetime import datetime
 
+
 class MockEvent:
     def __init__(self, match_id, team, player, minute, timestamp):
         self.match_id = match_id
@@ -10,6 +11,7 @@ class MockEvent:
         self.minute = minute
         self.timestamp = timestamp
 
+
 @pytest.mark.asyncio
 async def test_enrich_events_synthetic():
     sp = StreamProcessor()
@@ -17,7 +19,7 @@ async def test_enrich_events_synthetic():
     # Create raw events
     raw_events = [
         MockEvent("m1", "Team A", "Player 1", 10, datetime.now()),
-        MockEvent("m2", "Team B", "Player 2", 20, datetime.now())
+        MockEvent("m2", "Team B", "Player 2", 20, datetime.now()),
     ]
 
     # Empty market data
@@ -35,6 +37,7 @@ async def test_enrich_events_synthetic():
     assert 0.4 <= ctx["current_price"] <= 0.8
     assert 10000 <= ctx["volume"] <= 100000
 
+
 @pytest.mark.asyncio
 async def test_aggregate_statistics():
     sp = StreamProcessor()
@@ -42,7 +45,7 @@ async def test_aggregate_statistics():
     events = [
         {"match_id": "m1", "minute": 10, "player": "P1"},
         {"match_id": "m1", "minute": 20, "player": "P2"},
-        {"match_id": "m2", "minute": 30, "player": "P1"}
+        {"match_id": "m2", "minute": 30, "player": "P1"},
     ]
 
     stats = await sp.aggregate_statistics(events)

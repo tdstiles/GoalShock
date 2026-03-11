@@ -1,9 +1,14 @@
-
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
-from backend.engine_unified import UnifiedTradingEngine, DEFAULT_MARKET_PRICE, KEY_YES, KEY_NO
+from backend.engine_unified import (
+    UnifiedTradingEngine,
+    DEFAULT_MARKET_PRICE,
+    KEY_YES,
+    KEY_NO,
+)
 from backend.exchanges.polymarket import PolymarketClient
+
 
 # Mock LiveFixture
 class MockLiveFixture:
@@ -16,12 +21,14 @@ class MockLiveFixture:
         self.minute = 10
         self.status = "1H"
 
+
 @pytest.fixture
 def engine():
     eng = UnifiedTradingEngine()
     eng.polymarket = PolymarketClient()
-    eng.polymarket.get_yes_price = AsyncMock(return_value=0.75) # Mock price fetch
+    eng.polymarket.get_yes_price = AsyncMock(return_value=0.75)  # Mock price fetch
     return eng
+
 
 @pytest.mark.asyncio
 async def test_search_primary_success(engine):
@@ -38,6 +45,7 @@ async def test_search_primary_success(engine):
     assert prices[KEY_YES] == 0.75
     assert engine.polymarket.get_markets_by_event.call_count == 1
     engine.polymarket.get_markets_by_event.assert_called_with("Home vs Away")
+
 
 @pytest.mark.asyncio
 async def test_search_fallback_success(engine):
@@ -65,6 +73,7 @@ async def test_search_fallback_success(engine):
     calls = engine.polymarket.get_markets_by_event.call_args_list
     assert calls[0][0][0] == "Home vs Away"
     assert calls[1][0][0] == "Away vs Home"
+
 
 @pytest.mark.asyncio
 async def test_search_both_fail(engine):

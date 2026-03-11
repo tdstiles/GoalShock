@@ -1,13 +1,20 @@
-
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
-from engine_unified import UnifiedTradingEngine, EngineConfig, KEY_YES, KEY_NO, DEFAULT_MARKET_PRICE
+from engine_unified import (
+    UnifiedTradingEngine,
+    EngineConfig,
+    KEY_YES,
+    KEY_NO,
+    DEFAULT_MARKET_PRICE,
+)
 from alphas.alpha_one_underdog import TradingMode
+
 
 @pytest.fixture
 def mock_dependencies():
-    with patch('engine_unified.PolymarketClient') as mock_poly:
-        yield {'poly': mock_poly}
+    with patch("engine_unified.PolymarketClient") as mock_poly:
+        yield {"poly": mock_poly}
+
 
 @pytest.mark.asyncio
 async def test_get_fixture_market_prices(mock_dependencies):
@@ -17,7 +24,7 @@ async def test_get_fixture_market_prices(mock_dependencies):
 
     engine = UnifiedTradingEngine(config)
     # Ensure polymarket client is our mock (it should be since we patched the class init)
-    engine.polymarket = mock_dependencies['poly'].return_value
+    engine.polymarket = mock_dependencies["poly"].return_value
 
     # Mock fixture object
     mock_fixture = MagicMock()
@@ -49,7 +56,9 @@ async def test_get_fixture_market_prices(mock_dependencies):
     assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
 
     # Case 5: Exception handling
-    engine.polymarket.get_market_token_id = AsyncMock(side_effect=Exception("API Error"))
+    engine.polymarket.get_market_token_id = AsyncMock(
+        side_effect=Exception("API Error")
+    )
     prices = await engine._get_fixture_market_prices(mock_fixture)
     assert prices[KEY_YES] == DEFAULT_MARKET_PRICE
 
