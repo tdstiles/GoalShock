@@ -103,15 +103,12 @@ class MarketMapper:
         for market in markets:
             question = market.question.lower()
 
-            if _is_win_market(question):
-                if goal_team_lower in question:
+            # Bolt Optimization: Inlined keyword checks to avoid generator overhead in tight loop
+            if "win" in question or "victory" in question or "winner" in question or "result" in question:
+                if goal_team_lower in question or home_team_lower in question or away_team_lower in question:
                     relevant.append(market)
-                elif home_team_lower in question or away_team_lower in question:
-                    relevant.append(market)
-
-            elif _is_total_goals_market(question):
+            elif "goals" in question or "score" in question or "total" in question:
                 relevant.append(market)
-
             elif player_lower in question:
                 relevant.append(market)
 
