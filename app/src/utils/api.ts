@@ -15,8 +15,8 @@ export async function fetchLiveMatches(): Promise<LiveMatch[]> {
     const response = await fetch(`${API_BASE}/api/matches/live`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = (await response.json()) as LiveMatchesResponse;
-    return data.matches || [];
+    const matchesResponse = (await response.json()) as LiveMatchesResponse;
+    return matchesResponse.matches || [];
   } catch (error) {
     console.error('Failed to fetch live matches:', error);
     return [];
@@ -31,8 +31,8 @@ export async function fetchMarketsForFixture(fixtureId: number): Promise<MarketP
     const response = await fetch(`${API_BASE}/api/markets/${fixtureId}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = (await response.json()) as FixtureMarketsResponse;
-    return data.markets || [];
+    const fixtureMarketsResponse = (await response.json()) as FixtureMarketsResponse;
+    return fixtureMarketsResponse.markets || [];
   } catch (error) {
     console.error(`Failed to fetch markets for fixture ${fixtureId}:`, error);
     return [];
@@ -47,8 +47,8 @@ export async function fetchAllMarkets(): Promise<MarketPrice[]> {
     const response = await fetch(`${API_BASE}/api/markets/all`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = (await response.json()) as AllMarketsResponse;
-    return data.markets || [];
+    const allMarketsResponse = (await response.json()) as AllMarketsResponse;
+    return allMarketsResponse.markets || [];
   } catch (error) {
     console.error('Failed to fetch markets:', error);
     return [];
@@ -77,11 +77,11 @@ export async function fetchBotStatus(): Promise<BotStatus | null> {
   try {
     const response = await fetch(`${API_BASE}/api/status`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = (await response.json()) as BotStatus;
+    const botStatus = (await response.json()) as BotStatus;
     // Assuming api/status returns { data: BotStatus } or just BotStatus?
-    // In App.tsx: setBotStatus(data.data) in websocket message, but setBotStatus(data) in fetchStatus.
+    // In App.tsx: setBotStatus(botStatus.data) in websocket message, but setBotStatus(botStatus) in fetchStatus.
     // Let's assume it returns the status object directly based on fetchStatus usage.
-    return data;
+    return botStatus;
   } catch (error) {
     console.error('Error fetching status:', error);
     return null;
