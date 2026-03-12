@@ -442,7 +442,7 @@ class AlphaOneUnderdog(BaseAlpha):
 
                 pass
             except Exception as e:
-                logger.error(f"Kalshi price fetch error: {e}")
+                logger.error(f"Kalshi price fetch error: {e}", exc_info=True)
 
         return None
 
@@ -564,7 +564,7 @@ class AlphaOneUnderdog(BaseAlpha):
                         )
                         return
             except Exception as e:
-                logger.error(f"Polymarket trade error: {e}")
+                logger.error(f"Polymarket trade error: {e}", exc_info=True)
 
         logger.error("Failed to execute live trade")
 
@@ -627,7 +627,9 @@ class AlphaOneUnderdog(BaseAlpha):
             return False
 
         except Exception as e:
-            logger.error(f"Error closing position {position.position_id}: {e}")
+            logger.error(
+                f"Error closing position {position.position_id}: {e}", exc_info=True
+            )
             return False
 
     async def monitor_positions(self):
@@ -660,7 +662,7 @@ class AlphaOneUnderdog(BaseAlpha):
                 await asyncio.sleep(5)
 
             except Exception as e:
-                logger.error(f"Position monitoring error: {e}")
+                logger.error(f"Position monitoring error: {e}", exc_info=True)
                 await asyncio.sleep(5)
 
     def _simulate_price_movement(self, position: SimulatedPosition) -> float:

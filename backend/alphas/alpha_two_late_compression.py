@@ -250,7 +250,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 await asyncio.sleep(LOOP_INTERVAL_MARKET_SCANNER_SECONDS)
 
             except Exception as e:
-                logger.error(f"Market scanner error: {e}")
+                logger.error(f"Market scanner error: {e}", exc_info=True)
                 await asyncio.sleep(ERROR_RETRY_SECONDS_MARKET_SCANNER)
 
     async def _opportunity_detector_loop(self):
@@ -285,7 +285,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 await asyncio.sleep(LOOP_INTERVAL_OPPORTUNITY_SECONDS)
 
             except Exception as e:
-                logger.error(f"Opportunity detector error: {e}")
+                logger.error(f"Opportunity detector error: {e}", exc_info=True)
                 await asyncio.sleep(ERROR_RETRY_SECONDS_OPPORTUNITY)
 
     async def _execution_loop(self):
@@ -301,7 +301,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 await asyncio.sleep(LOOP_INTERVAL_EXECUTION_SECONDS)
 
             except Exception as e:
-                logger.error(f"Execution loop error: {e}")
+                logger.error(f"Execution loop error: {e}", exc_info=True)
                 await asyncio.sleep(ERROR_RETRY_SECONDS_EXECUTION)
 
     async def _execute_opportunity_cycle(self) -> None:
@@ -408,7 +408,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 await asyncio.sleep(LOOP_INTERVAL_RESOLUTION_SECONDS)
 
             except Exception as e:
-                logger.error(f"Resolution monitor error: {e}")
+                logger.error(f"Resolution monitor error: {e}", exc_info=True)
                 await asyncio.sleep(ERROR_RETRY_SECONDS_RESOLUTION)
 
     async def _fetch_closing_markets(self) -> List[Dict]:
@@ -420,14 +420,14 @@ class AlphaTwoLateCompression(BaseAlpha):
                 poly_markets = await self._fetch_polymarket_closing_markets()
                 markets.extend(poly_markets)
             except Exception as e:
-                logger.error(f"Polymarket fetch error: {e}")
+                logger.error(f"Polymarket fetch error: {e}", exc_info=True)
 
         if self.kalshi:
             try:
                 kalshi_markets = await self._fetch_kalshi_closing_markets()
                 markets.extend(kalshi_markets)
             except Exception as e:
-                logger.error(f"Kalshi fetch error: {e}")
+                logger.error(f"Kalshi fetch error: {e}", exc_info=True)
 
         return markets
 
@@ -804,7 +804,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 return False
 
             except Exception as e:
-                logger.error(f"Polymarket order error: {e}")
+                logger.error(f"Polymarket order error: {e}", exc_info=True)
                 return False
 
         if self.kalshi:
@@ -812,7 +812,7 @@ class AlphaTwoLateCompression(BaseAlpha):
                 # Same For THIS result = await self.kalshi.place_order(...)
                 return False  # Placeholder
             except Exception as e:
-                logger.error(f"Kalshi order error: {e}")
+                logger.error(f"Kalshi order error: {e}", exc_info=True)
 
         return False
 
@@ -842,7 +842,9 @@ class AlphaTwoLateCompression(BaseAlpha):
                     if outcome:
                         return {"outcome": outcome, "resolution_time": datetime.now()}
             except Exception as e:
-                logger.error(f"Error checking resolution for {market_id}: {e}")
+                logger.error(
+                    f"Error checking resolution for {market_id}: {e}", exc_info=True
+                )
 
         return None
 
