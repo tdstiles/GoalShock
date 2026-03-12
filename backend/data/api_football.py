@@ -122,43 +122,47 @@ class APIFootballClient:
             fixture_id = fixture.fixture_id
             current_score = (fixture.home_score, fixture.away_score)
 
-            if fixture_id not in self.previous_scores:
+            # Bolt Optimization: Use get() to avoid double dictionary lookup
+            previous_score = self.previous_scores.get(fixture_id)
+
+            if previous_score is None:
                 self.previous_scores[fixture_id] = current_score
                 continue
 
-            previous_score = self.previous_scores[fixture_id]
+            # Bolt Optimization: Fast-path tuple inequality check skips inner logic
+            # for the vast majority of polling cycles where scores have not changed
+            if current_score != previous_score:
+                if current_score[0] > previous_score[0]:
+                    goal = Goal(
+                        fixture_id=fixture_id,
+                        team=fixture.home_team,
+                        player="Unknown",
+                        minute=fixture.minute,
+                        home_score=current_score[0],
+                        away_score=current_score[1],
+                    )
+                    new_goals.append(goal)
 
-            if current_score[0] > previous_score[0]:
-                goal = Goal(
-                    fixture_id=fixture_id,
-                    team=fixture.home_team,
-                    player="Unknown",
-                    minute=fixture.minute,
-                    home_score=current_score[0],
-                    away_score=current_score[1],
-                )
-                new_goals.append(goal)
+                    logger.info(
+                        f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')"
+                    )
 
-                logger.info(
-                    f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')"
-                )
+                if current_score[1] > previous_score[1]:
+                    goal = Goal(
+                        fixture_id=fixture_id,
+                        team=fixture.away_team,
+                        player="Unknown",
+                        minute=fixture.minute,
+                        home_score=current_score[0],
+                        away_score=current_score[1],
+                    )
+                    new_goals.append(goal)
 
-            if current_score[1] > previous_score[1]:
-                goal = Goal(
-                    fixture_id=fixture_id,
-                    team=fixture.away_team,
-                    player="Unknown",
-                    minute=fixture.minute,
-                    home_score=current_score[0],
-                    away_score=current_score[1],
-                )
-                new_goals.append(goal)
+                    logger.info(
+                        f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')"
+                    )
 
-                logger.info(
-                    f"⚽ GOAL! {fixture.home_team} {current_score[0]}-{current_score[1]} {fixture.away_team} ({fixture.minute}')"
-                )
-
-            self.previous_scores[fixture_id] = current_score
+                self.previous_scores[fixture_id] = current_score
 
         return new_goals
 
