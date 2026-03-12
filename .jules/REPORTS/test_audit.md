@@ -36,3 +36,4 @@
 - **2026-01-18**: Installed Frontend Test Harness (Vitest, React Testing Library) and added unit tests for `app/src/utils/api.ts` (API wrappers) and `app/src/components/ProbabilityBar.tsx` (UI Component).
 - **2026-01-21**: Added `app/src/hooks/useTradingEngine.test.tsx` covering the `useTradingEngine` hook. This ensures the frontend correctly handles WebSocket connections, real-time updates (goals, market changes), and reconnection logic.
 - **2026-01-21**: Added `app/src/components/ButtonText.test.tsx` to cover the `ButtonText` component, increasing overall UI test coverage.
+- **2026-01-21**: Added `backend/tests/data/test_api_football.py` covering the `APIFootballClient` to ensure 100% test coverage for API-Football logic.
