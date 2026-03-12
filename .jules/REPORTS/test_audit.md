@@ -37,3 +37,4 @@
 - **2026-01-21**: Added `app/src/hooks/useTradingEngine.test.tsx` covering the `useTradingEngine` hook. This ensures the frontend correctly handles WebSocket connections, real-time updates (goals, market changes), and reconnection logic.
 - **2026-01-21**: Added `app/src/components/ButtonText.test.tsx` to cover the `ButtonText` component, increasing overall UI test coverage.
 - **2026-01-21**: Added `backend/tests/data/test_api_football.py` covering the `APIFootballClient` to ensure 100% test coverage for API-Football logic.
+- **2026-01-22**: Added `backend/tests/bot/test_realtime_ingestor_extended.py` and `backend/tests/core/test_security_utils.py` to ensure 100% test coverage for `RealtimeIngestor` and `security_utils`.
