@@ -32,3 +32,8 @@
 **Anti-Pattern:** Use of Pydantic's deprecated `.dict()` method on models throughout endpoints (e.g., `match.dict()`). This raises noisy deprecation warnings (`PydanticDeprecatedSince20`) and creates technical debt for future version upgrades.
 **Improvement:** Replaced all instances of `.dict()` with the modern `.model_dump()` method.
 **Guideline:** Always use `.model_dump()` instead of `.dict()` for Pydantic V2+ models to ensure compatibility and maintain warning-free logs.
+
+## 2024-05-24 - Magic Numbers in Frontend App Components
+**Anti-Pattern:** Hardcoded magic numbers (e.g., `100`, `1000`, `2`, `20`) were buried within the frontend `SplashScreen` component's `useEffect` hook in `app/src/App.tsx`. This made the animation logic opaque and difficult to configure without digging into the component internals.
+**Improvement:** Extracted these magic numbers into descriptive, semantic constants (`SPLASH_PROGRESS_TARGET`, `SPLASH_COMPLETION_DELAY_MS`, `SPLASH_PROGRESS_INCREMENT`, `SPLASH_PROGRESS_INTERVAL_MS`) defined at the module scope.
+**Guideline:** Configuration values governing UI timings, limits, and step sizes must be extracted into named constants to improve maintainability and self-document the code's intent.
