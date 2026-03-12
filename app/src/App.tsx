@@ -21,6 +21,14 @@ import {
   Settings
 } from './types';
 
+// Configuration Constants
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/live';
+const DATA_REFRESH_INTERVAL_MS = 10000;
+const STATUS_POLL_INTERVAL_MS = 5000;
+const MAX_TRADES_HISTORY = 50;
+const VOL_MILLION = 1000000;
+const VOL_THOUSAND = 1000;
+
 // Loading splash screen
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -97,8 +105,8 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
 // Helper to format volume
 const formatVolume = (vol: number | undefined) => {
   if (!vol) return '$0';
-  if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
-  if (vol >= 1000) return `$${(vol / 1000).toFixed(1)}k`;
+  if (vol >= VOL_MILLION) return `$${(vol / VOL_MILLION).toFixed(1)}M`;
+  if (vol >= VOL_THOUSAND) return `$${(vol / VOL_THOUSAND).toFixed(1)}k`;
   return `$${vol.toLocaleString()}`;
 };
 
@@ -239,7 +247,7 @@ function LiveMarketsSection() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, DATA_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -409,13 +417,13 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
   // WebSocket connection
   useEffect(() => {
     updateStatus();
-    const statusInterval = setInterval(updateStatus, 5000);
+    const statusInterval = setInterval(updateStatus, STATUS_POLL_INTERVAL_MS);
 
     // Connect to WebSocket
     // Note: We need the base URL for WebSocket. Since we extracted API_BASE, we need to handle it.
     // If API_BASE is http, we need ws. If https, wss.
     // For now, assuming localhost:8000.
-    const ws = new WebSocket('ws://localhost:8000/ws/live'); // Changed to /ws/live based on main_realtime.py
+    const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -426,7 +434,7 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'trade') {
-        setTrades(prev => [data.trade, ...prev].slice(0, 50));
+        setTrades(prev => [data.trade, ...prev].slice(0, MAX_TRADES_HISTORY));
       } else if (data.type === 'status') {
         // Update status from WebSocket
         setBotStatus(data.data);
@@ -683,7 +691,7 @@ function MarketsView({ onBack }: { onBack: () => void }) {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, DATA_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 

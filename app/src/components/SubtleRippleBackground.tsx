@@ -4,6 +4,14 @@ import { useEffect, useRef } from 'react';
 // 0.5 means 1/2 width and 1/2 height -> 1/4 total pixels to process
 const RESOLUTION_SCALE = 0.5;
 
+// Water configuration constants
+const WATER_DAMPING = 0.95;
+const WATER_DROP_RADIUS = 5;
+const WATER_DROP_STRENGTH = 200;
+const WATER_AMBIENT_INTERVAL_MS = 3000;
+const WATER_BASE_GREEN = 14;
+const WATER_BASE_BLUE = 27;
+
 export default function SubtleRippleBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -30,9 +38,9 @@ export default function SubtleRippleBackground() {
     let previous = new Float32Array(width * height);
 
     // OPTIMIZED WATER PARAMETERS - better performance
-    const damping = 0.95;          // Faster fade for better performance
-    const dropRadius = 5;           // Smaller ripples for better performance
-    const dropStrength = 200;       // Reduced strength for smoother animation
+    const damping = WATER_DAMPING;          // Faster fade for better performance
+    const dropRadius = WATER_DROP_RADIUS;           // Smaller ripples for better performance
+    const dropStrength = WATER_DROP_STRENGTH;       // Reduced strength for smoother animation
 
     // Create smooth ripples
     const drop = (x: number, y: number, radius: number, strength: number) => {
@@ -95,8 +103,8 @@ export default function SubtleRippleBackground() {
 
             // Enhanced green-teal water color with gradient depth
             const depth = Math.abs(previous[index]);
-            const green = 14 + Math.min(70, depth * 0.6);
-            const blue = 27 + Math.min(80, depth * 0.7);
+            const green = WATER_BASE_GREEN + Math.min(70, depth * 0.6);
+            const blue = WATER_BASE_BLUE + Math.min(80, depth * 0.7);
 
             data[pixelIndex] = 10;         // R
             data[pixelIndex + 1] = green;  // G - varies with depth
@@ -143,7 +151,7 @@ export default function SubtleRippleBackground() {
       drop(x, y, size, strength);
     };
 
-    const ambientInterval = setInterval(createAmbientRipple, 3000);
+    const ambientInterval = setInterval(createAmbientRipple, WATER_AMBIENT_INTERVAL_MS);
 
     // Animation loop
     let animationId: number;
