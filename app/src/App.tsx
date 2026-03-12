@@ -29,6 +29,11 @@ const MAX_TRADES_HISTORY = 50;
 const VOL_MILLION = 1000000;
 const VOL_THOUSAND = 1000;
 
+const SPLASH_PROGRESS_TARGET = 100;
+const SPLASH_COMPLETION_DELAY_MS = 1000;
+const SPLASH_PROGRESS_INCREMENT = 2;
+const SPLASH_PROGRESS_INTERVAL_MS = 20;
+
 // Loading splash screen
 function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -36,14 +41,14 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
     const interval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 100) {
+        if (prev >= SPLASH_PROGRESS_TARGET) {
           clearInterval(interval);
-          setTimeout(onComplete, 1000);
-          return 100;
+          setTimeout(onComplete, SPLASH_COMPLETION_DELAY_MS);
+          return SPLASH_PROGRESS_TARGET;
         }
-        return prev + 2;
+        return prev + SPLASH_PROGRESS_INCREMENT;
       });
-    }, 20);
+    }, SPLASH_PROGRESS_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [onComplete]);
