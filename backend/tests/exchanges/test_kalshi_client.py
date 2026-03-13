@@ -227,3 +227,37 @@ async def test_place_order_auth_failure_skips_request(client):
     assert result is None
     client.login.assert_awaited_once()
     client.client.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_place_order_api_error(client):
+    client.auth_token = "token"
+
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    mock_response.text = "Bad Request"
+    client.client.post.return_value = mock_response
+
+    result = await client.place_order(
+        ticker="KXTEST", side="yes", action="buy", count=10, price=50
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_place_order_exception(client):
+    client.auth_token = "token"
+    client.client.post.side_effect = Exception("Network error")
+
+    result = await client.place_order(
+        ticker="KXTEST", side="yes", action="buy", count=10, price=50
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_close(client):
+    await client.close()
+    client.client.aclose.assert_awaited_once()
