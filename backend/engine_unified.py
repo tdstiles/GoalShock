@@ -325,7 +325,7 @@ class UnifiedTradingEngine:
             fixtures = await self.api_football.get_live_fixtures()
             return [{"fixture_id": f.fixture_id} for f in fixtures]
         except Exception as e:
-            logger.error(f"Error fetching fixtures: {e}")
+            logger.error(f"Error fetching fixtures: {e}", exc_info=True)
             return []
 
     async def _fetch_pre_match_odds(
@@ -345,7 +345,8 @@ class UnifiedTradingEngine:
                 pass
             except Exception as e:
                 logger.error(
-                    f"Error fetching Polymarket pre-match odds for fixture {fixture_id}: {e}"
+                    f"Error fetching Polymarket pre-match odds for fixture {fixture_id}: {e}",
+                    exc_info=True,
                 )
 
         if self.api_football:
@@ -353,7 +354,8 @@ class UnifiedTradingEngine:
                 return await self.api_football.get_pre_match_odds(fixture_id)
             except Exception as e:
                 logger.error(
-                    f"Error fetching API-Football pre-match odds for fixture {fixture_id}: {e}"
+                    f"Error fetching API-Football pre-match odds for fixture {fixture_id}: {e}",
+                    exc_info=True,
                 )
 
         return None
@@ -496,7 +498,7 @@ class UnifiedTradingEngine:
                 logger.info("=" * 40)
 
             except Exception as e:
-                logger.error(f"Stats reporter error: {e}")
+                logger.error(f"Stats reporter error: {e}", exc_info=True)
 
     def _export_session_logs(self):
         """Export session logs for active strategies."""
