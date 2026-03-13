@@ -1,3 +1,4 @@
+from backend.engine_unified import UnifiedTradingEngine, EngineConfig, TradingMode
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from backend.bot.realtime_ingestor import RealtimeIngestor
@@ -167,3 +168,27 @@ async def test_api_football_logging_has_exc_info():
         mock_logger.assert_called_with(
             "Error fetching fixture details: Details error", exc_info=True
         )
+
+
+@pytest.mark.asyncio
+async def test_engine_unified_logging_has_exc_info():
+    config = EngineConfig(mode=TradingMode.SIMULATION, enable_alpha_one=True, enable_alpha_two=True, enable_websocket=False, api_football_key="test", polymarket_key="test")
+    engine = UnifiedTradingEngine(config)
+
+    # Test _fetch_todays_fixtures error
+    with patch("backend.engine_unified.logger.error") as mock_logger:
+        engine.api_football = MagicMock()
+        engine.api_football.get_live_fixtures = AsyncMock(side_effect=Exception("API error"))
+        await engine._fetch_todays_fixtures()
+        mock_logger.assert_called_with("Error fetching fixtures: API error", exc_info=True)
+
+    # Test _pre_match_odds_loop error
+    with patch("backend.engine_unified.logger.error") as mock_logger:
+        with patch.object(engine, "_fetch_todays_fixtures", side_effect=Exception("Loop error")):
+            # Break loop
+            async def patched_sleep(*args, **kwargs):
+                engine.running = False
+            with patch("asyncio.sleep", side_effect=patched_sleep):
+                engine.running = True
+                await engine._pre_match_odds_loop()
+        mock_logger.assert_called_with("Pre-match odds loop error: Loop error", exc_info=True)
