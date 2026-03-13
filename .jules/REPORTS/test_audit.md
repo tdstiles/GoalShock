@@ -38,3 +38,4 @@
 - **2026-01-21**: Added `app/src/components/ButtonText.test.tsx` to cover the `ButtonText` component, increasing overall UI test coverage.
 - **2026-01-21**: Added `backend/tests/data/test_api_football.py` covering the `APIFootballClient` to ensure 100% test coverage for API-Football logic.
 - **2026-01-22**: Added `backend/tests/bot/test_realtime_ingestor_extended.py` and `backend/tests/core/test_security_utils.py` to ensure 100% test coverage for `RealtimeIngestor` and `security_utils`.
+- **2026-01-22**: Added `test_place_order_api_error` and `test_place_order_exception` tests to `backend/tests/exchanges/test_kalshi_client.py` to improve code coverage of failure modes for `KalshiClient`.
