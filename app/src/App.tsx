@@ -22,6 +22,17 @@ import {
 } from './types';
 
 // Configuration Constants
+const THEME = {
+  colors: {
+    primary: '#10b981',
+    secondary: '#14b8a6',
+    accent: '#84cc16',
+    danger: '#ef4444',
+    textMuted: '#94a3b8',
+    background: '#0a0e27',
+  }
+};
+
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/live';
 const DATA_REFRESH_INTERVAL_MS = 10000;
 const STATUS_POLL_INTERVAL_MS = 5000;
@@ -64,7 +75,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         left: 0,
         width: '100%',
         height: '100%',
-        background: '#0a0e27',
+        background: THEME.colors.background,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -75,7 +86,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
       <SubtleRippleBackground />
       <h1 style={{
         fontSize: '4rem',
-        background: 'linear-gradient(135deg, #10b981, #14b8a6)',
+        background: `linear-gradient(135deg, ${THEME.colors.primary}, ${THEME.colors.secondary})`,
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         marginBottom: '40px'
@@ -92,7 +103,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         <motion.div
           style={{
             height: '100%',
-            background: 'linear-gradient(90deg, #10b981, #14b8a6)',
+            background: `linear-gradient(90deg, ${THEME.colors.primary}, ${THEME.colors.secondary})`,
             borderRadius: '3px'
           }}
           initial={{ width: '0%' }}
@@ -100,7 +111,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
           transition={{ duration: 0.1 }}
         />
       </div>
-      <p style={{ marginTop: '20px', color: '#10b981', fontSize: '1.2rem' }}>
+      <p style={{ marginTop: '20px', color: THEME.colors.primary, fontSize: '1.2rem' }}>
         {progress}%
       </p>
     </motion.div>
@@ -192,7 +203,7 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
       >
         <h1 style={{
           fontSize: '5rem',
-          background: 'linear-gradient(135deg, #10b981, #14b8a6, #84cc16)',
+          background: `linear-gradient(135deg, ${THEME.colors.primary}, ${THEME.colors.secondary}, ${THEME.colors.accent})`,
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           marginBottom: '30px',
@@ -203,7 +214,7 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
 
         <p style={{
           fontSize: '1.5rem',
-          color: '#94a3b8',
+          color: THEME.colors.textMuted,
           marginBottom: '50px',
           maxWidth: '600px'
         }}>
@@ -225,9 +236,9 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
           maxWidth: '900px'
         }}>
           {[
-            { title: 'Live Detection', desc: 'Sub-second goal alerts', color: '#10b981' },
-            { title: 'Auto Trading', desc: 'Kalshi + Polymarket', color: '#14b8a6' },
-            { title: 'Underdog Edge', desc: 'Exploit market lag', color: '#84cc16' }
+            { title: 'Live Detection', desc: 'Sub-second goal alerts', color: THEME.colors.primary },
+            { title: 'Auto Trading', desc: 'Kalshi + Polymarket', color: THEME.colors.secondary },
+            { title: 'Underdog Edge', desc: 'Exploit market lag', color: THEME.colors.accent }
           ].map((feature, i) => (
             <motion.div
               key={i}
@@ -240,7 +251,7 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
               <h3 style={{ color: feature.color, marginBottom: '10px' }}>
                 {feature.title}
               </h3>
-              <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+              <p style={{ color: THEME.colors.textMuted, fontSize: '0.9rem' }}>
                 {feature.desc}
               </p>
             </motion.div>
