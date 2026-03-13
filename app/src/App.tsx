@@ -115,6 +115,29 @@ const formatVolume = (vol: number | undefined) => {
   return `$${vol.toLocaleString()}`;
 };
 
+// Helper to format Price
+const formatPrice = (price: number | undefined) => {
+  if (price === undefined || isNaN(price)) return '$0.00';
+  return `$${price.toFixed(2)}`;
+};
+
+// Helper to format PnL
+const formatPnL = (pnl: number | undefined) => {
+  const value = pnl || 0;
+  const sign = value >= 0 ? '+' : '-';
+  return `${sign}$${Math.abs(value).toFixed(2)}`;
+};
+
+// Helper to format Uptime
+const formatUptime = (seconds: number | undefined) => {
+  if (!seconds) return '0m';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m === 0 && seconds > 0) return '< 1m';
+  return `${m}m`;
+};
+
 // Main App
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -304,11 +327,11 @@ function LiveMarketsSection() {
                     <div style={{ display: 'flex', gap: '25px' }}>
                       <div>
                         <p style={{ color: '#10b981', fontSize: '0.75rem', marginBottom: '5px', fontWeight: 'bold' }}>YES</p>
-                        <p style={{ fontWeight: 'bold', fontSize: '1.3rem', color: '#10b981' }}>${market.yes_price?.toFixed(2)}</p>
+                        <p style={{ fontWeight: 'bold', fontSize: '1.3rem', color: '#10b981' }}>{formatPrice(market.yes_price)}</p>
                       </div>
                       <div>
                         <p style={{ color: '#ef4444', fontSize: '0.75rem', marginBottom: '5px', fontWeight: 'bold' }}>NO</p>
-                        <p style={{ fontWeight: 'bold', fontSize: '1.3rem', color: '#ef4444' }}>${market.no_price?.toFixed(2)}</p>
+                        <p style={{ fontWeight: 'bold', fontSize: '1.3rem', color: '#ef4444' }}>{formatPrice(market.no_price)}</p>
                       </div>
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
@@ -524,7 +547,7 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
               <div>
                 <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Uptime</p>
                 <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#14b8a6' }}>
-                  {botStatus?.uptime ? Math.floor(botStatus.uptime / 60) : 0}m
+                  {formatUptime(botStatus?.uptime)}
                 </p>
               </div>
               <div>
@@ -546,7 +569,7 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
                   fontWeight: 'bold',
                   color: (botStatus?.total_pnl || 0) >= 0 ? '#10b981' : '#ef4444'
                 }}>
-                  ${(botStatus?.total_pnl || 0).toFixed(2)}
+                  {formatPnL(botStatus?.total_pnl)}
                 </p>
               </div>
             </div>
@@ -625,10 +648,10 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
                       fontWeight: 'bold',
                       color: trade.side === 'YES' ? '#10b981' : '#ef4444'
                     }}>
-                      {trade.side} @ ${trade.price.toFixed(2)}
+                      {trade.side} @ {formatPrice(trade.price)}
                     </p>
                     <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '4px' }}>
-                      Size: ${trade.size}
+                      Size: {formatPrice(trade.size)}
                     </p>
                   </div>
                 </div>
@@ -639,9 +662,9 @@ function DashboardView({ onMarkets, onSettings, onBack }: { onMarkets: () => voi
                   {trade.pnl !== undefined && (
                     <p style={{
                       fontWeight: 'bold',
-                      color: trade.pnl > 0 ? '#10b981' : '#ef4444'
+                      color: trade.pnl >= 0 ? '#10b981' : '#ef4444'
                     }}>
-                      P&L: {trade.pnl > 0 ? '+' : ''}${trade.pnl.toFixed(2)}
+                      P&L: {formatPnL(trade.pnl)}
                     </p>
                   )}
                   <span style={{
@@ -751,11 +774,11 @@ function MarketsView({ onBack }: { onBack: () => void }) {
                     <div style={{ display: 'flex', gap: '20px' }}>
                       <div>
                         <p style={{ color: '#10b981', fontSize: '0.75rem', marginBottom: '4px' }}>YES</p>
-                        <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>${market.yes_price?.toFixed(2)}</p>
+                        <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{formatPrice(market.yes_price)}</p>
                       </div>
                       <div>
                         <p style={{ color: '#ef4444', fontSize: '0.75rem', marginBottom: '4px' }}>NO</p>
-                        <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>${market.no_price?.toFixed(2)}</p>
+                        <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{formatPrice(market.no_price)}</p>
                       </div>
                     </div>
                     <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
