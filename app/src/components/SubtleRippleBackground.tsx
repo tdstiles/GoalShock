@@ -12,6 +12,21 @@ const WATER_AMBIENT_INTERVAL_MS = 3000;
 const WATER_BASE_GREEN = 14;
 const WATER_BASE_BLUE = 27;
 
+// Internal Physics and Display Constants
+const WATER_DISTORTION_FACTOR = 1.5;
+const WATER_COLOR_MAX_GREEN = 70;
+const WATER_COLOR_DEPTH_GREEN_MULTIPLIER = 0.6;
+const WATER_COLOR_MAX_BLUE = 80;
+const WATER_COLOR_DEPTH_BLUE_MULTIPLIER = 0.7;
+
+// Mouse Interaction Constants
+const MOUSE_VELOCITY_MAX = 1.5;
+const MOUSE_VELOCITY_DIVISOR = 100;
+
+// Ambient Ripple Constants
+const AMBIENT_RIPPLE_SIZE_MULTIPLIER = 0.6;
+const AMBIENT_RIPPLE_STRENGTH_MULTIPLIER = 0.25;
+
 export default function SubtleRippleBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -95,16 +110,16 @@ export default function SubtleRippleBackground() {
           const dy = previous[index - width] - previous[index + width];
 
           // Apply SMOOTH distortion offset for water-like effect
-          const offsetX = Math.round(x + dx * 1.5);
-          const offsetY = Math.round(y + dy * 1.5);
+          const offsetX = Math.round(x + dx * WATER_DISTORTION_FACTOR);
+          const offsetY = Math.round(y + dy * WATER_DISTORTION_FACTOR);
 
           if (offsetX >= 0 && offsetX < width && offsetY >= 0 && offsetY < height) {
             const pixelIndex = (y * width + x) * 4;
 
             // Enhanced green-teal water color with gradient depth
             const depth = Math.abs(previous[index]);
-            const green = WATER_BASE_GREEN + Math.min(70, depth * 0.6);
-            const blue = WATER_BASE_BLUE + Math.min(80, depth * 0.7);
+            const green = WATER_BASE_GREEN + Math.min(WATER_COLOR_MAX_GREEN, depth * WATER_COLOR_DEPTH_GREEN_MULTIPLIER);
+            const blue = WATER_BASE_BLUE + Math.min(WATER_COLOR_MAX_BLUE, depth * WATER_COLOR_DEPTH_BLUE_MULTIPLIER);
 
             data[pixelIndex] = 10;         // R
             data[pixelIndex + 1] = green;  // G - varies with depth
@@ -132,7 +147,7 @@ export default function SubtleRippleBackground() {
 
       // Create smooth ripples on movement with dynamic strength
       if (dx + dy > 2) {
-        const velocity = Math.min(1.5, (dx + dy) / 100);
+        const velocity = Math.min(MOUSE_VELOCITY_MAX, (dx + dy) / MOUSE_VELOCITY_DIVISOR);
         drop(x, y, dropRadius, dropStrength * velocity);
       }
 
@@ -146,8 +161,8 @@ export default function SubtleRippleBackground() {
     const createAmbientRipple = () => {
       const x = Math.random() * width;
       const y = Math.random() * height;
-      const size = dropRadius * 0.6;
-      const strength = dropStrength * 0.25;
+      const size = dropRadius * AMBIENT_RIPPLE_SIZE_MULTIPLIER;
+      const strength = dropStrength * AMBIENT_RIPPLE_STRENGTH_MULTIPLIER;
       drop(x, y, size, strength);
     };
 
